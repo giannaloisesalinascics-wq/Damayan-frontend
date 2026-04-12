@@ -136,7 +136,6 @@
 }
 
 .citizen-response-brand-side,
-.citizen-response-topnav,
 .citizen-response-actions,
 .citizen-response-meta-actions,
 .citizen-response-ticket-head,
@@ -157,15 +156,13 @@
   font-weight: 900;
 }
 
-.citizen-response-topnav {
-  gap: 1.5rem;
-}
-
-.citizen-response-topnav a {
-  color: #444742;
-  text-decoration: none;
-  font-size: 0.92rem;
-  font-weight: 700;
+.citizen-response-topbar-label {
+  margin: 0;
+  color: #586054;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .citizen-response-actions {
@@ -206,6 +203,51 @@
   color: #444742;
   border-radius: 999px;
   text-decoration: none;
+}
+
+.citizen-response-meta-actions .citizen-response-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.45rem;
+  background: #eef4ed;
+  color: #1a1c19;
+}
+
+.citizen-response-profile-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0d631b, #2e7d32);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.citizen-response-profile-copy {
+  display: grid;
+  line-height: 1.05;
+}
+
+.citizen-response-profile-copy strong,
+.citizen-response-profile-copy small {
+  display: block;
+}
+
+.citizen-response-profile-copy strong {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.citizen-response-profile-copy small {
+  color: #586054;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .citizen-response-main {
@@ -573,10 +615,6 @@
 }
 
 @media (max-width: 1080px) {
-  .citizen-response-topnav {
-    display: none;
-  }
-
   .citizen-response-workspace {
     grid-template-columns: 1fr;
   }

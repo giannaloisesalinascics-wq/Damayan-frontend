@@ -1,6 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 export default function BeforeCalamityPage() {
+  const [activeNavItem, setActiveNavItem] = useState("Dashboard");
+
+  const sidebarItems = [
+    { label: "Dashboard", icon: "D" },
+    { label: "Assessment", icon: "A" },
+    { label: "Distribution", icon: "P" },
+    { label: "Recovery", icon: "R" },
+    { label: "Impact Reports", icon: "I" },
+    { label: "Settings", icon: "S" },
+  ];
+
   const inventory = [
     {
       name: "Potable Water",
@@ -74,30 +88,17 @@ export default function BeforeCalamityPage() {
             </div>
 
             <nav className="preparedness-nav">
-              <button className="is-active" type="button">
-                <span className="nav-icon">D</span>
-                <span>Dashboard</span>
-              </button>
-              <button type="button">
-                <span className="nav-icon">A</span>
-                <span>Assessment</span>
-              </button>
-              <button type="button">
-                <span className="nav-icon">P</span>
-                <span>Distribution</span>
-              </button>
-              <button type="button">
-                <span className="nav-icon">R</span>
-                <span>Recovery</span>
-              </button>
-              <button type="button">
-                <span className="nav-icon">I</span>
-                <span>Impact Reports</span>
-              </button>
-              <button type="button">
-                <span className="nav-icon">S</span>
-                <span>Settings</span>
-              </button>
+              {sidebarItems.map((item) => (
+                <button
+                  key={item.label}
+                  className={activeNavItem === item.label ? "is-active" : undefined}
+                  type="button"
+                  onClick={() => setActiveNavItem(item.label)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
             </nav>
           </div>
 
@@ -135,12 +136,7 @@ export default function BeforeCalamityPage() {
           </div>
 
           <div className="topbar-right">
-            <button type="button">N</button>
-            <button type="button">H</button>
             <span className="topbar-divider" />
-            <button className="deploy-button" type="button">
-              Deploy Team
-            </button>
             <div className="topbar-avatar">SM</div>
           </div>
         </header>
@@ -167,7 +163,7 @@ export default function BeforeCalamityPage() {
                     continue to the during calamity dashboard.
                   </p>
                 </div>
-                <Link className="phase-transition-link" href="/duringcalamity">
+                <Link className="phase-transition-link" href="/site-manager/duringcalamity">
                   Open Active Response
                 </Link>
               </div>
@@ -232,7 +228,7 @@ export default function BeforeCalamityPage() {
                     </div>
                     <Link
                       className="scanner-prep-link"
-                      href="/duringcalamity"
+                      href="/site-manager/duringcalamity"
                     >
                       Open Check-In Flow
                     </Link>

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 const checklist = [
   {
@@ -25,16 +28,41 @@ const checklist = [
 ];
 
 const sidebarLinks = [
-  "Home",
-  "Risk Map",
-  "Checklists",
-  "Reporting",
-  "Support",
+  { label: "Home", href: "/citizen/beforecalamity", key: "home" },
+  { label: "Risk Map", href: "/citizen/beforecalamity#sector-map", key: "risk-map" },
+  { label: "Checklists", href: "/citizen/beforecalamity#checklists", key: "checklists" },
+  { label: "Reporting", href: "/citizen/duringcalamity#tickets", key: "reporting" },
+  { label: "Support", href: "/citizen/duringcalamity#broadcast", key: "support" },
 ];
 
-const topLinks = ["Dashboard", "Emergency", "Shelters", "Prepare"];
-
 export default function CitizenBeforeCalamityPage() {
+  const [activeSidebarItem, setActiveSidebarItem] = useState("home");
+
+  useEffect(() => {
+    function syncActiveSidebarItem() {
+      const hash = window.location.hash;
+
+      if (hash === "#sector-map") {
+        setActiveSidebarItem("risk-map");
+        return;
+      }
+
+      if (hash === "#checklists") {
+        setActiveSidebarItem("checklists");
+        return;
+      }
+
+      setActiveSidebarItem("home");
+    }
+
+    syncActiveSidebarItem();
+    window.addEventListener("hashchange", syncActiveSidebarItem);
+
+    return () => {
+      window.removeEventListener("hashchange", syncActiveSidebarItem);
+    };
+  }, []);
+
   return (
     <div className="citizen-web-page">
       <aside className="citizen-web-sidebar">
@@ -46,19 +74,10 @@ export default function CitizenBeforeCalamityPage() {
         <nav className="citizen-web-sidebar-nav" aria-label="Citizen sections">
           {sidebarLinks.map((item, index) => (
             <Link
-              key={item}
-              className={index === 0 ? "is-active" : undefined}
-              href={
-                index === 0
-                  ? "/citizen/beforecalamity"
-                  : index === 1
-                    ? "#sector-map"
-                    : index === 2
-                      ? "#checklists"
-                      : index === 3
-                        ? "/citizen/duringcalamity"
-                        : "#support"
-              }
+              key={item.label}
+              className={activeSidebarItem === item.key ? "is-active" : undefined}
+              href={item.href}
+              onClick={() => setActiveSidebarItem(item.key)}
             >
               <span className="citizen-web-nav-icon" aria-hidden="true">
                 {index === 0
@@ -71,7 +90,7 @@ export default function CitizenBeforeCalamityPage() {
                         ? "R"
                         : "S"}
               </span>
-              <span>{item}</span>
+              <span>{item.label}</span>
             </Link>
           ))}
         </nav>
@@ -86,33 +105,24 @@ export default function CitizenBeforeCalamityPage() {
       <div className="citizen-web-shell">
         <header className="citizen-web-topbar">
           <div className="citizen-web-topbar-inner">
-            <Link className="citizen-web-logo" href="/citizen/beforecalamity">
-              ReliefConnect
-            </Link>
-
-            <nav className="citizen-web-topnav" aria-label="Primary">
-              {topLinks.map((item, index) => (
-                <Link
-                  key={item}
-                  className={index === 0 ? "is-active" : undefined}
-                  href={
-                    index === 0
-                      ? "/citizen/beforecalamity"
-                      : index === 1
-                        ? "/citizen/duringcalamity"
-                        : index === 2
-                          ? "#sector-map"
-                          : "#checklists"
-                  }
-                >
-                  {item}
-                </Link>
-              ))}
-            </nav>
+            <div className="citizen-web-topbar-copy">
+              <Link className="citizen-web-logo" href="/citizen/beforecalamity">
+                ReliefConnect
+              </Link>
+              <p>Preparedness dashboard</p>
+            </div>
 
             <div className="citizen-web-topactions">
               <Link href="/citizen/duringcalamity#broadcast">Alerts</Link>
-              <Link href="/citizen/login">Account</Link>
+              <Link className="citizen-web-profile-chip" href="/citizen/beforecalamity" aria-label="Open citizen profile">
+                <span className="citizen-web-profile-avatar" aria-hidden="true">
+                  CP
+                </span>
+                <span className="citizen-web-profile-copy">
+                  <strong>Citizen</strong>
+                  <small>Profile</small>
+                </span>
+              </Link>
             </div>
           </div>
         </header>

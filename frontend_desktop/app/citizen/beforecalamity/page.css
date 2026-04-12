@@ -142,29 +142,24 @@
   font-weight: 900;
 }
 
-.citizen-web-topnav,
+.citizen-web-topbar-copy,
 .citizen-web-topactions,
 .citizen-web-footer-actions {
   display: flex;
   align-items: center;
 }
 
-.citizen-web-topnav {
-  gap: 2rem;
+.citizen-web-topbar-copy {
+  gap: 1rem;
 }
 
-.citizen-web-topnav a {
-  padding-bottom: 0.25rem;
-  border-bottom: 2px solid transparent;
-  color: #444742;
-  text-decoration: none;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
-.citizen-web-topnav a.is-active {
-  color: #0d631b;
-  border-color: #0d631b;
+.citizen-web-topbar-copy p {
+  margin: 0;
+  color: #586054;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .citizen-web-topactions {
@@ -186,6 +181,52 @@
   padding: 0.7rem 0.9rem;
   border-radius: 999px;
   background: #f0f1eb;
+}
+
+.citizen-web-topactions .citizen-web-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.45rem;
+  border-radius: 999px;
+  background: #eef4ed;
+  color: #1a1c19;
+}
+
+.citizen-web-profile-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0d631b, #2e7d32);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.citizen-web-profile-copy {
+  display: grid;
+  line-height: 1.05;
+}
+
+.citizen-web-profile-copy strong,
+.citizen-web-profile-copy small {
+  display: block;
+}
+
+.citizen-web-profile-copy strong {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.citizen-web-profile-copy small {
+  color: #586054;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .citizen-web-main {
@@ -658,10 +699,6 @@
 }
 
 @media (max-width: 1080px) {
-  .citizen-web-topnav {
-    display: none;
-  }
-
   .citizen-web-editorial {
     grid-template-columns: 1fr;
   }
@@ -690,6 +727,7 @@
     padding: 2rem;
   }
 
+  .citizen-web-topbar-copy,
   .citizen-web-weather-main,
   .citizen-web-footer-actions,
   .citizen-web-topbar-inner {

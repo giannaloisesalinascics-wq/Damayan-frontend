@@ -8,7 +8,7 @@ export default function SiteManagerLogInPage() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/beforecalamity");
+    router.push("/site-manager/beforecalamity");
   }
 
   return (

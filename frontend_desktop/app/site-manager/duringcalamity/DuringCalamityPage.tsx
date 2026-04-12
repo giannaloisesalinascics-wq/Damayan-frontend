@@ -1,6 +1,21 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 export default function DuringCalamityPage() {
+  const [checkInMode, setCheckInMode] = useState<"scan" | "manual">("scan");
+  const [activeNavItem, setActiveNavItem] = useState("Dashboard");
+
+  const sidebarItems = [
+    { label: "Dashboard", icon: "D" },
+    { label: "Assessment", icon: "A" },
+    { label: "Distribution", icon: "P" },
+    { label: "Recovery", icon: "R" },
+    { label: "Impact Reports", icon: "I" },
+    { label: "Settings", icon: "S" },
+  ];
+
   const resources = [
     {
       name: "Potable Water",
@@ -76,30 +91,17 @@ export default function DuringCalamityPage() {
             </div>
 
             <nav className="response-nav">
-              <button className="is-active" type="button">
-                <span className="response-nav-icon">D</span>
-                <span>Dashboard</span>
-              </button>
-              <button type="button">
-                <span className="response-nav-icon">A</span>
-                <span>Assessment</span>
-              </button>
-              <button type="button">
-                <span className="response-nav-icon">P</span>
-                <span>Distribution</span>
-              </button>
-              <button type="button">
-                <span className="response-nav-icon">R</span>
-                <span>Recovery</span>
-              </button>
-              <button type="button">
-                <span className="response-nav-icon">I</span>
-                <span>Impact Reports</span>
-              </button>
-              <button type="button">
-                <span className="response-nav-icon">S</span>
-                <span>Settings</span>
-              </button>
+              {sidebarItems.map((item) => (
+                <button
+                  key={item.label}
+                  className={activeNavItem === item.label ? "is-active" : undefined}
+                  type="button"
+                  onClick={() => setActiveNavItem(item.label)}
+                >
+                  <span className="response-nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
             </nav>
           </div>
 
@@ -179,7 +181,7 @@ export default function DuringCalamityPage() {
                   incident reporting.
                 </p>
               </div>
-              <Link className="swimlane-back-link" href="/beforecalamity">
+              <Link className="swimlane-back-link" href="/site-manager/beforecalamity">
                 Back to Before Calamity
               </Link>
             </div>
@@ -240,37 +242,60 @@ export default function DuringCalamityPage() {
               </article>
 
               <div className="scanner-decision-card">
-                <div className="scanner-decision-diamond">
-                  <span>Has QR Code / App?</span>
-                </div>
                 <div className="scanner-path-grid">
-                  <div className="scanner-path-card">
+                  <button
+                    className={`scanner-path-card ${
+                      checkInMode === "scan" ? "is-active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => setCheckInMode("scan")}
+                  >
                     <strong>Yes</strong>
-                    <p>Scan QR</p>
-                  </div>
-                  <div className="scanner-path-card">
+                    <p>Scan QR Code</p>
+                  </button>
+                  <button
+                    className={`scanner-path-card ${
+                      checkInMode === "manual" ? "is-active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => setCheckInMode("manual")}
+                  >
                     <strong>No</strong>
-                    <p>Manually Log ID</p>
-                  </div>
+                    <p>Manual Entry</p>
+                  </button>
                 </div>
                 <div className="scanner-followup">
-                  Both paths continue to capacity updates and distribution
-                  tracking.
+                  {checkInMode === "scan"
+                    ? "Scanner mode is active. Use the camera station to capture evacuee QR credentials."
+                    : "Manual backup is active. Enter evacuee details below when no QR code is available."}
                 </div>
               </div>
 
-              <div className="scanner-manual-card">
-                <h3>Manual Intake Backup</h3>
-                <div className="manual-field">
-                  <label>Evacuee Name</label>
-                  <input placeholder="Enter full name" type="text" />
+              {checkInMode === "manual" ? (
+                <div className="scanner-manual-card">
+                  <h3>Manual Intake Backup</h3>
+                  <div className="manual-field">
+                    <label>Evacuee Name</label>
+                    <input placeholder="Enter full name" type="text" />
+                  </div>
+                  <div className="manual-field">
+                    <label>Temporary ID</label>
+                    <input placeholder="Assign or enter ID" type="text" />
+                  </div>
+                  <button type="button">Save Manual Entry</button>
                 </div>
-                <div className="manual-field">
-                  <label>Temporary ID</label>
-                  <input placeholder="Assign or enter ID" type="text" />
+              ) : (
+                <div className="scanner-manual-card scanner-manual-card-placeholder">
+                  <h3>QR Scanner Ready</h3>
+                  <p>
+                    Manual intake stays hidden until the manager selects
+                    <strong> Manual Entry</strong>.
+                  </p>
+                  <button type="button" onClick={() => setCheckInMode("manual")}>
+                    Switch To Manual Entry
+                  </button>
                 </div>
-                <button type="button">Save Manual Entry</button>
-              </div>
+              )}
             </div>
           </section>
 
