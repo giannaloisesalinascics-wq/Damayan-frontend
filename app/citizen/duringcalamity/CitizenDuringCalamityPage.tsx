@@ -54,7 +54,7 @@ export default function CitizenDuringCalamityPage() {
                       ? "#tickets"
                       : index === 3
                         ? "#broadcast"
-                        : "/citizen/auth"
+                        : "/citizen/login"
               }
             >
               <span className="citizen-response-nav-icon" aria-hidden="true">
@@ -111,7 +111,7 @@ export default function CitizenDuringCalamityPage() {
               </Link>
               <div className="citizen-response-meta-actions">
                 <Link href="#broadcast">Alerts</Link>
-                <Link href="/citizen/auth">Account</Link>
+                <Link href="/citizen/login">Account</Link>
               </div>
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function CitizenDuringCalamityPage() {
 
           <section className="citizen-response-footer-actions">
             <Link href="/citizen/beforecalamity">Back To Prepare</Link>
-            <Link href="/citizen/auth">Sign Out</Link>
+            <Link href="/citizen/login">Sign Out</Link>
           </section>
         </main>
       </div>
@@ -213,7 +213,7 @@ export default function CitizenDuringCalamityPage() {
         </Link>
         <Link href="#broadcast">SOS</Link>
         <Link href="#tickets">Tasks</Link>
-        <Link href="/citizen/auth">Profile</Link>
+        <Link href="/citizen/login">Profile</Link>
       </nav>
     </div>
   );

@@ -37,6 +37,9 @@ const statusStyle: Record<string, { bg: string; color: string }> = {
 export default function DispatcherBeforeCalamity() {
   const [activeTab, setActiveTab] = useState<"incidents" | "resources" | "sites">("incidents");
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const handleSignOut = () => {
+    window.location.href = "/loginportal";
+  };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f5f6f8", fontFamily: "'Inter', sans-serif" }}>
@@ -73,7 +76,7 @@ export default function DispatcherBeforeCalamity() {
         </nav>
         <div style={{ padding: "0 8px" }}>
           {["Log Rapid Report", "Support", "Sign Out"].map(label => (
-            <div key={label} style={{ padding: "8px 10px", fontSize: 12, color: "#6b7494", cursor: "pointer" }}>{label}</div>
+            <div key={label} onClick={label === "Sign Out" ? handleSignOut : undefined} style={{ padding: "8px 10px", fontSize: 12, color: "#6b7494", cursor: "pointer" }}>{label}</div>
           ))}
         </div>
       </aside>

@@ -1,0 +1,7 @@
+{
+  "/citizen/login/page": "app/citizen/login/page.js",
+  "/site-manager/login/page": "app/site-manager/login/page.js",
+  "/dispatcher/beforecalamity/page": "app/dispatcher/beforecalamity/page.js",
+  "/citizen/signup/page": "app/citizen/signup/page.js",
+  "/admin/page": "app/admin/page.js"
+}

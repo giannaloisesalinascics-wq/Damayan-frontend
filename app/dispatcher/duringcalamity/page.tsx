@@ -48,6 +48,9 @@ export default function DispatcherDuringCalamity() {
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcastSent, setBroadcastSent] = useState(false);
   const [filterStatus, setFilterStatus] = useState<TicketStatus | "ALL">("ALL");
+  const handleSignOut = () => {
+    window.location.href = "/loginportal";
+  };
   const [liveLog, setLiveLog] = useState([
     { time: "08:42 AM", type: "WARNING", msg: "Bridge in Sector 7 unstable. Rerouting team Bravo-2." },
     { time: "08:35 AM", type: "DEPLOYMENT", msg: "Team Delta arrived at South Shelter." },
@@ -183,7 +186,7 @@ export default function DispatcherDuringCalamity() {
         </nav>
         <div style={{ padding: "0 8px" }}>
           {["Log Rapid Report", "Support", "Sign Out"].map(label => (
-            <div key={label} style={{ padding: "8px 10px", fontSize: 12, color: "#6b7494", cursor: "pointer" }}>{label}</div>
+            <div key={label} onClick={label === "Sign Out" ? handleSignOut : undefined} style={{ padding: "8px 10px", fontSize: 12, color: "#6b7494", cursor: "pointer" }}>{label}</div>
           ))}
         </div>
       </aside>

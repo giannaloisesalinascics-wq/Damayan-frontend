@@ -1,0 +1,444 @@
+/*!****************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/login/page.css ***!
+  \****************************************************************************************************************************************************************************************************************************************************************/
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+}
+
+.login-layout {
+  width: min(1200px, 100%);
+  min-height: 800px;
+  display: grid;
+  grid-template-columns: 7fr 5fr;
+  background: var(--surface);
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 32px 64px -12px rgba(26, 28, 25, 0.1);
+}
+
+.brand-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 64px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+  color: #ffffff;
+}
+
+.brand-inner {
+  position: relative;
+  z-index: 2;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.brand-header,
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.brand-name {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.hero-title {
+  margin: 56px 0 24px;
+  font-size: clamp(3.6rem, 5.4vw, 6rem);
+  line-height: 0.94;
+  letter-spacing: -0.07em;
+}
+
+.hero-copy {
+  max-width: 470px;
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.75;
+  color: rgba(203, 255, 194, 0.92);
+}
+
+.brand-footer {
+  display: grid;
+  grid-gap: 28px;
+  gap: 28px;
+}
+
+.section-tag {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.section-line {
+  width: 48px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.avatar-row {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  margin-left: -12px;
+  border-radius: 999px;
+  border: 3px solid var(--primary);
+  display: grid;
+  place-items: center;
+  background: #f2fff0;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.avatar-count {
+  background: var(--secondary);
+  color: #604100;
+}
+
+.brand-glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(80px);
+  opacity: 0.65;
+}
+
+.brand-glow-top {
+  top: -12%;
+  right: -10%;
+  width: 520px;
+  height: 520px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.brand-glow-bottom {
+  bottom: -8%;
+  left: -5%;
+  width: 360px;
+  height: 360px;
+  background: rgba(163, 246, 156, 0.16);
+}
+
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 56px 64px;
+}
+
+.mobile-brand {
+  display: none;
+  margin-bottom: 48px;
+}
+
+.brand-icon-mobile {
+  background: rgba(13, 99, 27, 0.1);
+  color: var(--primary);
+}
+
+.brand-name-mobile {
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+
+.intro-block {
+  margin-bottom: 36px;
+}
+
+.intro-block h2 {
+  margin: 0 0 12px;
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.intro-block p,
+.signup-copy {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.login-form {
+  display: grid;
+  grid-gap: 26px;
+  gap: 26px;
+}
+
+.portal-switcher {
+  display: grid;
+  grid-gap: 14px;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.portal-card {
+  display: block;
+  padding: 18px;
+  border-radius: 18px;
+  text-decoration: none;
+  border: 1px solid rgba(112, 122, 108, 0.16);
+  background: #f7f7f2;
+}
+
+.portal-card-active {
+  background: rgba(13, 99, 27, 0.08);
+  border-color: rgba(13, 99, 27, 0.18);
+}
+
+.portal-card-link {
+  color: inherit;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.portal-card-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(13, 99, 27, 0.26);
+}
+
+.portal-card-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #18411f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.portal-card p {
+  margin: 0;
+  color: #586054;
+  line-height: 1.6;
+}
+
+.field-group {
+  display: grid;
+  grid-gap: 10px;
+  gap: 10px;
+}
+
+.field-group label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.field-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.field-row a,
+.signup-copy a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.field-group input[type="email"],
+.field-group input[type="password"] {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid var(--outline);
+  background: var(--surface-low);
+  color: var(--text);
+  padding: 18px 0;
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.field-group input[type="email"]:focus,
+.field-group input[type="password"]:focus {
+  border-bottom-color: var(--primary);
+  background: var(--surface-muted);
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.remember-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.action-stack {
+  display: grid;
+  grid-gap: 18px;
+  gap: 18px;
+  padding-top: 6px;
+}
+
+.primary-button,
+.secondary-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button {
+  width: 100%;
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(13, 99, 27, 0.28);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.divider span {
+  flex: 1 1;
+  height: 1px;
+  background: var(--outline);
+}
+
+.divider p {
+  margin: 0;
+  color: #707a6c;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 16px;
+  gap: 16px;
+}
+
+.secondary-button {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-low);
+  color: var(--text);
+  border: 1px solid rgba(112, 122, 108, 0.12);
+  font-weight: 700;
+}
+
+.signup-copy {
+  margin-top: 34px;
+  text-align: center;
+}
+
+.legal-row {
+  margin-top: auto;
+  padding-top: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  color: rgba(112, 122, 108, 0.8);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.status-pill {
+  position: fixed;
+  top: 48px;
+  right: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(244, 244, 239, 0.78);
+  -webkit-backdrop-filter: blur(18px);
+          backdrop-filter: blur(18px);
+  border: 1px solid rgba(112, 122, 108, 0.12);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 8px rgba(13, 99, 27, 0.12);
+}
+
+@media (max-width: 1024px) {
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-panel,
+  .status-pill {
+    display: none;
+  }
+
+  .form-panel {
+    min-height: 100vh;
+    padding: 36px 24px;
+  }
+
+  .mobile-brand {
+    display: flex;
+  }
+}
+

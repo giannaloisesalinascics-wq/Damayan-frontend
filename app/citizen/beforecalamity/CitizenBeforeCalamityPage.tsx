@@ -106,7 +106,7 @@ export default function CitizenBeforeCalamityPage() {
 
             <div className="citizen-web-topactions">
               <Link href="/citizen/duringcalamity#broadcast">Alerts</Link>
-              <Link href="/citizen/auth">Account</Link>
+              <Link href="/citizen/login">Account</Link>
             </div>
           </div>
         </header>
@@ -264,7 +264,7 @@ export default function CitizenBeforeCalamityPage() {
           </section>
 
           <section className="citizen-web-footer-actions">
-            <Link href="/citizen/auth">Sign Out</Link>
+            <Link href="/citizen/login">Sign Out</Link>
             <Link className="is-primary" href="/citizen/duringcalamity">
               Open Response
             </Link>
@@ -274,7 +274,7 @@ export default function CitizenBeforeCalamityPage() {
 
       <Link
         className="citizen-web-support-fab"
-        href="/citizen/auth"
+        href="/citizen/login"
         aria-label="Open support"
         id="support"
       >
