@@ -81,7 +81,7 @@ export default function CitizenSignupPage() {
                     id="signup-id"
                     name="signup-id"
                     type="file"
-                    accept=".jpg,.jpeg,.png,.pdf"
+                    accept=".jpg,.jpeg,.png"
                     onChange={(event) =>
                       setSelectedIdName(
                         event.target.files?.[0]?.name ?? "No file selected"
@@ -96,7 +96,7 @@ export default function CitizenSignupPage() {
                       Upload file or drag your file here
                     </span>
                     <span className="citizen-signup-web-upload-hint">
-                      JPG, PNG, or PDF
+                      JPG, PNG, max 5MB 
                     </span>
                     <span className="citizen-signup-web-upload-name">
                       {selectedIdName}

@@ -13,4 +13,7 @@ export type AppRoute =
   | "citizen-login"
   | "citizen-signup"
   | "citizen-before"
+  | "citizen-before-self"
+  | "citizen-before-household"
+  | "citizen-before-household-members"
   | "citizen-during";
