@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MobileHeader, NavPills } from "../components/MobileShell";
 import { Button, Pill, Screen, SectionCard } from "../components/UI";
-import { theme } from "../theme";
+import { theme, fonts } from "../theme";
 
 export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
   const [active, setActive] = useState("Overview");
@@ -77,17 +77,17 @@ const styles = StyleSheet.create({
     color: theme.textMuted,
     textTransform: "uppercase",
     fontSize: 11,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1,
   },
   kpiValue: {
     color: theme.primary,
     fontSize: 30,
-    fontWeight: "900",
+    ...fonts.black,
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: "900",
+    ...fonts.black,
     color: theme.text,
     marginBottom: 14,
   },
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   rowTitle: {
-    fontWeight: "800",
+    ...fonts.extrabold,
     color: theme.text,
   },
   rowCopy: {

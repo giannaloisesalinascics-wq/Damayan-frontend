@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SectionCard, Screen } from "../components/UI";
-import { roleColors, theme } from "../theme";
+import { roleColors, theme, fonts } from "../theme";
 import { AppRoute, PortalRole } from "../types";
 
 const roles: { id: PortalRole; label: string; desc: string }[] = [
@@ -66,19 +66,19 @@ const styles = StyleSheet.create({
   },
   markText: {
     color: "#fff",
-    fontWeight: "900",
+    ...fonts.black,
   },
   brand: {
     color: "#fff",
     fontSize: 20,
-    fontWeight: "800",
+    ...fonts.extrabold,
     marginBottom: 16,
   },
   headline: {
     color: "#fff",
     fontSize: 34,
     lineHeight: 36,
-    fontWeight: "900",
+    ...fonts.black,
     marginBottom: 12,
   },
   copy: {
@@ -107,13 +107,13 @@ const styles = StyleSheet.create({
   roleLabel: {
     color: theme.text,
     fontSize: 16,
-    fontWeight: "800",
+    ...fonts.extrabold,
   },
   roleDesc: {
     color: theme.textMuted,
     lineHeight: 20,
   },
   openText: {
-    fontWeight: "800",
+    ...fonts.extrabold,
   },
 });

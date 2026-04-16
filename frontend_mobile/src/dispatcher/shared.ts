@@ -1,11 +1,11 @@
 import { StyleSheet } from "react-native";
-import { theme } from "../theme";
+import { theme, fonts } from "../theme";
 
 export const dispatcherStyles = StyleSheet.create({
   title: {
     fontSize: 30,
     lineHeight: 32,
-    fontWeight: "900",
+    ...fonts.black,
     color: theme.text,
     marginTop: 10,
   },
@@ -16,7 +16,7 @@ export const dispatcherStyles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: "900",
+    ...fonts.black,
     color: theme.text,
     marginBottom: 14,
   },
@@ -32,7 +32,7 @@ export const dispatcherStyles = StyleSheet.create({
     marginBottom: 12,
   },
   rowTitle: {
-    fontWeight: "800",
+    ...fonts.extrabold,
     color: theme.text,
   },
   rowCopy: {

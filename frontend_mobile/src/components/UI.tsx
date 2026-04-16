@@ -8,7 +8,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
-import { theme } from "../theme";
+import { theme, fonts } from "../theme";
 
 export function Screen({
   children,
@@ -52,12 +52,13 @@ export function Button({
   return (
     <Pressable
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.button,
         tone === "primary" && styles.buttonPrimary,
         tone === "secondary" && styles.buttonSecondary,
         tone === "ghost" && styles.buttonGhost,
         tone === "danger" && styles.buttonDanger,
+        pressed && styles.buttonPressed,
       ]}
     >
       <Text
@@ -87,7 +88,7 @@ export function Input({
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor="#8a968f"
+        placeholderTextColor={theme.textLight}
         secureTextEntry={secureTextEntry}
         style={styles.input}
       />
@@ -106,17 +107,17 @@ export function Pill({
     <View
       style={[
         styles.pill,
-        tone === "success" && { backgroundColor: theme.successSoft },
-        tone === "warning" && { backgroundColor: theme.warningSoft },
-        tone === "danger" && { backgroundColor: theme.dangerSoft },
-        tone === "info" && { backgroundColor: "#dfeafb" },
+        tone === "success" && { backgroundColor: theme.successLight },
+        tone === "warning" && { backgroundColor: theme.warningLight },
+        tone === "danger" && { backgroundColor: theme.dangerLight },
+        tone === "info" && { backgroundColor: theme.infoLight },
       ]}
     >
       <Text
         style={[
           styles.pillText,
-          tone === "success" && { color: theme.primary },
-          tone === "warning" && { color: "#8f5d00" },
+          tone === "success" && { color: theme.success },
+          tone === "warning" && { color: theme.warning },
           tone === "danger" && { color: theme.danger },
           tone === "info" && { color: theme.info },
         ]}
@@ -142,21 +143,22 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.surface,
     borderRadius: 24,
-    padding: 18,
+    padding: 20,
     borderWidth: 1,
     borderColor: theme.line,
-    shadowColor: "#1a1c19",
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 3,
+    shadowColor: "#000000",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   button: {
-    minHeight: 48,
-    borderRadius: 16,
+    minHeight: 52,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    ...fonts.bold,
   },
   buttonPrimary: {
     backgroundColor: theme.primary,
@@ -166,16 +168,19 @@ const styles = StyleSheet.create({
   },
   buttonGhost: {
     backgroundColor: theme.surfaceSoft,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.line,
   },
   buttonDanger: {
     backgroundColor: theme.danger,
   },
+  buttonPressed: {
+    opacity: 0.8,
+  },
   buttonText: {
     color: "#fff",
-    fontWeight: "800",
-    fontSize: 15,
+    fontSize: 16,
+    ...fonts.bold,
   },
   buttonTextGhost: {
     color: theme.text,
@@ -184,36 +189,39 @@ const styles = StyleSheet.create({
     color: theme.text,
   },
   inputWrap: {
-    gap: 8,
+    gap: 10,
   },
   inputLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.1,
+    fontSize: 12,
+    ...fonts.semibold,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
     color: theme.textMuted,
   },
   input: {
-    minHeight: 50,
-    borderRadius: 16,
-    borderWidth: 1,
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1.5,
     borderColor: theme.line,
-    backgroundColor: "#f8faf7",
-    paddingHorizontal: 14,
+    backgroundColor: theme.surfaceSoft,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: theme.text,
+    fontSize: 16,
+    ...fonts.regular,
   },
   pill: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: theme.surfaceSoft,
   },
   pillText: {
     color: theme.text,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
+    fontSize: 12,
+    ...fonts.semibold,
+    letterSpacing: 0.6,
     textTransform: "uppercase",
   },
 });

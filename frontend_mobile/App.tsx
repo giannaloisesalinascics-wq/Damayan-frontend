@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 import { AdminDashboardScreen } from "./src/admin";
 import {
   CitizenBeforeScreen,
@@ -16,6 +17,21 @@ import { AppRoute } from "./src/types";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>("role-selector");
+  const [fontsReady, setFontsReady] = useState(true);
+
+  useEffect(() => {
+    // Load Google Fonts for web via dynamic link
+    if (typeof document !== "undefined") {
+      const link = document.createElement("link");
+      link.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap";
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  if (!fontsReady) {
+    return <View style={{ flex: 1, backgroundColor: "#f8f9f8" }} />;
+  }
 
   switch (route) {
     case "admin-login":

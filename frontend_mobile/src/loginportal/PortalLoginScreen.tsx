@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { MobileHeader } from "../components/MobileShell";
 import { Button, Input, Pill, Screen, SectionCard } from "../components/UI";
-import { roleColors, theme } from "../theme";
+import { roleColors, theme, fonts } from "../theme";
 import { PortalRole } from "../types";
 
 const roleContent: Record<
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 32,
     lineHeight: 34,
-    fontWeight: "900",
+    ...fonts.black,
   },
   heroText: {
     color: "rgba(255,255,255,0.88)",
@@ -295,12 +295,12 @@ const styles = StyleSheet.create({
   menuButtonText: {
     color: "#0d631b",
     fontSize: 22,
-    fontWeight: "700",
+    ...fonts.bold,
   },
   brandText: {
     color: "#0d631b",
     fontSize: 22,
-    fontWeight: "900",
+    ...fonts.black,
     letterSpacing: -0.8,
   },
   roleBadgeRow: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   roleTag: {
     color: "#0d631b",
     fontSize: 10,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     maxWidth: 86,
@@ -330,14 +330,14 @@ const styles = StyleSheet.create({
     color: "#7e5700",
     textTransform: "uppercase",
     letterSpacing: 2.4,
-    fontWeight: "800",
+    ...fonts.extrabold,
     fontSize: 11,
   },
   editorialTitle: {
     color: "#1a1c19",
     fontSize: 38,
     lineHeight: 40,
-    fontWeight: "900",
+    ...fonts.black,
     letterSpacing: -1.4,
   },
   editorialAccent: {
@@ -371,12 +371,12 @@ const styles = StyleSheet.create({
   verifiedIcon: {
     color: "#ffdeac",
     fontSize: 18,
-    fontWeight: "900",
+    ...fonts.black,
   },
   imageFooterText: {
     color: "#ffffff",
     fontSize: 11,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   loginTitle: {
     color: "#1a1c19",
     fontSize: 28,
-    fontWeight: "900",
+    ...fonts.black,
   },
   loginSubtitle: {
     color: "#40493d",
@@ -431,14 +431,14 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: "#40493d",
     fontSize: 11,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   helpLink: {
     color: "#0d631b",
     fontSize: 10,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.1,
     textTransform: "uppercase",
   },
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     color: "#707a6c",
     textAlign: "center",
     fontSize: 15,
-    fontWeight: "700",
+    ...fonts.bold,
   },
   fieldInput: {
     flex: 1,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   visibilityToggle: {
     color: "#707a6c",
     fontSize: 12,
-    fontWeight: "700",
+    ...fonts.bold,
   },
   actionStack: {
     gap: 14,
@@ -492,14 +492,14 @@ const styles = StyleSheet.create({
   primaryActionText: {
     color: "#ffffff",
     fontSize: 14,
-    fontWeight: "900",
+    ...fonts.black,
     letterSpacing: 1.3,
     textTransform: "uppercase",
   },
   primaryActionArrow: {
     color: "#ffffff",
     fontSize: 18,
-    fontWeight: "900",
+    ...fonts.black,
   },
   dividerRow: {
     flexDirection: "row",
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   dividerText: {
     color: "#707a6c",
     fontSize: 11,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.2,
   },
   secondaryAction: {
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     color: "#1a1c19",
     fontSize: 14,
-    fontWeight: "900",
+    ...fonts.black,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   altAccessLabel: {
     color: "rgba(64,73,61,0.7)",
     fontSize: 11,
-    fontWeight: "800",
+    ...fonts.extrabold,
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },

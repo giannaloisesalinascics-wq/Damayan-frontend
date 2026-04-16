@@ -92,15 +92,22 @@ export default function CitizenSignupPage() {
                     className="citizen-signup-web-upload-dropzone"
                     htmlFor="signup-id"
                   >
-                    <span className="citizen-signup-web-upload-title">
-                      Upload file or drag your file here
-                    </span>
-                    <span className="citizen-signup-web-upload-hint">
-                      JPG, PNG, max 5MB 
-                    </span>
-                    <span className="citizen-signup-web-upload-name">
-                      {selectedIdName}
-                    </span>
+                    <div className="citizen-signup-web-upload-icon">📄</div>
+                    <div className="citizen-signup-web-upload-content">
+                      <span className="citizen-signup-web-upload-title">
+                        {selectedIdName === "No file selected" 
+                          ? "Upload file or drag here" 
+                          : "File selected"}
+                      </span>
+                      <span className="citizen-signup-web-upload-hint">
+                        JPG or PNG • Max 5MB
+                      </span>
+                      {selectedIdName !== "No file selected" && (
+                        <span className="citizen-signup-web-upload-name">
+                          {selectedIdName}
+                        </span>
+                      )}
+                    </div>
                   </label>
                 </div>
               </div>

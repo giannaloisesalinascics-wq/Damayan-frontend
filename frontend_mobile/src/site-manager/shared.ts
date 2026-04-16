@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { theme } from "../theme";
+import { theme, fonts } from "../theme";
 
 export const siteManagerStyles = StyleSheet.create({
   primaryHero: {
@@ -10,7 +10,7 @@ export const siteManagerStyles = StyleSheet.create({
     color: "#fff",
     fontSize: 30,
     lineHeight: 32,
-    fontWeight: "900",
+    ...fonts.black,
   },
   heroText: {
     color: "rgba(255,255,255,0.88)",
@@ -18,7 +18,7 @@ export const siteManagerStyles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 22,
-    fontWeight: "900",
+    ...fonts.black,
     color: theme.text,
     marginBottom: 12,
   },
@@ -31,7 +31,7 @@ export const siteManagerStyles = StyleSheet.create({
   },
   checkLabel: {
     flex: 1,
-    fontWeight: "800",
+    ...fonts.extrabold,
     color: theme.text,
   },
   scannerBox: {
@@ -44,7 +44,7 @@ export const siteManagerStyles = StyleSheet.create({
   },
   scannerText: {
     color: "#d8ffd8",
-    fontWeight: "800",
+    ...fonts.extrabold,
   },
   modeRow: {
     gap: 10,
