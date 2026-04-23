@@ -1,0 +1,442 @@
+import { StyleSheet } from "react-native";
+import { theme } from "../../theme";
+
+export const styles = StyleSheet.create({
+  // ─── Shell ───────────────────────────────────────────────────────────────
+  shell: {
+    flex: 1,
+    minHeight: 0,
+    backgroundColor: "#f5f7f5",
+  },
+  scrollView: {
+    flex: 1,
+    minHeight: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 140,
+  },
+
+  // ─── Top Bar ─────────────────────────────────────────────────────────────
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(112,122,108,0.12)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  topBarCenter: {
+    alignItems: "center",
+  },
+  topBarTitle: {
+    color: theme.text,
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  topBarPhase: {
+    color: theme.textLight,
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginTop: 2,
+  },
+  alertBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(186, 26, 26, 0.1)",
+  },
+
+  // ─── Progress bar ─────────────────────────────────────────────────────────
+  progressWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 8,
+  },
+  progressTrack: {
+    height: 4,
+    backgroundColor: "rgba(112,122,108,0.12)",
+    borderRadius: 99,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: theme.danger,
+    borderRadius: 99,
+  },
+  progressLabel: {
+    color: theme.textLight,
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  // ─── Decision Card ─────────────────────────────────────────────────────────
+  decisionCard: {
+    marginHorizontal: 20,
+    borderRadius: 32,
+    backgroundColor: "#fff",
+    padding: 28,
+    gap: 24,
+    borderWidth: 1,
+    borderColor: "rgba(112,122,108,0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  decisionIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  decisionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1.4,
+  },
+  decisionTitle: {
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: -1,
+    lineHeight: 34,
+  },
+  decisionCopy: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: theme.textMuted,
+    fontWeight: "400",
+  },
+  decisionOptions: {
+    gap: 12,
+  },
+  optionButtonYes: {
+    minHeight: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 20,
+  },
+  optionButtonNo: {
+    minHeight: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#f5f7f5",
+    borderWidth: 1.5,
+    borderColor: "rgba(112,122,108,0.15)",
+  },
+  optionButtonText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.3,
+  },
+  optionButtonTextDark: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: theme.text,
+    letterSpacing: -0.3,
+  },
+
+  // ─── Step Card ─────────────────────────────────────────────────────────────
+  stepCard: {
+    marginHorizontal: 20,
+    borderRadius: 32,
+    backgroundColor: "#fff",
+    padding: 28,
+    gap: 20,
+    borderWidth: 1,
+    borderColor: "rgba(112,122,108,0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    elevation: 4,
+  },
+  stepIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepTag: {
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1.4,
+  },
+  stepTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.8,
+    lineHeight: 32,
+    color: theme.text,
+  },
+  stepCopy: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: theme.textMuted,
+    fontWeight: "400",
+  },
+
+  // ─── Info rows inside step cards ───────────────────────────────────────────
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: "#f5f7f5",
+    padding: 14,
+    borderRadius: 16,
+    borderLeftWidth: 3,
+  },
+  infoRowText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: theme.text,
+    lineHeight: 20,
+  },
+  infoRowSub: {
+    fontSize: 12,
+    color: theme.textMuted,
+    marginTop: 2,
+  },
+
+  // ─── Upload box ─────────────────────────────────────────────────────────────
+  uploadBox: {
+    minHeight: 140,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: "rgba(112,122,108,0.18)",
+    borderStyle: "dashed",
+    backgroundColor: "rgba(29, 123, 58, 0.03)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 20,
+  },
+  uploadBoxTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.primary,
+  },
+  uploadBoxHint: {
+    fontSize: 12,
+    color: theme.textLight,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+
+  // ─── SMS code display ───────────────────────────────────────────────────────
+  smsCodeBox: {
+    backgroundColor: theme.text,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    gap: 8,
+  },
+  smsCodeLabel: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+  smsCode: {
+    color: "#fff",
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: 6,
+  },
+  smsCodeHint: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+    marginTop: 4,
+  },
+
+  // ─── QR display ────────────────────────────────────────────────────────────
+  qrWrap: {
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 8,
+  },
+  qrFrame: {
+    width: 180,
+    height: 180,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(46,125,50,0.15)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  qrImage: {
+    width: 152,
+    height: 152,
+    borderRadius: 10,
+  },
+  qrIdBadge: {
+    backgroundColor: "rgba(46,125,50,0.08)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  qrIdText: {
+    color: theme.primary,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+
+  // ─── Success / Confirm ─────────────────────────────────────────────────────
+  confirmHero: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  confirmIconRing: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmTitle: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: theme.text,
+    textAlign: "center",
+    letterSpacing: -0.6,
+  },
+  confirmCopy: {
+    fontSize: 14,
+    color: theme.textMuted,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  // ─── CTA Button ────────────────────────────────────────────────────────────
+  ctaButton: {
+    minHeight: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  ctaButtonText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.3,
+  },
+  ghostButton: {
+    minHeight: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  ghostButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: theme.textMuted,
+  },
+
+  // ─── Map mock ──────────────────────────────────────────────────────────────
+  mapMock: {
+    height: 180,
+    borderRadius: 20,
+    backgroundColor: "#e8f0e8",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(46,125,50,0.12)",
+  },
+  mapPin: {
+    position: "absolute",
+    top: "40%",
+    left: "45%",
+    alignItems: "center",
+  },
+  mapEtaBadge: {
+    position: "absolute",
+    bottom: 16,
+    right: 16,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  mapEtaText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: theme.primary,
+  },
+
+  // ─── Radar (existing) ──────────────────────────────────────────────────────
+  radarRing: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.danger,
+    position: "absolute",
+  },
+  coreDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.danger,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+});
