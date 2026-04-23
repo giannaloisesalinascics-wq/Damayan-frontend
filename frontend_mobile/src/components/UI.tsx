@@ -2,6 +2,7 @@ import React from "react";
 import {
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
@@ -13,18 +14,23 @@ import { theme, fonts } from "../theme";
 export function Screen({
   children,
   scroll = true,
+  style,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   const content = <View style={styles.screenInner}>{children}</View>;
 
   if (!scroll) {
-    return <View style={styles.screen}>{content}</View>;
+    return <View style={[styles.screen, style]}>{content}</View>;
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={[styles.screen, style]}
+      contentContainerStyle={styles.scrollContent}
+    >
       {content}
     </ScrollView>
   );
@@ -35,7 +41,7 @@ export function SectionCard({
   style,
 }: {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
@@ -78,10 +84,12 @@ export function Input({
   label,
   placeholder,
   secureTextEntry,
+  onChangeText,
 }: {
   label: string;
   placeholder: string;
   secureTextEntry?: boolean;
+  onChangeText?: (text: string) => void;
 }) {
   return (
     <View style={styles.inputWrap}>
@@ -90,6 +98,7 @@ export function Input({
         placeholder={placeholder}
         placeholderTextColor={theme.textLight}
         secureTextEntry={secureTextEntry}
+        onChangeText={onChangeText}
         style={styles.input}
       />
     </View>
@@ -101,12 +110,21 @@ export function Pill({
   tone = "default",
 }: {
   label: string;
-  tone?: "default" | "success" | "warning" | "danger" | "info";
+  tone?:
+    | "default"
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info";
 }) {
   return (
     <View
       style={[
         styles.pill,
+        tone === "primary" && { backgroundColor: theme.primaryLight },
+        tone === "secondary" && { backgroundColor: theme.secondaryLight },
         tone === "success" && { backgroundColor: theme.successLight },
         tone === "warning" && { backgroundColor: theme.warningLight },
         tone === "danger" && { backgroundColor: theme.dangerLight },
@@ -116,6 +134,8 @@ export function Pill({
       <Text
         style={[
           styles.pillText,
+          tone === "primary" && { color: theme.primary },
+          tone === "secondary" && { color: "#8f5d00" },
           tone === "success" && { color: theme.success },
           tone === "warning" && { color: theme.warning },
           tone === "danger" && { color: theme.danger },

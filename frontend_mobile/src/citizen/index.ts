@@ -1,6 +1,6 @@
-export { CitizenBeforeScreen } from "./beforecalamity/CitizenBeforeScreen";
-export { CitizenHouseholdRegistrationScreen } from "./beforecalamity/CitizenHouseholdRegistrationScreen";
-export { CitizenHouseholdMembersScreen } from "./beforecalamity/CitizenHouseholdMembersScreen";
-export { CitizenIndividualRegistrationScreen } from "./beforecalamity/CitizenIndividualRegistrationScreen";
+export { CitizenBeforeScreen } from "./beforecalamity/screens/CitizenBeforeScreen";
+export { CitizenHouseholdRegistrationScreen } from "./beforecalamity/screens/CitizenHouseholdRegistrationScreen";
+export { CitizenHouseholdMembersScreen } from "./beforecalamity/screens/CitizenHouseholdMembersScreen";
+export { CitizenIndividualRegistrationScreen } from "./beforecalamity/screens/CitizenIndividualRegistrationScreen";
 export { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 export { CitizenSignupScreen } from "./signup/CitizenSignupScreen";

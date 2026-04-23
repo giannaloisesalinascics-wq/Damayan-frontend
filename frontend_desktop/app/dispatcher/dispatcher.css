@@ -16,11 +16,11 @@
   --d-text-muted: #5a5245;
   --d-text-sub: #8a7e72;
 
-  /* Orange primary for dispatcher */
-  --d-primary: #c2440a;
-  --d-primary-deep: #9a3508;
-  --d-primary-light: rgba(194, 68, 10, 0.1);
-  --d-primary-glow: rgba(194, 68, 10, 0.18);
+  /* Green primary for dispatcher */
+  --d-primary: #2e7d32;
+  --d-primary-deep: #1b5e20;
+  --d-primary-light: rgba(46, 125, 50, 0.1);
+  --d-primary-glow: rgba(46, 125, 50, 0.18);
 
   /* Status colours */
   --d-red: #c62828;
@@ -54,8 +54,8 @@
   min-height: 100vh;
   padding: 1.5rem;
   background:
-    radial-gradient(circle at top left, rgba(255, 140, 50, 0.14), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(194, 68, 10, 0.08), transparent 24%),
+    radial-gradient(circle at top left, rgba(46, 125, 50, 0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(46, 125, 50, 0.08), transparent 24%),
     linear-gradient(180deg, #fcfcf8 0%, #fafaf5 100%);
   display: flex;
   align-items: center;
@@ -81,7 +81,7 @@
   gap: 2rem;
   background:
     linear-gradient(145deg, rgba(255,255,255,0.07), transparent 35%),
-    linear-gradient(160deg, #6b1a00 0%, #c2440a 100%);
+    linear-gradient(160deg, #1b5e20 0%, #2e7d32 100%);
   color: #fff;
 }
 

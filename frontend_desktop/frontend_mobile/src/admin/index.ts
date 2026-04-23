@@ -1,1 +1,0 @@
-export { AdminDashboardScreen } from "./AdminDashboardScreen";

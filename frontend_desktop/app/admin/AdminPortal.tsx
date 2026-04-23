@@ -2048,7 +2048,7 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
 //  ROOT ADMIN PORTAL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPortal() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(true);
   const [page, setPage] = useState<AdminPage>("overview");
   const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
   const [qrRecords, setQRRecords] = useState<QRRecord[]>(INITIAL_QR);
@@ -2232,7 +2232,7 @@ export default function AdminPortal() {
                   <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>👤 View Profile</button>
                   <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>✏️ Edit Profile</button>
                   <div style={{ height: "1px", background: "var(--admin-outline)" }} />
-                  <button className="admin-profile-dropdown-item danger" onClick={() => { setLoggedIn(false); }}>
+                  <button className="admin-profile-dropdown-item danger" onClick={() => { window.location.href = "/admin/login"; }}>
                     ⏻ Log Out
                   </button>
                 </div>

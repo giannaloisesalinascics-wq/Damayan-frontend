@@ -1,5 +1,15 @@
-import AdminPortal from "./AdminPortal";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
-  return <AdminPortal />;
+  const router = useRouter();
+
+  useEffect(() => {
+    // In a real app, check auth state here. For now, redirect to standardized login.
+    router.replace("/admin/login");
+  }, [router]);
+
+  return null;
 }

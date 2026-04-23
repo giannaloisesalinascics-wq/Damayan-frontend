@@ -92,9 +92,9 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
             <p>Real-time dispatch management for police, ambulance, and fire response across Metro Cluster 3.</p>
           </div>
           <div className="dp-login-brand-badges">
-            {[{ e:"🚔", l:"Police" }, { e:"🚑", l:"Medical" }, { e:"🔥", l:"Fire" }].map(b => (
+            {[{ l:"Police" }, { l:"Medical" }, { l:"Fire" }].map(b => (
               <div key={b.l} className="dp-login-brand-badge">
-                <span>{b.e}</span><span>{b.l}</span>
+                <span>{b.l}</span>
               </div>
             ))}
           </div>
@@ -110,7 +110,6 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
               </div>
               {resetSent ? (
                 <div className="dp-alert dp-alert-green" style={{ marginTop: "1.5rem", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>✅</div>
                   <strong>Reset link sent!</strong><br />Check your email or SMS inbox.
                   <br /><button className="dp-btn dp-btn-green" style={{ marginTop: "1rem" }} onClick={() => { setForgot(false); setResetSent(false); }}>← Back to Login</button>
                 </div>
@@ -137,7 +136,7 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
                     <h2>Welcome back</h2>
                     <p>Sign in to the Damayan Dispatcher Portal.</p>
                   </div>
-                  {err && <div className="dp-error-msg">❌ Invalid credentials. Please check your username and password.</div>}
+                  {err && <div className="dp-error-msg">Invalid credentials. Please check your username and password.</div>}
                   <div className="dp-form" style={{ marginTop: "1.2rem" }}>
                     <div className="dp-field">
                       <label>Username</label>
@@ -172,7 +171,7 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
                     <div className="dp-field">
                       <label>Upload Valid Government ID *</label>
                       <div className={`dp-id-upload ${idFile ? "uploaded" : ""}`} onClick={() => setIdFile("gov_id.jpg")}>
-                        {idFile ? <><div className="icon">✅</div><div className="label" style={{ color: "var(--d-green)", fontWeight: 700 }}>{idFile} — uploaded</div></> : <><div className="icon">📄</div><div className="label">Click to upload Government ID</div><div className="hint">UMID, SSS, Passport, Driver's License</div></>}
+                        {idFile ? <><div className="label" style={{ color: "var(--d-green)", fontWeight: 700 }}>{idFile} — uploaded</div></> : <><div className="label">Click to upload Government ID</div><div className="hint">UMID, SSS, Passport, Driver's License</div></>}
                       </div>
                     </div>
                     <button className="dp-btn-primary" disabled={!user || !pass || !idFile} onClick={onRegister}>Register & Submit for Verification</button>
@@ -196,13 +195,13 @@ function AwaitingPage({ onProceed }: { onProceed: () => void }) {
   return (
     <div className="dp-page dp-verify-page">
       <div className="dp-verify-card">
-        <div className="dp-verify-icon">⏳</div>
+        <div className="dp-verify-icon" style={{ background: "var(--d-primary)", color: "white", width: 48, height: 48, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem", fontSize: "1.2rem", fontWeight: 800 }}>T</div>
         <h2>Waiting for Verification</h2>
         <p>Your account and government ID have been submitted. An administrator will verify your documents. You'll be notified via email/SMS once approved.</p>
         <div className="dp-verify-steps">
-          <div className="dp-verify-step">✅ Account created with username & password</div>
-          <div className="dp-verify-step">✅ Government ID uploaded successfully</div>
-          <div className="dp-verify-step pending">⏳ Awaiting admin verification</div>
+          <div className="dp-verify-step">Account created with username & password</div>
+          <div className="dp-verify-step">Government ID uploaded successfully</div>
+          <div className="dp-verify-step pending">Awaiting admin verification</div>
         </div>
         <button className="dp-btn-primary" onClick={onProceed}>Continue (Demo: Skip Verification)</button>
       </div>
@@ -232,12 +231,12 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
   const deployed  = units.filter(u => u.status !== "Available" && u.status !== "Offline").length;
 
   const stats = [
-    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)",     icon: "🚨" },
-    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)", icon: "⚡" },
-    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)",   icon: "✅" },
-    { label: "Critical / High",  value: critical.length,  color: "#c77700",          icon: "⚠️" },
-    { label: "Units Available",  value: avail,            color: "var(--d-blue)",    icon: "✅", sub: `${deployed} deployed` },
-    { label: "Total Units",      value: units.length,     color: "var(--d-text)",    icon: "👥" },
+    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)" },
+    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)" },
+    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)" },
+    { label: "Critical / High",  value: critical.length,  color: "#c77700" },
+    { label: "Units Available",  value: avail,            color: "var(--d-blue)",    sub: `${deployed} deployed` },
+    { label: "Total Units",      value: units.length,     color: "var(--d-text)" },
   ];
 
   const ACTIVITY = [
@@ -276,7 +275,7 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
       <div className="dp-card">
         <div className="dp-card-header">
           <div>
-            <div className="dp-card-title">📋 Pending Incident Queue</div>
+            <div className="dp-card-title">Pending Incident Queue</div>
             <div className="dp-card-sub">Incoming reports awaiting review and dispatch</div>
           </div>
           <span className="dp-badge dp-badge-red">{queueInc.length} incoming</span>
@@ -286,7 +285,7 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
           <span>ID</span><span>Type</span><span>Location</span><span>Reported</span><span>Priority</span><span>Status</span><span>Action</span>
         </div>
         {queueInc.length === 0
-          ? <div className="dp-empty"><div className="dp-empty-icon">✅</div><div className="dp-empty-title">No pending incidents</div></div>
+          ? <div className="dp-empty"><div className="dp-empty-title">No pending incidents</div></div>
           : queueInc.map(inc => (
               <QueueRow
                 key={inc.id}
@@ -302,12 +301,12 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
         {/* Critical */}
         <div className="dp-card">
           <div className="dp-card-header">
-            <div className="dp-card-title">🚨 Critical & High Priority</div>
+            <div className="dp-card-title">Critical & High Priority</div>
             <span className="dp-badge dp-badge-red">{critical.length} active</span>
           </div>
           <div style={{ maxHeight: 260, overflowY: "auto" }}>
             {critical.length === 0
-              ? <div className="dp-empty"><div className="dp-empty-icon">✓</div><div className="dp-empty-title">No critical incidents</div></div>
+              ? <div className="dp-empty"><div className="dp-empty-title">No critical incidents</div></div>
               : critical.map(inc => (
                   <div key={inc.id} style={{ padding: "0.75rem 1rem", borderBottom: "1px solid rgba(191,182,162,0.15)", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
                     <div style={{ fontSize: "1.2rem", flexShrink: 0 }}>{CATEGORY_ICON[inc.category]}</div>
@@ -336,10 +335,7 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
               const c = unitTypeColor(type);
               return (
                 <div key={type} className="dp-unit-bar">
-                  <div className="dp-unit-bar-label">
-                    <span>{UNIT_TYPE_ICON[type]} {type === "FIRE" ? "Fire" : type === "AMB" ? "Medical" : "Police"}</span>
-                    <span>{av}/{tu.length} available</span>
-                  </div>
+                    <span>{type === "FIRE" ? "Fire" : type === "AMB" ? "Medical" : "Police"}</span>
                   <div className="dp-unit-bar-track"><div className="dp-unit-bar-fill" style={{ width: `${pct}%`, background: c }} /></div>
                 </div>
               );
@@ -436,7 +432,7 @@ function QueueRow({ inc, units, onDispatch, onMarkInvalid }: {
           ? <button style={{ background: "none", border: "none", color: "var(--d-blue)", fontWeight: 700, fontSize: "0.825rem", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "inherit" }} onClick={() => setTicketModal(true)}>View Ticket</button>
           : <Badge label={inc.status} cls={statusClass(inc.status)} />}
         <div className="dp-queue-actions">
-          <button className="dp-btn dp-btn-sm dp-btn-green" onClick={() => onDispatch(inc)}>🚨 Dispatch</button>
+          <button className="dp-btn dp-btn-sm dp-btn-green" onClick={() => onDispatch(inc)}>Dispatch</button>
           <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={() => setInvalidModal(true)}>Invalid</button>
         </div>
       </div>
@@ -842,7 +838,6 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
         <div className="dp-incidents-scroll">
           {activeInc.length === 0 ? (
             <div className="dp-empty">
-              <div className="dp-empty-icon">✅</div>
               <div className="dp-empty-title">No active rescues</div>
               <div className="dp-empty-sub">All incidents are resolved or pending</div>
             </div>
@@ -858,7 +853,7 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
                 <div className="dp-incident-list-body">
                   <div className="dp-incident-list-id">{inc.id}</div>
                   <div className="dp-incident-list-type">{inc.type}</div>
-                  <div className="dp-incident-list-loc">📍 {inc.location}, {inc.city}</div>
+                  <div className="dp-incident-list-loc">{inc.location}, {inc.city}</div>
                   <div className="dp-incident-list-meta">
                     <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
                     <Badge label={inc.situationType} cls={situationClass(inc.situationType)} />
@@ -951,7 +946,7 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
               onUpdate(escalateModal.id, { situationType: "Critical" });
               toast.show(`${escalateModal.id} escalated`);
               setEscalateModal(null); setMapKey(k => k + 1);
-            }}>⚡ Confirm Escalation</button>
+            }}>Confirm Escalation</button>
           </div>
         </Modal>
       )}
@@ -1044,8 +1039,8 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
             <button className="dp-btn dp-btn-sm dp-btn-outline-amber" onClick={onBackup}>+ Request Backup</button>
           )}
           <button className="dp-btn dp-btn-sm dp-btn-outline-red" onClick={onEscalate}>⚡ High-Level Intervention</button>
-          <button className="dp-btn dp-btn-sm dp-btn-outline-green" onClick={onResolve}>✓ Mark Resolved</button>
-          <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={onClose}>✕</button>
+          <button className="dp-btn dp-btn-sm dp-btn-outline-green" onClick={onResolve}>Mark Resolved</button>
+          <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={onClose}>Close</button>
         </div>
       </div>
 
@@ -1076,7 +1071,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 1. Location & Ticket Info */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">📍 Location & Ticket Info</div>
+            <div className="dp-rescue-section-head">Location & Ticket Info</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
               {[
                 ["Ticket ID",  inc.id],
@@ -1100,7 +1095,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 2. Status of Victims */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">🩺 Status of Victims ({victimData.length})</div>
+            <div className="dp-rescue-section-head">Status of Victims ({victimData.length})</div>
             {victimData.map((v, i) => (
               <div key={i} className="dp-victim-card">
                 <span className="dp-victim-status-dot" style={{ background: v.color }} />
@@ -1110,13 +1105,13 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
               </div>
             ))}
             <div style={{ marginTop: "0.4rem", padding: "0.5rem 0.65rem", background: "var(--d-surface-low)", borderRadius: 7, fontSize: "0.75rem", color: "var(--d-text-muted)" }}>
-              🏥 Nearest available hospital: <strong style={{ color: "var(--d-text)" }}>{hospitals[0].name}</strong> — {hospitals[0].dist} · ETA {hospitals[0].eta}
+              Nearest available hospital: <strong style={{ color: "var(--d-text)" }}>{hospitals[0].name}</strong> — {hospitals[0].dist} · ETA {hospitals[0].eta}
             </div>
           </div>
 
           {/* 3. Team Updates */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">👥 Team Updates</div>
+            <div className="dp-rescue-section-head">Team Updates</div>
             {assigned.length === 0
               ? <div style={{ fontSize: "0.82rem", color: "var(--d-text-sub)", padding: "0.5rem 0" }}>No units currently assigned.</div>
               : assigned.map(u => {
@@ -1143,7 +1138,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 7. Risk & Environment */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">⚠️ Risk & Environment</div>
+            <div className="dp-rescue-section-head">Risk & Environment</div>
             {risks.map((r, i) => (
               <div key={i} className="dp-risk-item">
                 <span className="dp-risk-icon">{r.icon}</span>
@@ -1161,7 +1156,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 4. Communication Feed */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">📡 Communication Feed</div>
+            <div className="dp-rescue-section-head">Communication Feed</div>
             {comms.map((c, i) => (
               <div key={i} className={`dp-comms-item ${c.type}`}>
                 <div className="dp-comms-meta">
@@ -1177,7 +1172,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 5. Resources & Equipment */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">🚒 Resources & Equipment on Scene</div>
+            <div className="dp-rescue-section-head">Resources & Equipment on Scene</div>
             {resources.length === 0
               ? <div style={{ fontSize: "0.82rem", color: "var(--d-text-sub)" }}>No resources deployed yet.</div>
               : resources.map((r, i) => (
@@ -1198,7 +1193,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
               <div style={{ fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--d-text-sub)", marginBottom: "0.4rem" }}>Nearest Hospitals</div>
               {hospitals.map((h, i) => (
                 <div key={i} className="dp-hospital-row">
-                  <span className="dp-hospital-name">🏥 {h.name}</span>
+                  <span className="dp-hospital-name">{h.name}</span>
                   <span className="dp-hospital-dist">{h.dist} · {h.eta}</span>
                   <span className="dp-hospital-cap" style={{ color: h.capColor }}>{h.cap}</span>
                 </div>
@@ -1208,7 +1203,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 6. Timeline / Activity Log */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">🕐 Timeline / Activity Log</div>
+            <div className="dp-rescue-section-head">Timeline / Activity Log</div>
             <div className="dp-timeline">
               {timeline.map((t, i) => (
                 <div key={i} className="dp-timeline-item">
@@ -1225,14 +1220,13 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
 
           {/* 8. Decision Controls */}
           <div className="dp-rescue-section">
-            <div className="dp-rescue-section-head">🎛 Decision Controls</div>
+            <div className="dp-rescue-section-head">Decision Controls</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
               <button className="dp-btn dp-btn-outline-amber" style={{ justifyContent: "center", flexDirection: "column", gap: "0.15rem", height: 60, textAlign: "center" }} onClick={onBackup}>
                 <span style={{ fontSize: "1.1rem" }}>+</span>
                 <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>Request Backup</span>
               </button>
               <button className="dp-btn dp-btn-outline-red" style={{ justifyContent: "center", flexDirection: "column", gap: "0.15rem", height: 60, textAlign: "center" }} onClick={onEscalate}>
-                <span style={{ fontSize: "1.1rem" }}>⚡</span>
                 <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>High-Level Intervention</span>
               </button>
               <button className="dp-btn dp-btn-outline-blue" style={{ justifyContent: "center", flexDirection: "column", gap: "0.15rem", height: 60, textAlign: "center" }} onClick={() => {}}>
@@ -1245,7 +1239,7 @@ function RescueDetailPanel({ inc, units, onBackup, onEscalate, onResolve, onClos
               </button>
             </div>
             <button className="dp-btn dp-btn-outline-green" style={{ width: "100%", justifyContent: "center", marginTop: "0.5rem", height: 44 }} onClick={onResolve}>
-              ✓ Mark Incident as Resolved
+              Mark Incident as Resolved
             </button>
           </div>
 
@@ -1317,11 +1311,11 @@ function IncidentsPage({ incidents, units, onUpdate }: {
             <input placeholder="Search Ticket ID..." value={searchId} onChange={e => setSearchId(e.target.value)} />
           </div>
           <div className="dp-search-box">
-            <span className="dp-search-icon">🔍</span>
+            <span className="dp-search-icon">S</span>
             <input placeholder="Filter by type..." value={searchType} onChange={e => setSearchType(e.target.value)} />
           </div>
           <div className="dp-search-box">
-            <span className="dp-search-icon">📍</span>
+            <span className="dp-search-icon">L</span>
             <input placeholder="Filter by location..." value={searchLoc} onChange={e => setSearchLoc(e.target.value)} />
           </div>
           <div style={{ display: "flex", gap: "0.4rem" }}>
@@ -1357,7 +1351,6 @@ function IncidentsPage({ incidents, units, onUpdate }: {
         <div className="dp-incidents-scroll">
           {filtered.length === 0 ? (
             <div className="dp-empty">
-              <div className="dp-empty-icon">🔍</div>
               <div className="dp-empty-title">No results</div>
               <div className="dp-empty-sub">Try adjusting your filters</div>
             </div>
@@ -1407,7 +1400,6 @@ function IncidentsPage({ incidents, units, onUpdate }: {
         ) : (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--d-bg)" }}>
             <div className="dp-empty">
-              <div className="dp-empty-icon">📋</div>
               <div className="dp-empty-title">Select an incident</div>
               <div className="dp-empty-sub">Click any ticket from the list to view its details</div>
             </div>
@@ -1449,7 +1441,7 @@ function IncidentsPage({ incidents, units, onUpdate }: {
               onUpdate(escalateModal.id, { situationType: "Critical" });
               toast.show(`${escalateModal.id} escalated`);
               setEscalateModal(null);
-            }}>⚡ Confirm Escalation</button>
+            }}>Confirm Escalation</button>
           </div>
         </Modal>
       )}
@@ -1485,9 +1477,9 @@ function ExpandedTicket({ inc, units, onBackup, onEscalate, onResolve, onClose }
             <button className="dp-btn dp-btn-sm dp-btn-outline-red" onClick={onEscalate}>High-Level</button>
           )}
           {["In Progress","Dispatched"].includes(inc.status) && (
-            <button className="dp-btn dp-btn-sm dp-btn-outline-green" onClick={onResolve}>✓ Resolve</button>
+            <button className="dp-btn dp-btn-sm dp-btn-outline-green" onClick={onResolve}>Resolve</button>
           )}
-          <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={onClose}>✕</button>
+          <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={onClose}>Close</button>
         </div>
       </div>
 
@@ -1602,7 +1594,7 @@ function ResourcesPage({ units, setUnits }: { units: Unit[]; setUnits: React.Dis
       {/* Tabs */}
       <div className="dp-resources-tabs">
         <button className={`dp-resources-tab ${tab==="teams"?"active":""}`} onClick={()=>setTab("teams")}>🏢 Response Teams</button>
-        <button className={`dp-resources-tab ${tab==="units"?"active":""}`} onClick={()=>setTab("units")}>🚨 Individual Units</button>
+        <button className={`dp-resources-tab ${tab==="units"?"active":""}`} onClick={()=>setTab("units")}>Individual Units</button>
       </div>
 
       {/* Filters */}
@@ -1726,7 +1718,7 @@ function ResourcesPage({ units, setUnits }: { units: Unit[]; setUnits: React.Dis
           <textarea className="dp-textarea" rows={3} value={msgText} onChange={e=>setMsgText(e.target.value)} placeholder="Type your message..." style={{ width:"100%",marginBottom:"1rem" }} />
           <div style={{ display:"flex",gap:"0.6rem",justifyContent:"flex-end" }}>
             <button className="dp-btn dp-btn-ghost" onClick={()=>setMsgModal(null)}>Cancel</button>
-            <button className="dp-btn dp-btn-orange" disabled={!msgText.trim()} onClick={()=>{ toast.show(`Message sent to ${msgModal.name}`); setMsgModal(null); setMsgText(""); }}>💬 Send Message</button>
+            <button className="dp-btn dp-btn-orange" disabled={!msgText.trim()} onClick={()=>{ toast.show(`Message sent to ${msgModal.name}`); setMsgModal(null); setMsgText(""); }}>Send Message</button>
           </div>
         </Modal>
       )}
@@ -1774,8 +1766,8 @@ function ProfilePage({ onLogout }: { onLogout: () => void }) {
             </div>
             <div className="dp-profile-actions">
               {!editing
-                ? <button className="dp-btn dp-btn-orange" style={{ width:"100%",justifyContent:"center" }} onClick={()=>{setEditing(true);setDraft({...profile})}}>✏️ Edit Profile</button>
-                : <><button className="dp-btn dp-btn-green" style={{ width:"100%",justifyContent:"center" }} onClick={save}>✓ Save Changes</button><button className="dp-btn dp-btn-ghost" style={{ width:"100%",justifyContent:"center",marginTop:"0.3rem" }} onClick={()=>{setEditing(false);setDraft({...profile})}}>Cancel</button></>}
+                ? <button className="dp-btn dp-btn-orange" style={{ width:"100%",justifyContent:"center" }} onClick={()=>{setEditing(true);setDraft({...profile})}}>Edit Profile</button>
+                : <><button className="dp-btn dp-btn-green" style={{ width:"100%",justifyContent:"center" }} onClick={save}>Save Changes</button><button className="dp-btn dp-btn-ghost" style={{ width:"100%",justifyContent:"center",marginTop:"0.3rem" }} onClick={()=>{setEditing(false);setDraft({...profile})}}>Cancel</button></>}
               <button className="dp-btn dp-btn-ghost" style={{ width:"100%",justifyContent:"center" }} onClick={()=>setPwModal(true)}>🔒 Change Password</button>
               <div className="dp-divider" />
               <button className="dp-btn dp-btn-ghost" style={{ width:"100%",justifyContent:"center",borderColor:"var(--d-red)",color:"var(--d-red)" }} onClick={()=>setLogoutModal(true)}>→ Sign Out</button>
@@ -1814,7 +1806,6 @@ function ProfilePage({ onLogout }: { onLogout: () => void }) {
       {logoutModal&&(
         <Modal title="Sign Out" onClose={()=>setLogoutModal(false)} width={400}>
           <div style={{ textAlign:"center",padding:"0.5rem 0 1rem" }}>
-            <div style={{ fontSize:"2.5rem",marginBottom:"0.8rem" }}>👋</div>
             <div style={{ fontWeight:800,fontSize:"1rem",marginBottom:"0.5rem" }}>Sign out of Damayan Dispatcher?</div>
             <div style={{ fontSize:"0.875rem",color:"var(--d-text-muted)",lineHeight:1.6 }}>You will be redirected to the login page and your session will end.</div>
           </div>
@@ -1890,11 +1881,11 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const activeCount = incidents.filter(i => ["In Progress","Dispatched"].includes(i.status)).length;
 
   const NAV: { id: NavPage; icon: string; label: string; badge?: number }[] = [
-    { id: "dashboard",         icon: "⊞", label: "Dashboard" },
-    { id: "resource-map",      icon: "🗺", label: "Resource Map",       badge: newCount || undefined },
-    { id: "rescue-monitoring", icon: "🛡", label: "Rescue Monitoring",  badge: activeCount || undefined },
-    { id: "incidents",         icon: "📋", label: "Incidents" },
-    { id: "resources",         icon: "🏢", label: "Resources" },
+    { id: "dashboard",         icon: "D", label: "Dashboard" },
+    { id: "resource-map",      icon: "M", label: "Resource Map",       badge: newCount || undefined },
+    { id: "rescue-monitoring", icon: "R", label: "Rescue Monitoring",  badge: activeCount || undefined },
+    { id: "incidents",         icon: "I", label: "Incidents" },
+    { id: "resources",         icon: "U", label: "Resources" },
   ];
 
   return (
@@ -2062,7 +2053,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               disabled={!broadcastMsg.trim()}
               onClick={() => { toast.show("Broadcast sent to all units and citizens"); setBroadcastModal(false); setBroadcastMsg(""); }}
             >
-              📡 Send Broadcast Now
+              Send Broadcast Now
             </button>
           </div>
         </Modal>
@@ -2079,10 +2070,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
 type Stage = "login" | "awaiting" | "portal";
 
 export default function DispatcherPortal() {
-  const [stage, setStage] = useState<Stage>("login");
+  const [stage, setStage] = useState<Stage>("portal");
   return (
     stage === "login"    ? <LoginPage    onLogin={() => setStage("portal")} onRegister={() => setStage("awaiting")} /> :
     stage === "awaiting" ? <AwaitingPage onProceed={() => setStage("portal")} /> :
-    <Shell onLogout={() => setStage("login")} />
+    <Shell onLogout={() => { window.location.href = "/dispatcher/login"; }} />
   );
 }

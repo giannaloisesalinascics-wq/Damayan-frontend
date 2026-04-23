@@ -19,7 +19,7 @@ export function MobileHeader({
             <Text style={styles.backText}>{"<"}</Text>
           </Pressable>
         ) : null}
-        <View>
+        <View style={{ gap: 2 }}>
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
@@ -42,19 +42,22 @@ export function NavPills({
 }) {
   return (
     <View style={styles.navRow}>
-      {items.map((item) => (
-        <Pressable
-          key={item}
-          onPress={() => onSelect(item)}
-          style={[styles.navPill, active === item && styles.navPillActive]}
-        >
-          <Text
-            style={[styles.navPillText, active === item && styles.navPillTextActive]}
+      {items.map((item) => {
+        const isActive = active === item;
+        return (
+          <Pressable
+            key={item}
+            onPress={() => onSelect(item)}
+            style={[styles.navPill, isActive && styles.navPillActive]}
           >
-            {item}
-          </Text>
-        </Pressable>
-      ))}
+            <Text
+              style={[styles.navPillText, isActive && styles.navPillTextActive]}
+            >
+              {item}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -64,73 +67,96 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
     flex: 1,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: theme.surface,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.line,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   backText: {
-    fontWeight: "800",
-    color: theme.text,
-  },
-  title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "900",
     color: theme.text,
   },
+  title: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: theme.text,
+    letterSpacing: -0.5,
+  },
   subtitle: {
-    marginTop: 2,
     color: theme.textMuted,
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: theme.primary,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarText: {
     color: "#fff",
     fontWeight: "900",
+    fontSize: 18,
   },
   navRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 10,
   },
   navPill: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 999,
+    borderRadius: 12,
     backgroundColor: theme.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.line,
   },
   navPillActive: {
-    backgroundColor: theme.successSoft,
-    borderColor: "#bad8bf",
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+    shadowColor: theme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   navPillText: {
     color: theme.textMuted,
-    fontWeight: "700",
-    fontSize: 13,
+    fontWeight: "800",
+    fontSize: 14,
   },
   navPillTextActive: {
-    color: theme.primary,
+    color: "#fff",
   },
 });

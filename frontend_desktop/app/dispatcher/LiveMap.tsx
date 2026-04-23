@@ -51,7 +51,7 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
       inp.placeholder = "Search Philippines...";
       inp.style.cssText = "border:none;outline:none;font:inherit;font-size:12px;color:#1c1a17;background:transparent;width:185px";
       const ico = document.createElement("span");
-      ico.textContent="🔍"; ico.style.fontSize="11px";
+      ico.textContent="S"; ico.style.fontSize="11px"; ico.style.fontWeight="900"; ico.style.color="var(--d-text-sub)";
       wrap.appendChild(ico); wrap.appendChild(inp);
       L.DomEvent.disableClickPropagation(wrap);
       L.DomEvent.disableScrollPropagation(wrap);
@@ -131,7 +131,8 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
         const html=`<div style="background:${sc};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer;font-family:'Public Sans',sans-serif">${i.id}</div>`;
         const icon = L.divIcon({className:"",html,iconSize:[90,22],iconAnchor:[45,11]});
         const names = i.assignedUnits.map(uid=>{ const u=units.find(u=>u.id===uid); return u?`${u.type}-${u.id.split("-")[1]}`:uid; }).join(", ")||"None";
-        const pop = L.popup().setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${i.id} — ${i.type}</div><div class="dp-map-popup-row">📍 ${i.address}</div><div class="dp-map-popup-row">Situation: <span style="color:${sc};font-weight:700">${i.situationType}</span></div><div class="dp-map-popup-row">Units: <b>${names}</b></div><div class="dp-map-popup-row">Active: <b>${i.timeActive} mins</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpBackup('${i.id}')" class="dp-map-popup-btn" style="background:#c77700;color:#fff;border-color:transparent">Backup</button><button onclick="window.__dpEscalate('${i.id}')" class="dp-map-popup-btn" style="background:#c62828;color:#fff;border-color:transparent">High-Level</button></div></div>`);
+        const pop = L.popup().setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${i.id} — ${i.type}</div><div class="dp-map-popup-row">Loc: ${i.address}</div><div class="dp-map-popup-row">Situation: <span style="color:${sc};font-weight:700">${i.situationType}</span></div><div class="dp-map-popup-row">Units: <b>${names}</b></div><div class="dp-map-popup-row">Active: <b>${i.timeActive} mins</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpBackup('${i.id}')" class="dp-map-popup-btn" style="background:#c77700;color:#fff;border-color:transparent">Backup</button><button onclick="window.__dpEscalate('${i.id}')" class="dp-map-popup-btn" style="background:#c62828;color:#fff;border-color:transparent">High-Level</button></div></div>`);
+
         const m = L.marker([i.lat,i.lng],{icon}).addTo(map).bindPopup(pop);
         m.on("click",()=>{ if (onIncidentClick) onIncidentClick(i); });
         mks.current.push(m);

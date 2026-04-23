@@ -17,12 +17,12 @@
   --admin-text-muted: #46495e;
   --admin-text-soft: #787b96;
 
-  /* Brand — admin sapphire/indigo */
-  --admin-accent: #1e40af;
-  --admin-accent-mid: #2563eb;
-  --admin-accent-deep: #1d4ed8;
-  --admin-accent-light: rgba(37, 99, 235, 0.09);
-  --admin-accent-border: rgba(37, 99, 235, 0.22);
+  /* Brand — admin brown */
+  --admin-accent: #8d6e63;
+  --admin-accent-mid: #a1887f;
+  --admin-accent-deep: #5d4037;
+  --admin-accent-light: rgba(141, 110, 99, 0.09);
+  --admin-accent-border: rgba(141, 110, 99, 0.22);
 
   --admin-sidebar-bg: #0f1225;
   --admin-sidebar-text: rgba(255, 255, 255, 0.58);

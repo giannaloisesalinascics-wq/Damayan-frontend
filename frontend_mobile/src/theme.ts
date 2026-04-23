@@ -1,38 +1,40 @@
 export const theme = {
   // Backgrounds
-  bg: "#f8f9f8",
+  bg: "#f5f7f5",
   surface: "#ffffff",
   surfaceSoft: "#f5f7f5",
   surfaceAlt: "#eef1ed",
-  sidebar: "#f8f8f6",
+  sidebar: "#f5f7f5",
   
   // Text
-  text: "#1a1d1b",
-  textMuted: "#6b7469",
-  textLight: "#9ca89f",
+  text: "#1a1c19",
+  textMuted: "#40493d",
+  textLight: "#707a6c",
   
   // Borders & dividers
-  line: "rgba(26, 29, 27, 0.08)",
+  line: "rgba(112, 122, 108, 0.15)",
   
   // Brand colors
-  primary: "#1d7b3a",
-  primaryDeep: "#165530",
-  primaryLight: "#e8f5eb",
+  primary: "#2e7d32",
+  primaryDeep: "#1b5e20",
+  primaryLight: "#e8f5e9",
+  tertiary: "#81c784",
   
-  secondary: "#ffc107",
-  secondaryLight: "#fff9e6",
+  secondary: "#ffb300",
+  secondaryLight: "#fff8e1",
   
-  danger: "#d32f2f",
-  dangerLight: "#ffebee",
+  danger: "#ba1a1a",
+  dangerLight: "#ffdad6",
   
-  warning: "#f57c00",
-  warningLight: "#fff3e0",
+  warning: "#f59e0b",
+  warningLight: "#fef3c7",
   
-  info: "#1976d2",
-  infoLight: "#e3f2fd",
+  info: "#0061a4",
+  infoLight: "#d1e4ff",
   
-  success: "#388e3c",
+  success: "#2e7d32",
   successLight: "#e8f5e9",
+  successSoft: "#e8f5e9",
 };
 
 export const fonts = {

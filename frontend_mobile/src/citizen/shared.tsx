@@ -1,5 +1,6 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, fonts } from "../theme";
 
 const heroImageUri =
@@ -11,15 +12,15 @@ export function CitizenPreparednessTopBar({ onBack }: { onBack: () => void }) {
       <View style={citizenStyles.beforeTopBarRow}>
         <View style={citizenStyles.beforeTitleBlock}>
           <Pressable onPress={onBack} style={citizenStyles.topIconButton}>
-            <Text style={citizenStyles.topIcon}>|||</Text>
+            <Ionicons name="menu" size={22} color={theme.primary} />
           </Pressable>
           <Text style={citizenStyles.beforeTitle}>Citizen Preparedness</Text>
         </View>
-        <Pressable style={citizenStyles.topIconButton}>
-          <Text style={citizenStyles.topIcon}>O</Text>
+        <Pressable style={citizenStyles.topIconButtonAlt}>
+          <Ionicons name="notifications" size={20} color={theme.textMuted} />
+          <View style={citizenStyles.notifDot} />
         </Pressable>
       </View>
-      <View style={citizenStyles.topDivider} />
     </View>
   );
 }
@@ -35,13 +36,20 @@ export function PreparednessHero({
 }) {
   return (
     <View style={citizenStyles.beforeHeroSection}>
-      <Text style={citizenStyles.stepLabel}>{stepLabel}</Text>
+      <View style={citizenStyles.stepBadgeRow}>
+        <View style={citizenStyles.stepBadge}>
+          <Text style={citizenStyles.stepBadgeText}>{stepLabel}</Text>
+        </View>
+      </View>
       <Text style={citizenStyles.beforeHeroTitle}>{title}</Text>
       <Text style={citizenStyles.beforeHeroCopy}>{copy}</Text>
 
       <View style={citizenStyles.heroImageWrap}>
         <Image source={{ uri: heroImageUri }} style={citizenStyles.heroImage} />
         <View style={citizenStyles.heroImageTint} />
+        <View style={citizenStyles.heroImageLabel}>
+           <Text style={citizenStyles.heroImageLabelText}>READY FOR RESPONSE</Text>
+        </View>
       </View>
     </View>
   );
@@ -54,13 +62,13 @@ export function CitizenBottomNav({
 }) {
   const items: Array<{
     id: "home" | "relief" | "qr" | "profile";
-    icon: string;
+    icon: keyof typeof Ionicons.glyphMap;
     label: string;
   }> = [
-    { id: "home", icon: "H", label: "Home" },
-    { id: "relief", icon: "R", label: "Relief" },
-    { id: "qr", icon: "QR", label: "QR ID" },
-    { id: "profile", icon: "P", label: "Profile" },
+    { id: "home", icon: active === "home" ? "home" : "home-outline", label: "Home" },
+    { id: "relief", icon: active === "relief" ? "shield-checkmark" : "shield-checkmark-outline", label: "Relief" },
+    { id: "qr", icon: active === "qr" ? "qr-code" : "qr-code-outline", label: "QR ID" },
+    { id: "profile", icon: active === "profile" ? "person" : "person-outline", label: "Profile" },
   ];
 
   return (
@@ -76,14 +84,11 @@ export function CitizenBottomNav({
               isActive && citizenStyles.bottomNavItemActive,
             ]}
           >
-            <Text
-              style={[
-                citizenStyles.bottomNavIcon,
-                isActive && citizenStyles.bottomNavIconActive,
-              ]}
-            >
-              {item.icon}
-            </Text>
+            <Ionicons
+              name={item.icon}
+              size={22}
+              color={isActive ? theme.primary : theme.textLight}
+            />
             <Text
               style={[
                 citizenStyles.bottomNavLabel,
@@ -103,56 +108,61 @@ export const citizenStyles = StyleSheet.create({
   greenHero: {
     backgroundColor: theme.primary,
     gap: 14,
-    paddingBottom: 8,
+    paddingBottom: 20,
+    borderRadius: 32,
+    borderWidth: 0,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
   },
   heroTitle: {
     color: "#fff",
     fontSize: 34,
     lineHeight: 40,
     ...fonts.black,
+    letterSpacing: -1,
   },
   heroBody: {
-    color: "rgba(255,255,255,0.9)",
+    color: "rgba(255,255,255,0.85)",
     lineHeight: 24,
     fontSize: 15,
     ...fonts.regular,
   },
   uploadBox: {
-    minHeight: 120,
-    borderRadius: 16,
+    minHeight: 140,
+    borderRadius: 24,
     borderWidth: 2,
-    borderColor: "#c8d9c0",
+    borderColor: "rgba(112,122,108,0.18)",
     borderStyle: "dashed",
-    backgroundColor: "#f5faf4",
+    backgroundColor: "rgba(29, 123, 58, 0.04)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
   },
   uploadTitle: {
     color: theme.primary,
     ...fonts.bold,
-    fontSize: 15,
+    fontSize: 16,
   },
   uploadHint: {
-    color: theme.textMuted,
-    fontSize: 13,
+    color: theme.textLight,
+    fontSize: 12,
     ...fonts.regular,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
   },
   beforeTopBar: {
-    backgroundColor: "#fafaf9",
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.line,
+    paddingBottom: 16,
     marginBottom: 8,
   },
   beforeTopBarRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
   },
   beforeTitleBlock: {
     flexDirection: "row",
@@ -161,14 +171,38 @@ export const citizenStyles = StyleSheet.create({
     flex: 1,
   },
   topIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.surfaceSoft,
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: theme.line,
+    borderColor: "rgba(112,122,108,0.12)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  topIconButtonAlt: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(112,122,108,0.06)",
+  },
+  notifDot: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.warning,
+    borderWidth: 2,
+    borderColor: "#f5f7f5",
   },
   topIcon: {
     color: theme.primary,
@@ -189,7 +223,24 @@ export const citizenStyles = StyleSheet.create({
   },
   beforeHeroSection: {
     gap: 16,
-    marginBottom: 8,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  stepBadgeRow: {
+    flexDirection: "row",
+  },
+  stepBadge: {
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  stepBadgeText: {
+    color: theme.warning,
+    fontSize: 11,
+    ...fonts.bold,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
   },
   stepLabel: {
     color: theme.warning,
@@ -200,10 +251,10 @@ export const citizenStyles = StyleSheet.create({
   },
   beforeHeroTitle: {
     color: theme.text,
-    fontSize: 38,
-    lineHeight: 42,
+    fontSize: 42,
+    lineHeight: 46,
     ...fonts.black,
-    letterSpacing: -1,
+    letterSpacing: -1.8,
   },
   beforeHeroCopy: {
     color: theme.textMuted,
@@ -213,20 +264,34 @@ export const citizenStyles = StyleSheet.create({
   },
   heroImageWrap: {
     position: "relative",
-    height: 240,
-    borderRadius: 20,
+    height: 280,
+    borderRadius: 32,
     overflow: "hidden",
     backgroundColor: theme.surfaceAlt,
-    marginTop: 8,
+    marginTop: 12,
   },
   heroImage: {
     width: "100%",
     height: "100%",
-    opacity: 0.85,
   },
   heroImageTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(29, 123, 58, 0.06)",
+    backgroundColor: "rgba(0,0,0,0.1)",
+  },
+  heroImageLabel: {
+    position: "absolute",
+    bottom: 24,
+    left: 24,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  heroImageLabelText: {
+    color: "#fff",
+    fontSize: 10,
+    ...fonts.black,
+    letterSpacing: 1.5,
   },
   selectionGrid: {
     gap: 16,
@@ -564,29 +629,27 @@ export const citizenStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: "rgba(248, 249, 248, 0.95)",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
     shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 10,
     borderTopWidth: 1,
-    borderTopColor: theme.line,
+    borderTopColor: "rgba(112, 122, 108, 0.08)",
   },
   bottomNavItem: {
     minWidth: 70,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 14,
-    opacity: 0.6,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
   bottomNavItemActive: {
-    backgroundColor: "rgba(29, 123, 58, 0.12)",
-    opacity: 1,
+    backgroundColor: "rgba(46, 125, 50, 0.1)",
   },
   bottomNavIcon: {
     color: theme.text,
@@ -598,13 +661,81 @@ export const citizenStyles = StyleSheet.create({
   },
   bottomNavLabel: {
     marginTop: 6,
-    color: theme.text,
-    fontSize: 11,
-    ...fonts.semibold,
-    letterSpacing: 0.4,
+    color: theme.textLight,
+    fontSize: 10,
+    ...fonts.extrabold,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   bottomNavLabelActive: {
     color: theme.primary,
+  },
+  // Registration Flow Extras
+  choiceGrid: {
+    paddingVertical: 10,
+    gap: 16,
+  },
+  choiceCard: {
+    backgroundColor: theme.surface,
+    padding: 24,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: theme.line,
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  choiceIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: theme.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  choiceTitle: {
+    fontSize: 20,
+    ...fonts.black,
+    color: theme.text,
+  },
+  choiceBody: {
+    fontSize: 14,
+    color: theme.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  qrSuccessCard: {
+    backgroundColor: theme.surface,
+    padding: 32,
+    borderRadius: 40,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.line,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.08,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  qrCodeMock: {
+    width: 200,
+    height: 200,
+    backgroundColor: "#000",
+    padding: 14,
+    borderRadius: 16,
+  },
+  memberRow: {
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: theme.surfaceSoft,
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(112, 122, 108, 0.1)",
   },
 });

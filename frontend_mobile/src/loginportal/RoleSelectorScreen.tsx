@@ -1,14 +1,51 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { SectionCard, Screen } from "../components/UI";
-import { roleColors, theme, fonts } from "../theme";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Screen } from "../components/UI";
+import { roleColors, theme } from "../theme";
 import { AppRoute, PortalRole } from "../types";
+import { styles } from "./RoleSelectorScreen.styles";
 
-const roles: { id: PortalRole; label: string; desc: string }[] = [
-  { id: "admin", label: "Admin", desc: "System monitoring, approvals, and reports" },
-  { id: "dispatcher", label: "Dispatcher", desc: "Incident assignment and field coordination" },
-  { id: "site_manager", label: "Site Manager", desc: "Shelter readiness and intake operations" },
-  { id: "citizen", label: "Affected Citizen", desc: "Registration, alerts, and relief tracking" },
+const roles: { 
+  id: PortalRole; 
+  label: string; 
+  sub: string; 
+  desc: string; 
+  color: string;
+  bg: string;
+}[] = [
+  { 
+    id: "citizen", 
+    label: "Affected Citizen", 
+    sub: "Public Portal",
+    desc: "Register, receive alerts, access your QR ID, and track relief aid.",
+    color: "#2E7D32",
+    bg: "rgba(46,125,50,0.08)",
+  },
+  { 
+    id: "site_manager", 
+    label: "Site Manager", 
+    sub: "Operations Portal",
+    desc: "Manage shelter capacity, supplies, and evacuee intake at your site.",
+    color: "#FFB300",
+    bg: "rgba(255,179,0,0.08)",
+  },
+  { 
+    id: "dispatcher", 
+    label: "Dispatcher", 
+    sub: "Command Portal",
+    desc: "Coordinate rescue teams, manage incident tickets, and dispatch resources.",
+    color: "#81C784",
+    bg: "rgba(129,199,132,0.1)",
+  },
+  { 
+    id: "admin", 
+    label: "Administrator", 
+    sub: "System Portal",
+    desc: "System-wide monitoring, user approvals, and platform reporting.",
+    color: "#4E342E",
+    bg: "rgba(78,52,46,0.08)",
+  },
 ];
 
 const routeMap: Record<PortalRole, AppRoute> = {
@@ -20,100 +57,71 @@ const routeMap: Record<PortalRole, AppRoute> = {
 
 export function RoleSelectorScreen({ onNavigate }: { onNavigate: (route: AppRoute) => void }) {
   return (
-    <Screen>
-      <SectionCard style={styles.hero}>
-        <View style={styles.mark}>
-          <Text style={styles.markText}>D</Text>
-        </View>
-        <Text style={styles.brand}>DAMAYAN</Text>
-        <Text style={styles.headline}>Choose Your Portal</Text>
-        <Text style={styles.copy}>
-          Open the right operational view for your role. This mobile app mirrors the
-          main desktop flows in a phone-friendly format.
-        </Text>
-      </SectionCard>
-
-      {roles.map((role) => (
-        <Pressable
-          key={role.id}
-          onPress={() => onNavigate(routeMap[role.id])}
-          style={styles.roleCard}
-        >
-          <View style={[styles.roleDot, { backgroundColor: roleColors[role.id] }]} />
-          <View style={styles.roleCopy}>
-            <Text style={styles.roleLabel}>{role.label}</Text>
-            <Text style={styles.roleDesc}>{role.desc}</Text>
+    <Screen style={{ backgroundColor: theme.bg }}>
+      <View style={styles.hero}>
+        <View style={styles.heroGradient} />
+        
+        {/* Animated Orbs Simulation */}
+        <View style={[styles.orb, styles.orb1]} />
+        <View style={[styles.orb, styles.orb2]} />
+        
+        <View style={{ paddingHorizontal: 24, zIndex: 2 }}>
+          <View style={styles.mark}>
+            <Text style={styles.markText}>D</Text>
           </View>
-          <Text style={[styles.openText, { color: roleColors[role.id] }]}>Open</Text>
-        </Pressable>
-      ))}
+          <Text style={styles.brand}>DAMAYAN</Text>
+          <Text style={styles.headline}>One Platform.{"\n"}Every Role.{"\n"}<Text style={{color: "#FFB300"}}>Zero Delay.</Text></Text>
+          <Text style={styles.copy}>
+            Philippines Disaster Response connecting everyone during every phase of a calamity.
+          </Text>
+
+          {/* Stats Section */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>4</Text>
+              <Text style={styles.statLabel}>Portals</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>Real-time</Text>
+              <Text style={styles.statLabel}>Sync</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>Offline</Text>
+              <Text style={styles.statLabel}>Ready</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={{ paddingBottom: 40 }}>
+        <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+          <Text style={styles.selectorHeadText}>SELECT YOUR ROLE TO CONTINUE</Text>
+        </View>
+        
+        {roles.map((role) => (
+          <Pressable
+            key={role.id}
+            onPress={() => onNavigate(routeMap[role.id])}
+            style={({ pressed }) => [
+              styles.roleCard,
+              { backgroundColor: theme.surface, borderColor: theme.line },
+              pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 }
+            ]}
+          >
+            <View style={[styles.roleDot, { backgroundColor: role.color }]} />
+            <View style={styles.roleCopy}>
+              <Text style={[styles.roleSub, { color: role.color }]}>{role.sub}</Text>
+              <Text style={styles.roleLabel}>{role.label}</Text>
+              <Text style={styles.roleDesc} numberOfLines={2}>{role.desc}</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={18} color={role.color} />
+          </Pressable>
+        ))}
+      </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  hero: {
-    backgroundColor: theme.primary,
-  },
-  mark: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  markText: {
-    color: "#fff",
-    ...fonts.black,
-  },
-  brand: {
-    color: "#fff",
-    fontSize: 20,
-    ...fonts.extrabold,
-    marginBottom: 16,
-  },
-  headline: {
-    color: "#fff",
-    fontSize: 34,
-    lineHeight: 36,
-    ...fonts.black,
-    marginBottom: 12,
-  },
-  copy: {
-    color: "rgba(255,255,255,0.84)",
-    lineHeight: 22,
-  },
-  roleCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: theme.line,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  roleDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-  },
-  roleCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  roleLabel: {
-    color: theme.text,
-    fontSize: 16,
-    ...fonts.extrabold,
-  },
-  roleDesc: {
-    color: theme.textMuted,
-    lineHeight: 20,
-  },
-  openText: {
-    ...fonts.extrabold,
-  },
-});
+
