@@ -1,0 +1,32 @@
+{
+  "name": "damayan-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start:gateway": "ts-node --esm src/main.ts",
+    "start:auth-service": "ts-node --esm apps/auth-service/src/main.ts",
+    "start:operations-service": "ts-node --esm apps/operations-service/src/main.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/jwt": "^11.0.1",
+    "@nestjs/microservices": "^11.1.6",
+    "@supabase/supabase-js": "^2.49.8",
+    "@nestjs/platform-express": "^11.1.6",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "reflect-metadata": "^0.2.2",
+    "resend": "^4.1.2",
+    "rxjs": "^7.8.2",
+    "twilio": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
