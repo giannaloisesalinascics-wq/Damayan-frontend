@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { ApiError, forgotPassword, resetPassword } from "../../lib/api";
 
 type ForgotStep = "request" | "sent" | "create";
 
@@ -13,6 +14,13 @@ export default function SiteManagerForgotPasswordPage() {
   const [contact, setContact] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [maskedContact, setMaskedContact] = useState("");
+  const [debugCode, setDebugCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const steps: ForgotStep[] = ["request", "sent", "create"];
 
@@ -31,9 +39,24 @@ export default function SiteManagerForgotPasswordPage() {
 
           <form
             className="auth-form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              setStep("sent");
+              try {
+                setLoading(true);
+                setError(null);
+                const result = await forgotPassword({ contact });
+                setMaskedContact(result.maskedContact);
+                setDebugCode(result.debugVerificationCode ?? null);
+                setStep("sent");
+              } catch (caughtError) {
+                setError(
+                  caughtError instanceof ApiError
+                    ? caughtError.message
+                    : "Unable to start password recovery.",
+                );
+              } finally {
+                setLoading(false);
+              }
             }}
           >
             <div className="auth-field">
@@ -53,8 +76,10 @@ export default function SiteManagerForgotPasswordPage() {
               registered under your Site Manager account.
             </div>
 
+            {error ? <p className="auth-error-copy">{error}</p> : null}
+
             <button className="auth-submit" type="submit">
-              Send Reset Link
+              {loading ? "Sending..." : "Send Reset Code"}
             </button>
           </form>
 
@@ -73,7 +98,7 @@ export default function SiteManagerForgotPasswordPage() {
             <span className="auth-badge">Link Sent</span>
             <h2 className="auth-form-title">Check your<br />inbox</h2>
             <p className="auth-form-sub">
-              A reset link was sent to <strong>{contact || "your registered contact"}</strong>.
+              A reset code was sent to <strong>{maskedContact || contact || "your registered contact"}</strong>.
               Please check your email or SMS messages.
             </p>
           </header>
@@ -82,6 +107,12 @@ export default function SiteManagerForgotPasswordPage() {
             📱 The link expires in <strong>15 minutes</strong>. If you do not see it,
             check spam or request a new one below.
           </div>
+
+          {debugCode ? (
+            <div className="auth-info-box">
+              Dev verification code: <strong>{debugCode}</strong>
+            </div>
+          ) : null}
 
           <button
             className="auth-submit"
@@ -116,11 +147,35 @@ export default function SiteManagerForgotPasswordPage() {
 
         <form
           className="auth-form"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            router.push("/site-manager/login");
+
+            if (newPassword !== confirmPassword) {
+              setError("Passwords do not match.");
+              return;
+            }
+
+            try {
+              setLoading(true);
+              setError(null);
+              await resetPassword({ contact, code, newPassword });
+              router.push("/site-manager/login");
+            } catch (caughtError) {
+              setError(
+                caughtError instanceof ApiError
+                  ? caughtError.message
+                  : "Unable to reset the password.",
+              );
+            } finally {
+              setLoading(false);
+            }
           }}
         >
+          <div className="auth-field">
+            <label htmlFor="sm-fp-code">Verification Code</label>
+            <input id="sm-fp-code" type="text" inputMode="numeric" placeholder="4-digit code" value={code} onChange={(e) => setCode(e.target.value)} required />
+          </div>
+
           <div className="auth-field">
             <label htmlFor="sm-fp-new">New Password</label>
             <div className="auth-input-wrap">
@@ -128,6 +183,8 @@ export default function SiteManagerForgotPasswordPage() {
                 id="sm-fp-new"
                 type={showPass ? "text" : "password"}
                 placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
               />
               <button
@@ -147,6 +204,8 @@ export default function SiteManagerForgotPasswordPage() {
                 id="sm-fp-confirm"
                 type={showConfirm ? "text" : "password"}
                 placeholder="Re-enter your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
               />
               <button
@@ -159,8 +218,10 @@ export default function SiteManagerForgotPasswordPage() {
             </div>
           </div>
 
+          {error ? <p className="auth-error-copy">{error}</p> : null}
+
           <button className="auth-submit" type="submit">
-            Save New Password
+            {loading ? "Saving..." : "Save New Password"}
           </button>
         </form>
 

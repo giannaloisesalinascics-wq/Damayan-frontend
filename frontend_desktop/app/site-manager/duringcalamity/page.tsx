@@ -1,6 +1,6 @@
 import "./page.css";
-import DuringCalamityPage from "./DuringCalamityPage";
+import SiteManagerLiveDuringPage from "./SiteManagerLiveDuringPage";
 
 export default function Page() {
-  return <DuringCalamityPage />;
+  return <SiteManagerLiveDuringPage />;
 }

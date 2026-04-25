@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start:gateway": "ts-node --esm src/main.ts",
-    "start:auth-service": "ts-node --esm apps/auth-service/src/main.ts",
-    "start:operations-service": "ts-node --esm apps/operations-service/src/main.ts"
+    "start:gateway": "tsx src/main.ts",
+    "start:auth-service": "tsx apps/auth-service/src/main.ts",
+    "start:operations-service": "tsx apps/operations-service/src/main.ts",
+    "ports:free": "kill-port 3001 4001 4002",
+    "stop:all": "npm run ports:free",
+    "start:all": "npm run ports:free && concurrently -n gateway,auth,operations -c cyan,magenta,green \"npm run start:gateway\" \"npm run start:auth-service\" \"npm run start:operations-service\""
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
@@ -15,8 +18,9 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/jwt": "^11.0.1",
     "@nestjs/microservices": "^11.1.6",
-    "@supabase/supabase-js": "^2.49.8",
     "@nestjs/platform-express": "^11.1.6",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "reflect-metadata": "^0.2.2",
@@ -26,7 +30,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "concurrently": "^9.2.1",
+    "kill-port": "^2.0.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3"
   }
 }

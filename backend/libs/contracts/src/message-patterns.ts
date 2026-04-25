@@ -1,6 +1,7 @@
 export const AUTH_PATTERNS = {
   SIGNUP: 'auth.signup',
   LOGIN: 'auth.login',
+  GET_PROFILE: 'auth.get-profile',
   FORGOT_PASSWORD: 'auth.forgot-password',
   RESET_PASSWORD: 'auth.reset-password',
 } as const;

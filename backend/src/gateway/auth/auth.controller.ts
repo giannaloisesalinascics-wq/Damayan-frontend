@@ -1,9 +1,28 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthProxyService } from './auth.proxy.service.js';
 import { SignupDto } from '../../auth/dto/signup.dto.js';
 import { LoginDto } from '../../auth/dto/login.dto.js';
 import { ForgotPasswordDto } from '../../auth/dto/forgot-password.dto.js';
 import { ResetPasswordDto } from '../../auth/dto/reset-password.dto.js';
+import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
+import { AppRole } from '../../../libs/contracts/src/roles.js';
+
+interface RequestWithUser {
+  user: {
+    sub: string;
+    email: string;
+    role: AppRole;
+  };
+}
 
 @Controller('auth')
 export class AuthGatewayController {
@@ -18,6 +37,12 @@ export class AuthGatewayController {
   @HttpCode(HttpStatus.OK)
   login(@Body() loginDto: LoginDto) {
     return this.authProxyService.login(loginDto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  getProfile(@Req() request: RequestWithUser) {
+    return this.authProxyService.getProfile(request.user.sub);
   }
 
   @Post('forgot-password')

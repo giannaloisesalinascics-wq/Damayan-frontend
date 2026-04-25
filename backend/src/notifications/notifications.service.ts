@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import Twilio from 'twilio';
@@ -12,7 +12,7 @@ export class NotificationsService {
   private readonly twilioFromPhone: string | null;
   private readonly isProduction: boolean;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {
     const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
     const twilioAccountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');

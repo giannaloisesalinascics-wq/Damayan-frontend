@@ -1,19 +1,30 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { MobileHeader, NavPills } from "../../components/MobileShell";
 import { Button, Pill, Screen, SectionCard } from "../../components/UI";
 import { siteManagerStyles } from "../shared";
 import { theme } from "../../theme";
+import { ApiError, getCapacity, getDashboard, getInventory, getRecentCheckIns } from "../../api";
+import { AuthSession, CapacityCenter, CheckInRecord, DashboardOverview, InventoryItem } from "../../types";
 
 export function SiteManagerBeforeScreen({
   onBack,
   onOpenResponse,
+  onSignOut,
+  session,
 }: {
   onBack: () => void;
   onOpenResponse: () => void;
+  onSignOut: () => void;
+  session: AuthSession;
 }) {
   const [active, setActive] = useState("Dashboard");
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [inventoryRows, setInventoryRows] = useState<InventoryItem[]>([]);
+  const [centers, setCenters] = useState<CapacityCenter[]>([]);
+  const [recent, setRecent] = useState<CheckInRecord[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
   const [checklist, setChecklist] = useState([
     { id: "1", label: "Verify Inventory & Capacity", status: "Pending" },
@@ -34,6 +45,31 @@ export function SiteManagerBeforeScreen({
   const completedCount = checklist.filter(i => i.status === "Ready").length;
   const progressPercent = (completedCount / checklist.length) * 100;
 
+  useEffect(() => {
+    async function hydrate() {
+      try {
+        const [dashboard, inventory, capacity, checkIns] = await Promise.all([
+          getDashboard("site-manager", session.accessToken),
+          getInventory("site-manager", session.accessToken),
+          getCapacity(session.accessToken),
+          getRecentCheckIns(session.accessToken, 4),
+        ]);
+        setOverview(dashboard);
+        setInventoryRows(inventory);
+        setCenters(capacity);
+        setRecent(checkIns);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof ApiError
+            ? caughtError.message
+            : "Unable to load site-manager data.",
+        );
+      }
+    }
+
+    void hydrate();
+  }, [session.accessToken]);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <View style={{ backgroundColor: theme.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}>
@@ -50,22 +86,24 @@ export function SiteManagerBeforeScreen({
         <Pill label="Phase 1" tone="warning" />
         <Text style={siteManagerStyles.heroTitle}>Regional Preparedness Dashboard</Text>
         <Text style={siteManagerStyles.heroText}>
-          Monitor shelter readiness, inventory, and intake scanner preparation.
+          Monitor shelter readiness, inventory, and intake scanner preparation for {session.user.email}.
         </Text>
+        {error ? <Text style={{ color: "#fee2e2", fontWeight: "700" }}>{error}</Text> : null}
         
         {/* Metric Row */}
         <View style={siteManagerStyles.metricRow}>
           <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>88%</Text>
-            <Text style={siteManagerStyles.metricLabel}>Readiness</Text>
+            <Text style={siteManagerStyles.metricValue}>{overview?.capacity.totalCenters ?? 0}</Text>
+            <Text style={siteManagerStyles.metricLabel}>Centers</Text>
           </View>
           <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>72h</Text>
-            <Text style={siteManagerStyles.metricLabel}>Window</Text>
+            <Text style={siteManagerStyles.metricValue}>{overview?.checkIns.totalCheckedIn ?? 0}</Text>
+            <Text style={siteManagerStyles.metricLabel}>Checked In</Text>
           </View>
         </View>
 
         <Button label="Open Active Response" tone="secondary" onPress={onOpenResponse} />
+        <Button label="Sign Out" tone="ghost" onPress={onSignOut} />
       </SectionCard>
 
       {/* Before Calamity Tasks */}
@@ -109,17 +147,12 @@ export function SiteManagerBeforeScreen({
         </View>
         
         <View style={siteManagerStyles.inventoryGrid}>
-          {[
-            { icon: "water", name: "Potable Water", level: "92%", color: theme.primary },
-            { icon: "medical", name: "Medical Kits", level: "84%", color: theme.primary },
-            { icon: "leaf", name: "Dry Rations", level: "95%", color: theme.primary },
-            { icon: "bed", name: "Blankets", level: "61%", color: theme.warning },
-          ].map((item, idx) => (
+          {inventoryRows.slice(0, 4).map((item, idx) => (
             <View key={idx} style={siteManagerStyles.inventoryItem}>
-              <View style={[siteManagerStyles.inventoryIcon, { backgroundColor: item.color + "15" }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              <View style={[siteManagerStyles.inventoryIcon, { backgroundColor: (item.status === "low" ? theme.warning : theme.primary) + "15" }]}>
+                <Ionicons name="cube-outline" size={18} color={item.status === "low" ? theme.warning : theme.primary} />
               </View>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: theme.text }}>{item.level}</Text>
+              <Text style={{ fontSize: 14, fontWeight: "800", color: theme.text }}>{item.quantity}</Text>
               <Text style={{ fontSize: 11, color: theme.textMuted }}>{item.name}</Text>
             </View>
           ))}
@@ -130,22 +163,18 @@ export function SiteManagerBeforeScreen({
       <SectionCard>
         <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 16 }]}>Team Deployment</Text>
         
-        {[
-          { label: "Medical Responders", current: 24, total: 30, percent: "80%" },
-          { label: "Logistics Personnel", current: 12, total: 12, percent: "100%" },
-          { label: "Community Volunteers", current: 145, total: 200, percent: "72%" },
-        ].map((item, idx) => (
+        {centers.slice(0, 3).map((item, idx) => (
           <View key={idx} style={{ marginBottom: 16 }}>
             <View style={siteManagerStyles.progRow}>
-              <Text style={siteManagerStyles.progLabel}>{item.label}</Text>
-              <Text style={{ fontSize: 12, color: theme.textMuted }}>{item.current} / {item.total}</Text>
+              <Text style={siteManagerStyles.progLabel}>{item.name}</Text>
+              <Text style={{ fontSize: 12, color: theme.textMuted }}>{item.currentOccupancy} / {item.capacity}</Text>
             </View>
             <View style={{ height: 6, backgroundColor: theme.surfaceSoft, borderRadius: 3, overflow: "hidden" }}>
               <View
                 style={{
                   height: "100%",
-                  width: item.percent as `${number}%`,
-                  backgroundColor: item.percent === "100%" ? theme.success : theme.primary,
+                  width: `${item.utilizationRate}%` as `${number}%`,
+                  backgroundColor: item.utilizationRate >= 90 ? theme.danger : item.utilizationRate >= 75 ? theme.warning : theme.primary,
                 }}
               />
             </View>
@@ -156,19 +185,16 @@ export function SiteManagerBeforeScreen({
       {/* Timeline */}
       <SectionCard>
         <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 20 }]}>Recent Activities</Text>
-        {[
-          { time: "08:45 AM", title: "Convoy Gamma Arrived", desc: "10 Responders safely staged at Sector 4." },
-          { time: "07:12 AM", title: "Sector 4 Comms Live", desc: "Satellite uplink established (92% signal)." },
-        ].map((item, idx, arr) => (
+        {recent.map((item, idx, arr) => (
           <View key={idx} style={siteManagerStyles.timelineItem}>
             <View>
               <View style={siteManagerStyles.timelineDot} />
               {idx < arr.length - 1 && <View style={siteManagerStyles.timelineLine} />}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: "800", color: theme.textLight }}>{item.time}</Text>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: theme.text, marginTop: 2 }}>{item.title}</Text>
-              <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 4, lineHeight: 18 }}>{item.desc}</Text>
+              <Text style={{ fontSize: 10, fontWeight: "800", color: theme.textLight }}>{item.status.toUpperCase()}</Text>
+              <Text style={{ fontSize: 15, fontWeight: "800", color: theme.text, marginTop: 2 }}>{item.fullName || `${item.firstName} ${item.lastName}`}</Text>
+              <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 4, lineHeight: 18 }}>{item.zone} • {item.location}</Text>
             </View>
           </View>
         ))}

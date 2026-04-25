@@ -85,15 +85,19 @@ export function PortalLoginScreen({
   onSubmit,
   onSecondary,
   secondaryLabel,
+  loading,
+  error,
 }: {
   role: PortalRole;
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (payload: { email: string; password: string }) => void;
   onSecondary?: () => void;
   secondaryLabel?: string;
+  loading?: boolean;
+  error?: string | null;
 }) {
   const content = roleContent[role];
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -158,16 +162,17 @@ export function PortalLoginScreen({
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Username</Text>
+              <Text style={styles.fieldLabel}>Email</Text>
               <View style={styles.fieldWrap}>
                 <Text style={styles.fieldIcon}>▣</Text>
                 <TextInput
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder={role === "citizen" ? "e.g. juan.delacruz" : "Enter username"}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder={role === "citizen" ? "juan@email.com" : "Enter your email"}
                   placeholderTextColor="#8f978f"
                   style={styles.fieldInput}
                   autoCapitalize="none"
+                  keyboardType="email-address"
                 />
               </View>
             </View>
@@ -198,10 +203,14 @@ export function PortalLoginScreen({
               </View>
             </View>
 
+            {error ? (
+              <Text style={{ color: "#dc2626", fontWeight: "700", textAlign: "center" }}>{error}</Text>
+            ) : null}
+
             <View style={styles.actionStack}>
-              <Pressable onPress={onSubmit} style={[styles.primaryAction, { backgroundColor: content.accent }]}>
+              <Pressable onPress={() => onSubmit({ email, password })} style={[styles.primaryAction, { backgroundColor: content.accent, opacity: loading ? 0.7 : 1 }]}>
                 <View style={styles.primaryGradient}>
-                  <Text style={styles.primaryActionText}>{content.action}</Text>
+                  <Text style={styles.primaryActionText}>{loading ? "Signing In..." : content.action}</Text>
                   <Text style={styles.primaryActionArrow}>→</Text>
                 </View>
               </Pressable>

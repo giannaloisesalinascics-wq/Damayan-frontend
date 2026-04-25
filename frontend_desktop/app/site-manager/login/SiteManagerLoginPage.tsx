@@ -4,14 +4,45 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { ApiError, login } from "../../lib/api";
+import { saveSession } from "../../lib/session";
 
 export default function SiteManagerLoginPage() {
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/site-manager/beforecalamity");
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await login({ email, password, rememberMe: true });
+
+      if (result.user.role !== "line_manager") {
+        setError("This account does not have site manager access.");
+        return;
+      }
+
+      saveSession({
+        accessToken: result.access_token,
+        expiresIn: result.expiresIn,
+        user: result.user,
+      });
+      router.push("/site-manager/beforecalamity");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : "Unable to sign in right now.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -35,13 +66,16 @@ export default function SiteManagerLoginPage() {
     >
       <form className="auth-form" onSubmit={handleLogin}>
         <div className="auth-field">
-          <label htmlFor="site-manager-username">Username</label>
+          <label htmlFor="site-manager-email">Email</label>
           <input
-            id="site-manager-username"
-            name="site-manager-username"
-            type="text"
-            placeholder="e.g. manager.username"
+            id="site-manager-email"
+            name="site-manager-email"
+            type="email"
+            placeholder="manager@barangay.gov.ph"
             autoComplete="username"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
           />
         </div>
 
@@ -59,6 +93,9 @@ export default function SiteManagerLoginPage() {
               type={showPass ? "text" : "password"}
               placeholder="Enter your password"
               autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
             />
             <button
               type="button"
@@ -71,8 +108,10 @@ export default function SiteManagerLoginPage() {
           </div>
         </div>
 
+        {error ? <p className="auth-error-copy">{error}</p> : null}
+
         <button className="auth-submit" type="submit">
-          Sign In to Site Manager Dashboard
+          {loading ? "Signing in..." : "Sign In to Site Manager Dashboard"}
         </button>
       </form>
 

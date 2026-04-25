@@ -85,11 +85,13 @@ export function Input({
   placeholder,
   secureTextEntry,
   onChangeText,
+  value,
 }: {
   label: string;
   placeholder: string;
   secureTextEntry?: boolean;
   onChangeText?: (text: string) => void;
+  value?: string;
 }) {
   return (
     <View style={styles.inputWrap}>
@@ -99,6 +101,7 @@ export function Input({
         placeholderTextColor={theme.textLight}
         secureTextEntry={secureTextEntry}
         onChangeText={onChangeText}
+        value={value}
         style={styles.input}
       />
     </View>

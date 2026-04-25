@@ -5,6 +5,7 @@ import { AUTH_SERVICE, OPERATIONS_SERVICE } from './gateway.tokens.js';
 
 @Module({
   imports: [
+    ConfigModule,
     ClientsModule.registerAsync([
       {
         name: AUTH_SERVICE,

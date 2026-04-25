@@ -47,6 +47,20 @@ This backend is structured as three Nest.js processes:
 
 ## Start Commands
 
+Single terminal option (recommended):
+
+```bash
+npm run start:all
+```
+
+`start:all` now auto-frees ports `3001`, `4001`, and `4002` before launching all three services, so rerunning the command will replace stale backend processes instead of failing with `EADDRINUSE`.
+
+Stop all backend services:
+
+```bash
+npm run stop:all
+```
+
 Run each process in its own terminal:
 
 ```bash

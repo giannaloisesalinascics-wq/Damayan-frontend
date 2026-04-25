@@ -3,14 +3,45 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { ApiError, login } from "../../lib/api";
+import { saveSession } from "../../lib/session";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/admin/beforecalamity");
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await login({ email, password, rememberMe: true });
+
+      if (result.user.role !== "admin") {
+        setError("This account does not have admin access.");
+        return;
+      }
+
+      saveSession({
+        accessToken: result.access_token,
+        expiresIn: result.expiresIn,
+        user: result.user,
+      });
+      router.push("/admin/beforecalamity");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : "Unable to sign in right now.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -34,13 +65,15 @@ export default function AdminLoginPage() {
     >
       <form className="auth-form" onSubmit={handleLogin}>
         <div className="auth-field">
-          <label htmlFor="admin-username">Root ID</label>
+          <label htmlFor="admin-email">Admin Email</label>
           <input
-            id="admin-username"
-            name="admin-username"
-            type="text"
-            placeholder="admin.terminal"
+            id="admin-email"
+            name="admin-email"
+            type="email"
+            placeholder="root.admin@agency.gov.ph"
             autoComplete="username"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
           />
         </div>
@@ -56,6 +89,8 @@ export default function AdminLoginPage() {
               type={showPass ? "text" : "password"}
               placeholder="Enter master password"
               autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
               required
             />
             <button
@@ -69,8 +104,10 @@ export default function AdminLoginPage() {
           </div>
         </div>
 
+        {error ? <p className="auth-error-copy">{error}</p> : null}
+
         <button className="auth-submit" type="submit">
-          Initialize System Admin Dashboard
+          {loading ? "Signing in..." : "Initialize System Admin Dashboard"}
         </button>
       </form>
     </AuthLayout>

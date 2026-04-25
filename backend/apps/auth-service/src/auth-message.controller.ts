@@ -21,6 +21,11 @@ export class AuthMessageController {
     return this.authService.login(loginDto);
   }
 
+  @MessagePattern(AUTH_PATTERNS.GET_PROFILE)
+  getProfile(@Payload() payload: { userId: string }) {
+    return this.authService.getProfile(payload.userId);
+  }
+
   @MessagePattern(AUTH_PATTERNS.FORGOT_PASSWORD)
   forgotPassword(@Payload() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto);

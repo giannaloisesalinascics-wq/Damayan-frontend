@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
+import { RpcToHttpExceptionFilter } from './common/filters/rpc-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,6 +21,7 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api');
+  app.useGlobalFilters(new RpcToHttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

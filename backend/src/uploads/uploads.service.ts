@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateDisasterCoverUploadDto } from './dto/create-disaster-cover-upload.dto.js';
@@ -8,8 +9,8 @@ import { CreateObjectViewUrlDto } from './dto/create-object-view-url.dto.js';
 @Injectable()
 export class UploadsService {
   constructor(
-    private readonly supabaseService: SupabaseService,
-    private readonly configService: ConfigService,
+    @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
   ) {}
 
   async createDisasterCoverUploadUrl(

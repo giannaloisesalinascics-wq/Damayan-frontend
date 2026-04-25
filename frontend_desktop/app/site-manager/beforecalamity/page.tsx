@@ -1,6 +1,6 @@
 import "./page.css";
-import BeforeCalamityPage from "./BeforeCalamityPage";
+import SiteManagerLiveBeforePage from "./SiteManagerLiveBeforePage";
 
 export default function Page() {
-  return <BeforeCalamityPage />;
+  return <SiteManagerLiveBeforePage />;
 }

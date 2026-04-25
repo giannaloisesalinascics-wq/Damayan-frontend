@@ -1,5 +1,5 @@
-import AdminPortal from "../AdminPortal";
+import AdminLiveDashboard from "../AdminLiveDashboard";
 
 export default function Page() {
-  return <AdminPortal />;
+  return <AdminLiveDashboard />;
 }

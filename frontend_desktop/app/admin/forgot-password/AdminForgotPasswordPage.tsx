@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { ApiError, forgotPassword, resetPassword } from "../../lib/api";
 
 type ForgotStep = "request" | "sent" | "create";
 
@@ -10,6 +11,12 @@ export default function AdminForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState<ForgotStep>("request");
   const [contact, setContact] = useState("");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [maskedContact, setMaskedContact] = useState("");
+  const [debugCode, setDebugCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const steps: ForgotStep[] = ["request", "sent", "create"];
 
@@ -27,9 +34,24 @@ export default function AdminForgotPasswordPage() {
 
           <form
             className="auth-form"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              setStep("sent");
+              try {
+                setLoading(true);
+                setError(null);
+                const result = await forgotPassword({ contact });
+                setMaskedContact(result.maskedContact);
+                setDebugCode(result.debugVerificationCode ?? null);
+                setStep("sent");
+              } catch (caughtError) {
+                setError(
+                  caughtError instanceof ApiError
+                    ? caughtError.message
+                    : "Unable to start password recovery.",
+                );
+              } finally {
+                setLoading(false);
+              }
             }}
           >
             <div className="auth-field">
@@ -47,8 +69,10 @@ export default function AdminForgotPasswordPage() {
               ⚠️ Root password resets are logged and require manual override from the hardware terminal for security compliance.
             </div>
 
+            {error ? <p className="auth-error-copy">{error}</p> : null}
+
             <button className="auth-submit" type="submit">
-              Initialize Recovery Protocol
+              {loading ? "Sending..." : "Initialize Recovery Protocol"}
             </button>
           </form>
         </>
@@ -63,9 +87,15 @@ export default function AdminForgotPasswordPage() {
             <span className="auth-badge">Auth Sent</span>
             <h2 className="auth-form-title">Secure Dispatch</h2>
             <p className="auth-form-sub">
-              A recovery token has been sent to <strong>{contact}</strong>.
+              A recovery token has been sent to <strong>{maskedContact || contact}</strong>.
             </p>
           </header>
+
+          {debugCode ? (
+            <div className="auth-info-box">
+              Dev verification code: <strong>{debugCode}</strong>
+            </div>
+          ) : null}
 
           <button
             className="auth-submit"
@@ -88,24 +118,47 @@ export default function AdminForgotPasswordPage() {
 
         <form
           className="auth-form"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            router.push("/admin/login");
+
+            try {
+              setLoading(true);
+              setError(null);
+              await resetPassword({ contact, code, newPassword });
+              router.push("/admin/login");
+            } catch (caughtError) {
+              setError(
+                caughtError instanceof ApiError
+                  ? caughtError.message
+                  : "Unable to reset the password.",
+              );
+            } finally {
+              setLoading(false);
+            }
           }}
         >
+          <div className="auth-field">
+            <label>Verification Code</label>
+            <input type="text" inputMode="numeric" placeholder="4-digit code" value={code} onChange={(e) => setCode(e.target.value)} required />
+          </div>
+
           <div className="auth-field">
             <label>New Master Password</label>
             <div className="auth-input-wrap">
               <input
                 type="password"
                 placeholder="High-entropy passphrase required"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
               />
             </div>
           </div>
 
+          {error ? <p className="auth-error-copy">{error}</p> : null}
+
           <button className="auth-submit" type="submit">
-            Confirm Master Reset
+            {loading ? "Saving..." : "Confirm Master Reset"}
           </button>
         </form>
       </>

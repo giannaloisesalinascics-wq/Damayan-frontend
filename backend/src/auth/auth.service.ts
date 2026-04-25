@@ -169,6 +169,50 @@ export class AuthService {
     };
   }
 
+  async getProfile(userId: string) {
+    const supabase = this.supabaseService.getClient() as any;
+
+    const [{ data: profile, error: profileError }, { data: authUser, error: authUserError }] =
+      await Promise.all([
+        this.withTimeout<any>(
+          supabase
+            .from('user_profiles')
+            .select('id, first_name, last_name, phone, role, auth_user_id')
+            .eq('auth_user_id', userId)
+            .maybeSingle(),
+          'Profile lookup timed out while loading the current user.',
+        ),
+        this.withTimeout<any>(
+          supabase.auth.admin.getUserById(userId),
+          'Auth lookup timed out while loading the current user.',
+        ),
+      ]);
+
+    if (profileError) {
+      throw new BadRequestException(profileError.message);
+    }
+
+    if (authUserError) {
+      throw new BadRequestException(authUserError.message);
+    }
+
+    const resolvedProfile = profile as UserProfileRow | null;
+    const email = authUser?.user?.email ?? '';
+
+    return {
+      user: {
+        id: resolvedProfile?.id ?? userId,
+        authUserId: userId,
+        firstName: resolvedProfile?.first_name ?? '',
+        lastName: resolvedProfile?.last_name ?? '',
+        name: `${resolvedProfile?.first_name ?? ''} ${resolvedProfile?.last_name ?? ''}`.trim(),
+        email,
+        phone: resolvedProfile?.phone ?? '',
+        role: (resolvedProfile?.role as AppRole | undefined) ?? AppRole.CITIZEN,
+      },
+    };
+  }
+
   private async withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 10000): Promise<T> {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 

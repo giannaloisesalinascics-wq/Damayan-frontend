@@ -9,13 +9,30 @@ import { theme } from "../../theme";
 export function SiteManagerSignupScreen({
   onBack,
   onSubmit,
+  loading,
+  error,
 }: {
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+  }) => void;
+  loading?: boolean;
+  error?: string | null;
 }) {
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const uploadBoxRef = useRef<View>(null);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
 
   const validateAndSetFile = (file: { name: string; type?: string }) => {
     const fileName = file.name.toLowerCase();
@@ -107,9 +124,17 @@ export function SiteManagerSignupScreen({
       <SectionCard>
         <View style={{ gap: 20 }}>
           <View style={{ gap: 16 }}>
-            <Input label="FULL NAME" placeholder="e.g. Juan De La Cruz" />
-            <Input label="CREATE USERNAME" placeholder="site.manager.01" />
-            <Input label="PASSWORD" placeholder="********" secureTextEntry />
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Input label="FIRST NAME" placeholder="Juan" value={form.firstName} onChangeText={(value) => setForm((current) => ({ ...current, firstName: value }))} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Input label="LAST NAME" placeholder="Dela Cruz" value={form.lastName} onChangeText={(value) => setForm((current) => ({ ...current, lastName: value }))} />
+              </View>
+            </View>
+            <Input label="EMAIL" placeholder="manager@barangay.gov.ph" value={form.email} onChangeText={(value) => setForm((current) => ({ ...current, email: value }))} />
+            <Input label="PHONE" placeholder="09171234567" value={form.phone} onChangeText={(value) => setForm((current) => ({ ...current, phone: value }))} />
+            <Input label="PASSWORD" placeholder="********" secureTextEntry value={form.password} onChangeText={(value) => setForm((current) => ({ ...current, password: value }))} />
           </View>
           
           <View style={{ gap: 8 }}>
@@ -179,8 +204,10 @@ export function SiteManagerSignupScreen({
               </Pressable>
             </View>
           </View>
+
+          {error ? <Text style={{ color: theme.danger, fontWeight: "700" }}>{error}</Text> : null}
           
-          <Button label="Submit Registration" onPress={onSubmit} tone="primary" />
+          <Button label={loading ? "Creating Account..." : "Submit Registration"} onPress={() => onSubmit(form)} tone="primary" />
 
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
             <Text style={{ color: theme.textMuted, fontSize: 14, fontWeight: "400" }}>
