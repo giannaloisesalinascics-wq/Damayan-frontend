@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { SiteManagerProxyService } from '../site-manager/site-manager.proxy.service.js';
 import { CreateItemDto } from '../../inventory/dto/create-item.dto.js';
 import { UpdateItemDto } from '../../inventory/dto/update-item.dto.js';
@@ -25,7 +25,7 @@ import { CreateObjectViewUrlDto } from '../../uploads/dto/create-object-view-url
 
 @Injectable()
 export class AdminProxyService {
-  constructor(private readonly siteManagerProxyService: SiteManagerProxyService) {}
+  constructor(@Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService) {}
 
   getDashboard() {
     return this.siteManagerProxyService.getDashboard('admin');

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Patch,
   Post,
   Put,
@@ -42,7 +43,7 @@ import { CreateObjectViewUrlDto } from '../../uploads/dto/create-object-view-url
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(AppRole.ADMIN)
 export class AdminController {
-  constructor(private readonly adminProxyService: AdminProxyService) {}
+  constructor(@Inject(AdminProxyService) private readonly adminProxyService: AdminProxyService) {}
 
   @Get('dashboard')
   getDashboard() {

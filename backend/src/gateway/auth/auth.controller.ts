@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
   Req,
   UseGuards,
@@ -26,7 +27,9 @@ interface RequestWithUser {
 
 @Controller('auth')
 export class AuthGatewayController {
-  constructor(private readonly authProxyService: AuthProxyService) {}
+  constructor(
+    @Inject(AuthProxyService) private readonly authProxyService: AuthProxyService,
+  ) {}
 
   @Post('signup')
   signup(@Body() signupDto: SignupDto) {

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   UnauthorizedException,
   ConflictException,
   BadRequestException,
@@ -39,9 +40,9 @@ interface PasswordResetRequestRow {
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly supabaseService: SupabaseService,
-    private readonly notificationsService: NotificationsService,
+    @Inject(JwtService) private readonly jwtService: JwtService,
+    @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
+    @Inject(NotificationsService) private readonly notificationsService: NotificationsService,
   ) {}
 
   async signup(signupDto: SignupDto) {

@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AUTH_PATTERNS } from '../../../libs/contracts/src/message-patterns.js';
 import { AuthService } from '../../../src/auth/auth.service.js';
@@ -9,7 +9,7 @@ import { ResetPasswordDto } from '../../../src/auth/dto/reset-password.dto.js';
 
 @Controller()
 export class AuthMessageController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @MessagePattern(AUTH_PATTERNS.SIGNUP)
   signup(@Payload() signupDto: SignupDto) {

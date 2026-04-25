@@ -12,15 +12,24 @@ import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
         name: 'AUTH_SERVICE',
         transport: Transport.TCP,
         options: {
-          host: process.env.AUTH_SERVICE_HOST ?? '127.0.0.1',
-          port: Number(process.env.AUTH_SERVICE_PORT ?? 4001),
+          host: process.env.AUTH_SERVICE_HOST || '127.0.0.1',
+          port: process.env.AUTH_SERVICE_PORT ? parseInt(process.env.AUTH_SERVICE_PORT) : 4001,
+          retryAttempts: 5,
+          retryDelay: 1000,
         },
       },
     ]),
     JwtModule.register({}),
   ],
   controllers: [AuthGatewayController],
-  providers: [AuthProxyService, JwtAuthGuard],
+  providers: [
+    {
+      provide: AuthProxyService,
+      useFactory: (authClient: any) => new AuthProxyService(authClient),
+      inject: ['AUTH_SERVICE'],
+    },
+    JwtAuthGuard,
+  ],
   exports: [AuthProxyService],
 })
 export class AuthGatewayModule {}

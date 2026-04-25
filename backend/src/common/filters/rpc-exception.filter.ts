@@ -18,16 +18,11 @@ export class RpcToHttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(RpcToHttpExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost) {
-    console.error('[RpcToHttpExceptionFilter] Caught exception:', exception);
-    console.error('[RpcToHttpExceptionFilter] Exception type:', typeof exception);
-    console.error('[RpcToHttpExceptionFilter] Is HttpException:', exception instanceof HttpException);
-
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
     // Already a proper HTTP exception – let default behaviour handle it
     if (exception instanceof HttpException) {
-      console.error('[RpcToHttpExceptionFilter] Handling as HttpException');
       const status = exception.getStatus();
       const body = exception.getResponse();
       return response.status(status).json(body);
@@ -36,25 +31,34 @@ export class RpcToHttpExceptionFilter implements ExceptionFilter {
     // Microservice TCP errors come back as plain objects like:
     // { statusCode: 401, message: 'Invalid credentials', error: 'Unauthorized' }
     if (typeof exception === 'object' && exception !== null) {
-      console.error('[RpcToHttpExceptionFilter] Handling as RPC error object');
       const err = exception as Record<string, unknown>;
-      const statusCode =
-        typeof err['statusCode'] === 'number' &&
-        err['statusCode'] >= 100 &&
-        err['statusCode'] < 600
-          ? (err['statusCode'] as number)
-          : HttpStatus.INTERNAL_SERVER_ERROR;
-
+      
+      // First check for statusCode (from properly serialized RPC errors)
+      if (typeof err['statusCode'] === 'number') {
+        const statusCode = err['statusCode'] as number;
+        if (statusCode >= 100 && statusCode < 600) {
+          const message =
+            typeof err['message'] === 'string'
+              ? err['message']
+              : 'An unexpected error occurred';
+          return response.status(statusCode).json({
+            statusCode,
+            message,
+            error: err['error'] ?? HttpStatus[statusCode] ?? 'Error',
+          });
+        }
+      }
+      
+      // Fallback: default to 500 for other object formats
       const message =
         typeof err['message'] === 'string'
           ? err['message']
-          : 'An unexpected error occurred';
+          : 'Internal server error';
 
-      console.error('[RpcToHttpExceptionFilter] Returning with statusCode:', statusCode);
-      return response.status(statusCode).json({
-        statusCode,
+      return response.status(500).json({
+        statusCode: 500,
         message,
-        error: err['error'] ?? HttpStatus[statusCode] ?? 'Error',
+        error: HttpStatus[500] ?? 'Error',
       });
     }
 

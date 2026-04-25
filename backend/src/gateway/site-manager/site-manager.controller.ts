@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
@@ -39,7 +40,7 @@ import { CreateObjectViewUrlDto } from '../../uploads/dto/create-object-view-url
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(AppRole.LINE_MANAGER)
 export class SiteManagerController {
-  constructor(private readonly siteManagerProxyService: SiteManagerProxyService) {}
+  constructor(@Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService) {}
 
   @Get('dashboard')
   getDashboard() {
