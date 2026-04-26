@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 
 type CapacityStatus = 'low' | 'medium' | 'high' | 'full';
@@ -36,7 +36,7 @@ interface CapacityCenter {
 
 @Injectable()
 export class CapacityService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string): Promise<CapacityCenter[]> {
     const supabase = this.supabaseService.getClient() as any;

@@ -127,6 +127,17 @@ CREATE TABLE public.organizations (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT organizations_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.password_reset_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  auth_user_id uuid NOT NULL,
+  email text NOT NULL,
+  token_hash text NOT NULL,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'used'::text, 'expired'::text])),
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  used_at timestamp with time zone,
+  CONSTRAINT password_reset_requests_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.register_citizens (
   user_id uuid NOT NULL,
   birth_date date,

@@ -14,9 +14,13 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         global: true,
-        secret:
-          configService.get<string>('JWT_SECRET') ??
-          'your-secret-key-change-this-in-production',
+        secret: (() => {
+          const secret = configService.get<string>('JWT_SECRET');
+          if (!secret) {
+            throw new Error('Missing JWT_SECRET environment variable');
+          }
+          return secret;
+        })(),
         signOptions: { expiresIn: '7d' },
       }),
     }),

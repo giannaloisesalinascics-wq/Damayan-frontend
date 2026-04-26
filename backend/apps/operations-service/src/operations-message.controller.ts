@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Inject } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import {
   CAPACITY_PATTERNS,
@@ -54,18 +54,25 @@ import { DashboardService } from './dashboard.service.js';
 @Controller()
 export class OperationsMessageController {
   constructor(
-    private readonly inventoryService: InventoryService,
-    private readonly capacityService: CapacityService,
-    private readonly checkInService: CheckInService,
+    @Inject(InventoryService) private readonly inventoryService: InventoryService,
+    @Inject(CapacityService) private readonly capacityService: CapacityService,
+    @Inject(CheckInService) private readonly checkInService: CheckInService,
+    @Inject(OrganizationsService)
     private readonly organizationsService: OrganizationsService,
+    @Inject(DisasterEventsService)
     private readonly disasterEventsService: DisasterEventsService,
+    @Inject(DispatchOrdersService)
     private readonly dispatchOrdersService: DispatchOrdersService,
+    @Inject(ReliefOperationsService)
     private readonly reliefOperationsService: ReliefOperationsService,
+    @Inject(IncidentReportsService)
     private readonly incidentReportsService: IncidentReportsService,
+    @Inject(DistributionsService)
     private readonly distributionsService: DistributionsService,
+    @Inject(RegistrationsService)
     private readonly registrationsService: RegistrationsService,
-    private readonly uploadsService: UploadsService,
-    private readonly dashboardService: DashboardService,
+    @Inject(UploadsService) private readonly uploadsService: UploadsService,
+    @Inject(DashboardService) private readonly dashboardService: DashboardService,
   ) {}
 
   @MessagePattern(INVENTORY_PATTERNS.FIND_ALL)

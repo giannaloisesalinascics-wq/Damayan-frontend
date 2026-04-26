@@ -35,7 +35,8 @@ async function request<T>(
   }
 
   if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+    const normalizedToken = token.replace(/^Bearer\s+/i, "").trim();
+    headers.set("Authorization", `Bearer ${normalizedToken}`);
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

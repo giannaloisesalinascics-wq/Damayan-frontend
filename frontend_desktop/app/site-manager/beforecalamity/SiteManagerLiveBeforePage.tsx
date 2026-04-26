@@ -80,6 +80,12 @@ export default function SiteManagerLiveBeforePage() {
         setDisasters(eventList);
         setError(null);
       } catch (caughtError) {
+        if (caughtError instanceof ApiError && caughtError.status === 401) {
+          clearSession();
+          router.replace("/site-manager/login");
+          return;
+        }
+
         setError(
           caughtError instanceof ApiError
             ? caughtError.message

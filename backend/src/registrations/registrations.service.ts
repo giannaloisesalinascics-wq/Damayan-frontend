@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateCitizenDto } from './dto/create-citizen.dto.js';
 import { UpdateCitizenDto } from './dto/update-citizen.dto.js';
@@ -6,17 +6,14 @@ import { CreateFamilyDto } from './dto/create-family.dto.js';
 import { UpdateFamilyDto } from './dto/update-family.dto.js';
 
 interface CitizenRow {
-  id: string;
   user_id: string;
-  first_name: string;
-  last_name: string;
-  middle_name: string | null;
+  full_name: string | null;
   birth_date: string | null;
   gender: string | null;
   registration_type: string | null;
   qr_code_id: string | null;
-  emergency_contact_name: string | null;
-  emergency_contact_number: string | null;
+  blood_type: string | null;
+  medical_conditions: string | null;
   created_at: string | null;
   family_id: string | null;
 }
@@ -34,13 +31,13 @@ interface FamilyRow {
 
 @Injectable()
 export class RegistrationsService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findCitizens(search?: string) {
     const supabase = this.supabaseService.getClient() as any;
     const { data, error } = await supabase
       .from('register_citizens')
-      .select('id, user_id, first_name, last_name, middle_name, birth_date, gender, registration_type, qr_code_id, emergency_contact_name, emergency_contact_number, created_at, family_id')
+      .select('user_id, full_name, birth_date, gender, registration_type, qr_code_id, blood_type, medical_conditions, created_at, family_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -72,23 +69,27 @@ export class RegistrationsService {
   }
 
   async createCitizen(createCitizenDto: CreateCitizenDto) {
+    if (!createCitizenDto.userId) {
+      throw new BadRequestException('userId is required');
+    }
+
     const supabase = this.supabaseService.getClient() as any;
     const { data, error } = await supabase
       .from('register_citizens')
       .insert({
-        user_id: createCitizenDto.userId ?? null,
-        first_name: createCitizenDto.firstName,
-        last_name: createCitizenDto.lastName,
-        middle_name: createCitizenDto.middleName ?? null,
+        user_id: createCitizenDto.userId,
+        full_name: this.buildFullName(
+          createCitizenDto.firstName,
+          createCitizenDto.lastName,
+          createCitizenDto.middleName,
+        ),
         birth_date: createCitizenDto.birthDate ?? null,
         gender: createCitizenDto.gender ?? null,
         registration_type: createCitizenDto.registrationType,
         qr_code_id: createCitizenDto.qrCodeId,
-        emergency_contact_name: createCitizenDto.emergencyContactName ?? null,
-        emergency_contact_number: createCitizenDto.emergencyContactNumber ?? null,
         family_id: createCitizenDto.familyId ?? null,
       })
-      .select('id, user_id, first_name, last_name, middle_name, birth_date, gender, registration_type, qr_code_id, emergency_contact_name, emergency_contact_number, created_at, family_id')
+      .select('user_id, full_name, birth_date, gender, registration_type, qr_code_id, blood_type, medical_conditions, created_at, family_id')
       .single();
 
     if (error) {
@@ -100,26 +101,24 @@ export class RegistrationsService {
 
   async updateCitizen(id: string, updateCitizenDto: UpdateCitizenDto) {
     const existing = await this.findCitizen(id);
+    const fullName = this.buildFullName(
+      updateCitizenDto.firstName ?? existing.firstName,
+      updateCitizenDto.lastName ?? existing.lastName,
+      updateCitizenDto.middleName ?? existing.middleName,
+    );
     const supabase = this.supabaseService.getClient() as any;
     const { data, error } = await supabase
       .from('register_citizens')
       .update({
-        user_id: updateCitizenDto.userId ?? existing.userId,
-        first_name: updateCitizenDto.firstName ?? existing.firstName,
-        last_name: updateCitizenDto.lastName ?? existing.lastName,
-        middle_name: updateCitizenDto.middleName ?? existing.middleName ?? null,
+        full_name: fullName,
         birth_date: updateCitizenDto.birthDate ?? existing.birthDate ?? null,
         gender: updateCitizenDto.gender ?? existing.gender ?? null,
         registration_type: updateCitizenDto.registrationType ?? existing.registrationType ?? null,
         qr_code_id: updateCitizenDto.qrCodeId ?? existing.qrCodeId ?? null,
-        emergency_contact_name:
-          updateCitizenDto.emergencyContactName ?? existing.emergencyContactName ?? null,
-        emergency_contact_number:
-          updateCitizenDto.emergencyContactNumber ?? existing.emergencyContactNumber ?? null,
         family_id: updateCitizenDto.familyId ?? existing.familyId ?? null,
       })
-      .eq('id', id)
-      .select('id, user_id, first_name, last_name, middle_name, birth_date, gender, registration_type, qr_code_id, emergency_contact_name, emergency_contact_number, created_at, family_id')
+      .eq('user_id', id)
+      .select('user_id, full_name, birth_date, gender, registration_type, qr_code_id, blood_type, medical_conditions, created_at, family_id')
       .single();
 
     if (error) {
@@ -131,7 +130,7 @@ export class RegistrationsService {
 
   async deleteCitizen(id: string): Promise<void> {
     const supabase = this.supabaseService.getClient() as any;
-    const { error } = await supabase.from('register_citizens').delete().eq('id', id);
+    const { error } = await supabase.from('register_citizens').delete().eq('user_id', id);
     if (error) {
       throw new NotFoundException(error.message);
     }
@@ -260,21 +259,52 @@ export class RegistrationsService {
   }
 
   private toCitizen(row: CitizenRow) {
+    const parsedName = this.parseFullName(row.full_name ?? '');
+
     return {
-      id: row.id,
+      id: row.user_id,
       userId: row.user_id,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      middleName: row.middle_name ?? undefined,
+      firstName: parsedName.firstName,
+      lastName: parsedName.lastName,
+      middleName: parsedName.middleName,
       birthDate: row.birth_date ?? undefined,
       gender: row.gender ?? undefined,
       registrationType: row.registration_type ?? undefined,
       qrCodeId: row.qr_code_id ?? undefined,
-      emergencyContactName: row.emergency_contact_name ?? undefined,
-      emergencyContactNumber: row.emergency_contact_number ?? undefined,
+      emergencyContactName: undefined,
+      emergencyContactNumber: undefined,
       familyId: row.family_id ?? undefined,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     };
+  }
+
+  private parseFullName(fullName: string) {
+    const parts = fullName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      return { firstName: 'Unknown', lastName: 'User', middleName: undefined as string | undefined };
+    }
+
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: '', middleName: undefined as string | undefined };
+    }
+
+    if (parts.length === 2) {
+      return { firstName: parts[0], lastName: parts[1], middleName: undefined as string | undefined };
+    }
+
+    return {
+      firstName: parts[0],
+      middleName: parts.slice(1, -1).join(' '),
+      lastName: parts[parts.length - 1],
+    };
+  }
+
+  private buildFullName(firstName?: string, lastName?: string, middleName?: string) {
+    return [firstName, middleName, lastName].filter((part) => !!part && part.trim().length > 0).join(' ');
   }
 
   private toFamily(rows: FamilyRow[]) {
