@@ -1,0 +1,11 @@
+{
+  "name": "damayan-workspace",
+  "private": true,
+  "scripts": {
+    "backend:start": "npm --prefix backend run start:all",
+    "backend:start:stable": "npm --prefix backend run start:all:stable",
+    "backend:start:once": "npm --prefix backend run start:all:once",
+    "backend:stop": "npm --prefix backend run stop:all",
+    "frontend:desktop": "npm --prefix frontend_desktop run dev"
+  }
+}

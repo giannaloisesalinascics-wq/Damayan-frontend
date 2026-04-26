@@ -39,10 +39,19 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${normalizedToken}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      `Cannot connect to backend API at ${API_BASE_URL}. Start backend services and try again.`,
+      0,
+    );
+  }
 
   const text = await response.text();
   const payload = text ? (JSON.parse(text) as unknown) : null;

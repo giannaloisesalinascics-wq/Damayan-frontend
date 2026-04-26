@@ -10,7 +10,9 @@
     "start:operations-service": "tsx apps/operations-service/src/main.ts",
     "ports:free": "kill-port 3001 4001 4002",
     "stop:all": "npm run ports:free",
-    "start:all": "npm run ports:free && concurrently -n gateway,auth,operations -c cyan,magenta,green \"npm run start:gateway\" \"npm run start:auth-service\" \"npm run start:operations-service\""
+    "start:all:once": "npm run ports:free && concurrently -n gateway,auth,operations -c cyan,magenta,green \"npm run start:gateway\" \"npm run start:auth-service\" \"npm run start:operations-service\"",
+    "start:all:stable": "npm run ports:free && concurrently --restart-tries 9999 --restart-after 3000 -n gateway,auth,operations -c cyan,magenta,green \"npm run start:gateway\" \"npm run start:auth-service\" \"npm run start:operations-service\"",
+    "start:all": "npm run start:all:stable"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
