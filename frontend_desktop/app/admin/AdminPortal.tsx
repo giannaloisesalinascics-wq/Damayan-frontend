@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { hasRole, loadSession } from "../lib/session";
 import "./AdminPortal.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2048,6 +2050,7 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
 //  ROOT ADMIN PORTAL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPortal() {
+  const router = useRouter();
   const [loggedIn, setLoggedIn] = useState(true);
   const [page, setPage] = useState<AdminPage>("overview");
   const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
@@ -2064,6 +2067,13 @@ export default function AdminPortal() {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef(0);
+
+  useEffect(() => {
+    const stored = loadSession();
+    if (!hasRole(stored, "admin")) {
+      router.replace("/admin/login");
+    }
+  }, [router]);
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
     const id = ++toastRef.current;
