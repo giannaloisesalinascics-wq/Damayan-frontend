@@ -84,9 +84,24 @@ CREATE TABLE public.families (
   family_member_name text,
   relationship text,
   user_id uuid,
+  family_member_count integer DEFAULT 1,
+  age smallint,
+  accessibility_needs text,
   CONSTRAINT families_pkey PRIMARY KEY (id),
   CONSTRAINT families_head_user_id_fkey FOREIGN KEY (head_user_id) REFERENCES auth.users(id),
   CONSTRAINT families_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.household_animals (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  family_id uuid,
+  name text,
+  species text,
+  needs_cage boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT household_animals_pkey PRIMARY KEY (id),
+  CONSTRAINT household_animals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT household_animals_family_id_fkey FOREIGN KEY (family_id) REFERENCES public.families(id)
 );
 CREATE TABLE public.incident_reports (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -113,20 +128,17 @@ CREATE TABLE public.organizations (
   CONSTRAINT organizations_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.register_citizens (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid,
-  first_name text NOT NULL,
-  last_name text NOT NULL,
-  middle_name text,
+  user_id uuid NOT NULL,
   birth_date date,
   gender text,
-  registration_type text NOT NULL,
-  qr_code_id text NOT NULL UNIQUE,
-  emergency_contact_name text,
-  emergency_contact_number text,
+  registration_type text NOT NULL CHECK (registration_type = ANY (ARRAY['Individual'::text, 'Family'::text])),
   created_at timestamp with time zone DEFAULT now(),
   family_id uuid,
-  CONSTRAINT register_citizens_pkey PRIMARY KEY (id),
+  full_name text,
+  blood_type text,
+  medical_conditions text,
+  qr_code_id text,
+  CONSTRAINT register_citizens_pkey PRIMARY KEY (user_id),
   CONSTRAINT register_citizens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT register_citizens_family_id_fkey FOREIGN KEY (family_id) REFERENCES public.families(id)
 );
