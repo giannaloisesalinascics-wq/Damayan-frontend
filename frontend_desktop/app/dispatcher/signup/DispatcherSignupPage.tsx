@@ -3,14 +3,47 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { signup } from "../../lib/api";
+import { AppRole } from "../../lib/types";
 
 export default function DispatcherSignupPage() {
   const router = useRouter();
   const [selectedIdName, setSelectedIdName] = useState("No file selected");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    router.push("/dispatcher/login");
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const fullName = formData.get("dispatcher-name") as string;
+    const email = formData.get("dispatcher-email") as string;
+    const phone = formData.get("dispatcher-phone") as string;
+    const password = formData.get("dispatcher-password") as string;
+
+    // Split name into first and last (naive approach for now)
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "User";
+
+    try {
+      await signup({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        role: AppRole.DISPATCHER,
+      });
+
+      router.push("/dispatcher/login?signup=success");
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -32,19 +65,29 @@ export default function DispatcherSignupPage() {
       switchLink="/dispatcher/login"
     >
       <form className="auth-form" onSubmit={handleRegister}>
+        {error && (
+          <div style={{ color: "#d32f2f", backgroundColor: "#ffebee", padding: "0.75rem", borderRadius: "8px", marginBottom: "1rem", fontSize: "0.875rem", border: "1px solid #ffcdd2" }}>
+            {error}
+          </div>
+        )}
         <div className="auth-field">
-          <label>Full Name</label>
-          <input type="text" placeholder="Dispatcher Full Name" required />
+          <label htmlFor="dispatcher-name">Full Name</label>
+          <input id="dispatcher-name" name="dispatcher-name" type="text" placeholder="Dispatcher Full Name" required />
         </div>
 
         <div className="auth-field">
-          <label>Username</label>
-          <input type="text" placeholder="dispatcher.username" required />
+          <label htmlFor="dispatcher-email">Email Address</label>
+          <input id="dispatcher-email" name="dispatcher-email" type="email" placeholder="dispatcher@damayan.ph" required />
         </div>
 
         <div className="auth-field">
-          <label>Temporary Password</label>
-          <input type="password" placeholder="Create a temporary password" required />
+          <label htmlFor="dispatcher-phone">Phone Number</label>
+          <input id="dispatcher-phone" name="dispatcher-phone" type="tel" placeholder="09123456789" required />
+        </div>
+
+        <div className="auth-field">
+          <label htmlFor="dispatcher-password">Password</label>
+          <input id="dispatcher-password" name="dispatcher-password" type="password" placeholder="Create a secure password" required />
         </div>
 
         <div className="auth-field">
@@ -52,9 +95,9 @@ export default function DispatcherSignupPage() {
           <div className="auth-input-wrap" style={{ cursor: "pointer" }}>
             <input
               id="dispatcher-id"
+              name="dispatcher-id"
               type="file"
               accept=".jpg,.jpeg,.png"
-              required
               style={{ 
                 position: "absolute",
                 inset: 0,
@@ -87,8 +130,13 @@ export default function DispatcherSignupPage() {
           </div>
         </div>
 
-        <button className="auth-submit" type="submit">
-          Apply for Dispatcher Access
+        <button 
+          className="auth-submit" 
+          type="submit"
+          disabled={isLoading}
+          style={{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "not-allowed" : "pointer" }}
+        >
+          {isLoading ? "Processing..." : "Apply for Dispatcher Access"}
         </button>
       </form>
     </AuthLayout>

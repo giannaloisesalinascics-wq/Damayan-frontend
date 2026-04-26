@@ -10,5 +10,6 @@ import { RolesGuard } from '../../common/auth/roles.guard.js';
   imports: [GatewayClientsModule, JwtModule.register({})],
   controllers: [SiteManagerController],
   providers: [SiteManagerProxyService, JwtAuthGuard, RolesGuard],
+  exports: [SiteManagerProxyService],
 })
-export class SiteManagerGatewayModule {}
+export class SiteManagerGatewayModule { }

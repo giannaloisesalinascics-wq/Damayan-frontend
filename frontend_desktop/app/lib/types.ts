@@ -1,4 +1,9 @@
-export type AppRole = "admin" | "dispatcher" | "line_manager" | "citizen";
+export enum AppRole {
+  ADMIN = "admin",
+  DISPATCHER = "dispatcher",
+  LINE_MANAGER = "line_manager",
+  CITIZEN = "citizen",
+}
 
 export interface AuthUser {
   id: string;
@@ -119,6 +124,7 @@ export interface IncidentReport {
   severity: string;
   location: string;
   status: string;
+  attachmentKeys: string[];
   createdAt: string;
 }
 

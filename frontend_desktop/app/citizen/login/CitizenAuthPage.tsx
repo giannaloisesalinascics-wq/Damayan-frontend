@@ -4,14 +4,44 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { login } from "../../lib/api";
+import { saveSession } from "../../lib/session";
+import { AppRole } from "../../lib/types";
 
 export default function CitizenAuthPage() {
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/citizen/beforecalamity");
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("citizen-email") as string;
+    const password = formData.get("citizen-password") as string;
+
+    try {
+      const response = await login({
+        email,
+        password,
+        requiredRole: AppRole.CITIZEN,
+      });
+
+      saveSession({
+        accessToken: response.access_token,
+        expiresIn: response.expiresIn,
+        user: response.user,
+      });
+
+      router.push("/citizen/beforecalamity");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -34,13 +64,14 @@ export default function CitizenAuthPage() {
     >
       <form className="auth-form" onSubmit={handleLogin}>
         <div className="auth-field">
-          <label htmlFor="citizen-username">Username</label>
+          <label htmlFor="citizen-email">Email Address</label>
           <input
-            id="citizen-username"
-            name="citizen-username"
-            type="text"
-            placeholder="e.g. juan.delacruz"
-            autoComplete="username"
+            id="citizen-email"
+            name="citizen-email"
+            type="email"
+            placeholder="juan.delacruz@email.com"
+            autoComplete="email"
+            required
           />
         </div>
 
@@ -58,6 +89,7 @@ export default function CitizenAuthPage() {
               type={showPass ? "text" : "password"}
               placeholder="Enter your password"
               autoComplete="current-password"
+              required
             />
             <button
               type="button"
@@ -70,8 +102,15 @@ export default function CitizenAuthPage() {
           </div>
         </div>
 
-        <button className="auth-submit" type="submit">
-          Sign In to Citizen Dashboard
+        {error && <p className="auth-error-copy">{error}</p>}
+
+        <button 
+          className="auth-submit" 
+          type="submit"
+          disabled={isLoading}
+          style={{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "not-allowed" : "pointer" }}
+        >
+          {isLoading ? "Signing in..." : "Sign In to Citizen Dashboard"}
         </button>
       </form>
 

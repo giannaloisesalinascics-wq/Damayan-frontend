@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
 
 export class CreateFamilyDto {
   @IsNotEmpty()
@@ -24,4 +24,16 @@ export class CreateFamilyDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  age?: number;
+
+  @IsOptional()
+  @IsString()
+  accessibilityNeeds?: string;
+
+  @IsOptional()
+  @IsNumber()
+  familyMemberCount?: number;
 }

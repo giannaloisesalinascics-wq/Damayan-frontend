@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { signup } from "../../lib/api";
+import { AppRole } from "../../lib/types";
 
 type SignupStep = "FORM" | "SUCCESS";
 
@@ -18,10 +20,41 @@ export default function CitizenSignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<SignupStep>("FORM");
   const [selectedIdName, setSelectedIdName] = useState("No file selected");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStep("SUCCESS");
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const fullName = formData.get("citizen-name") as string;
+    const email = formData.get("citizen-email") as string;
+    const phone = formData.get("citizen-phone") as string;
+    const password = formData.get("citizen-password") as string;
+
+    // Split name into first and last
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "Citizen";
+
+    try {
+      await signup({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        role: AppRole.CITIZEN,
+      });
+
+      setStep("SUCCESS");
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   if (step === "SUCCESS") {
@@ -107,19 +140,29 @@ export default function CitizenSignupPage() {
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
+        {error && (
+          <div style={{ color: "#d32f2f", backgroundColor: "#ffebee", padding: "0.75rem", borderRadius: "8px", marginBottom: "1rem", fontSize: "0.875rem", border: "1px solid #ffcdd2" }}>
+            {error}
+          </div>
+        )}
         <div className="auth-field">
-          <label>Full Name</label>
-          <input type="text" placeholder="Juan Dela Cruz" required />
+          <label htmlFor="citizen-name">Full Name</label>
+          <input id="citizen-name" name="citizen-name" type="text" placeholder="Juan Dela Cruz" required />
         </div>
 
         <div className="auth-field">
-          <label>Username</label>
-          <input type="text" placeholder="juan.delacruz" required />
+          <label htmlFor="citizen-email">Email Address</label>
+          <input id="citizen-email" name="citizen-email" type="email" placeholder="juan.delacruz@email.com" required />
         </div>
 
         <div className="auth-field">
-          <label>Password</label>
-          <input type="password" placeholder="Create a strong password" required />
+          <label htmlFor="citizen-phone">Phone Number</label>
+          <input id="citizen-phone" name="citizen-phone" type="tel" placeholder="09123456789" required />
+        </div>
+
+        <div className="auth-field">
+          <label htmlFor="citizen-password">Password</label>
+          <input id="citizen-password" name="citizen-password" type="password" placeholder="Create a strong password" required />
         </div>
 
         <div className="auth-field">
@@ -127,6 +170,7 @@ export default function CitizenSignupPage() {
           <div className="auth-input-wrap" style={{ cursor: "pointer" }}>
             <input
               id="citizen-id"
+              name="citizen-id"
               type="file"
               accept=".jpg,.jpeg,.png"
               style={{ 
@@ -161,7 +205,14 @@ export default function CitizenSignupPage() {
           </div>
         </div>
 
-        <button className="auth-submit" type="submit" style={{ marginTop: "16px" }}>Complete Registration</button>
+        <button 
+          className="auth-submit" 
+          type="submit" 
+          style={{ marginTop: "16px" }}
+          disabled={isLoading}
+        >
+          {isLoading ? "Processing..." : "Complete Registration"}
+        </button>
       </form>
     </AuthLayout>
   );

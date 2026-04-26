@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { registerCitizen, addFamilyMember, addAnimal, clearFamilyMembers, clearAnimals, getCitizenProfile, getFamilyMembers, getAnimals } from "../../lib/api";
+import { loadSession } from "../../lib/session";
 
 const checklist = [
   {
@@ -63,6 +65,61 @@ export default function CitizenBeforeCalamityPage() {
     consent: false
   });
 
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      const session = loadSession();
+      if (session?.accessToken) {
+        try {
+          const [data, fam, anim] = await Promise.all([
+            getCitizenProfile(session.accessToken),
+            getFamilyMembers(session.accessToken),
+            getAnimals(session.accessToken)
+          ]);
+
+          if (data) {
+            console.log("Found existing profile:", data);
+            setProfile(data);
+            setUserProfile({
+              fullName: data.fullName || "",
+              dob: data.birthDate || "",
+              gender: data.gender || "",
+              bloodType: data.bloodType || "O+",
+              conditions: data.medicalConditions || "",
+              consent: true
+            });
+          }
+
+          if (fam) {
+            // Map backend rows to frontend format
+            setHouseholdMembers(fam.map(f => ({
+              name: f.family_member_name,
+              age: f.age,
+              relationship: f.relationship,
+              accessibilityNeeds: (f.accessibility_needs || "").split(", ").filter(Boolean)
+            })));
+          } else {
+            setHouseholdMembers([]);
+          }
+
+          if (anim) {
+            setAnimals(anim.map(a => ({
+              name: a.name,
+              species: a.species,
+              needsCage: a.needs_cage
+            })));
+          } else {
+            setAnimals([]);
+          }
+        } catch (err) {
+          console.error("Failed to fetch profile or related data:", err);
+        }
+      }
+    }
+    loadData();
+  }, []);
+
   const [householdMembers, setHouseholdMembers] = useState<any[]>([
     { name: "", age: "", relationship: "", accessibilityNeeds: [] }
   ]);
@@ -70,6 +127,8 @@ export default function CitizenBeforeCalamityPage() {
   const [animals, setAnimals] = useState<any[]>([
     { name: "", species: "", needsCage: false }
   ]);
+
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleAddMember = () => {
     setHouseholdMembers([...householdMembers, { name: "", age: "", relationship: "", accessibilityNeeds: [] }]);
@@ -117,8 +176,93 @@ export default function CitizenBeforeCalamityPage() {
     handleMemberChange(memberIndex, "accessibilityNeeds", newNeeds);
   };
 
-  const handleHouseholdSubmit = () => {
-    setRegistrationSuccess(true);
+  const handleHouseholdSubmit = async () => {
+    console.log("handleHouseholdSubmit started");
+    
+    // Basic validation
+    if (!userProfile.fullName || !userProfile.dob || !userProfile.gender) {
+      alert("Please complete all personal identity fields.");
+      return;
+    }
+
+    try {
+      const session = loadSession();
+      if (!session) throw new Error("No active session. Please log in.");
+      const token = session.accessToken;
+
+      // REUSE EXISTING QR CODE OR GENERATE NEW ONE
+      const qrCodeId = profile?.qrCodeId || `QR-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      console.log("Using QR ID:", qrCodeId);
+
+      // 1. Register the main citizen
+      const citizenPayload = {
+        fullName: userProfile.fullName,
+        birthDate: userProfile.dob,
+        gender: userProfile.gender,
+        bloodType: userProfile.bloodType,
+        medicalConditions: userProfile.conditions,
+        registrationType: registrationType === "Household" ? "Family" : "Individual",
+        qrCodeId,
+      };
+      
+      console.log("Registering citizen with payload:", JSON.stringify(citizenPayload, null, 2));
+      await registerCitizen(token, citizenPayload);
+      console.log("Citizen registration successful");
+
+      // 2. If household, register members
+      if (registrationType === "Household") {
+        // PREVENT DUPLICATES: Clear existing members and animals first
+        console.log("Clearing existing household data to prevent duplicates...");
+        await Promise.all([
+          clearFamilyMembers(token, qrCodeId),
+          clearAnimals(token),
+        ]);
+        
+        const validMembers = householdMembers.filter(m => m.name);
+        const totalMembers = validMembers.length + 1; // +1 for the head of household
+        
+        console.log(`Registering ${validMembers.length} family members. Total members: ${totalMembers}`);
+        
+        for (const member of validMembers) {
+          const familyPayload = {
+            qrCodeId,
+            headFullName: userProfile.fullName,
+            familyMemberName: member.name,
+            relationship: member.relationship || "Other",
+            age: parseInt(member.age) || 0,
+            accessibilityNeeds: (member.accessibilityNeeds || []).join(", "),
+            familyMemberCount: totalMembers,
+          };
+          
+          console.log("Adding family member:", JSON.stringify(familyPayload, null, 2));
+          await addFamilyMember(token, familyPayload);
+        }
+        console.log("All family members registered");
+
+        // 3. Register animals
+        console.log("Registering animals:", animals);
+        for (const animal of animals) {
+          if (!animal.species) continue;
+          
+          const animalPayload = {
+            name: animal.name || "Unnamed",
+            species: animal.species,
+            needsCage: animal.needsCage || false,
+            qrCodeId,
+          };
+          
+          console.log("Adding animal:", JSON.stringify(animalPayload, null, 2));
+          await addAnimal(token, animalPayload);
+        }
+        console.log("All animals registered");
+      }
+
+      console.log("Registration process complete");
+      setRegistrationSuccess(true);
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      alert(err.message || "Failed to complete registration.");
+    }
   };
 
   const getMaxDob = (minAge: number = 0) => {
@@ -226,7 +370,7 @@ export default function CitizenBeforeCalamityPage() {
 
         <main className="citizen-web-main" id="home">
           {/* Registration Type Selection */}
-          {!registrationType && (
+          {!registrationType && !profile && (
             <section style={{ marginBottom: "4rem" }}>
               <div className="registration-main">
                 <header className="step-header">
@@ -241,7 +385,7 @@ export default function CitizenBeforeCalamityPage() {
 
                 <div className="field-grid">
                   <button 
-                    onClick={() => setRegistrationType("Individual")} 
+                    onClick={() => { setRegistrationType("Individual"); setIsEditing(false); }} 
                     className="registration-card"
                     style={{ 
                       textAlign: "left", 
@@ -268,7 +412,7 @@ export default function CitizenBeforeCalamityPage() {
                   </button>
 
                   <button 
-                    onClick={() => setRegistrationType("Household")} 
+                    onClick={() => { setRegistrationType("Household"); setIsEditing(false); }} 
                     className="registration-card"
                     style={{ 
                       textAlign: "left", 
@@ -422,7 +566,9 @@ export default function CitizenBeforeCalamityPage() {
                         }
                       }}
                     >
-                      {registrationType === "Individual" ? "Complete Registration" : "Continue to Family Registration"}
+                      {registrationType === "Individual" 
+                        ? (isEditing ? "Save Changes" : "Complete Registration") 
+                        : "Continue to Family Registration"}
                     </button>
                   </div>
                 )}
@@ -579,7 +725,7 @@ export default function CitizenBeforeCalamityPage() {
                         style={{ minWidth: "15rem", justifyContent: "center" }}
                         onClick={handleHouseholdSubmit}
                       >
-                        Complete Registration
+                        {isEditing ? "Save Changes" : "Complete Registration"}
                       </button>
                     </div>
                   </div>
@@ -689,6 +835,7 @@ export default function CitizenBeforeCalamityPage() {
                         className="citizen-web-household-card-btn"
                         onClick={() => {
                           setRegistrationType("Household");
+                          setIsEditing(true);
                           setRegistrationSuccess(false);
                           setRegistrationStep(1);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -701,6 +848,7 @@ export default function CitizenBeforeCalamityPage() {
                           className="citizen-web-household-card-btn is-secondary"
                           onClick={() => {
                             setRegistrationType("Household");
+                            setIsEditing(true);
                             setRegistrationSuccess(false);
                             setRegistrationStep(2);
                             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -711,8 +859,8 @@ export default function CitizenBeforeCalamityPage() {
                       )}
                     </div>
                     <div>
-                      <strong>{registrationSuccess ? householdMembers.length : 4} Members</strong>
-                      <p>Profile: {registrationSuccess ? "Verified" : "Active"}</p>
+                      <strong>{profile ? (householdMembers.length + 1) : 0} Members</strong>
+                      <p>Profile: {profile ? "Active" : "Not Registered"}</p>
                     </div>
                   </article>
                   <article className="citizen-web-household-card">
@@ -722,6 +870,7 @@ export default function CitizenBeforeCalamityPage() {
                         className="citizen-web-household-card-btn"
                         onClick={() => {
                           setRegistrationType("Household");
+                          setIsEditing(true);
                           setRegistrationSuccess(false);
                           setRegistrationStep(2);
                           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -731,8 +880,8 @@ export default function CitizenBeforeCalamityPage() {
                       </button>
                     </div>
                     <div>
-                      <strong>{registrationSuccess ? animals.length : 2} Animals</strong>
-                      <p>{registrationSuccess ? "Care Plan Synced" : "Care-plan Required"}</p>
+                      <strong>{profile ? animals.length : 0} Animals</strong>
+                      <p>{profile ? "Care Plan Synced" : "Care-plan Required"}</p>
                     </div>
                   </article>
                 </div>

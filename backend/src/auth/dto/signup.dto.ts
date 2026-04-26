@@ -30,7 +30,9 @@ export class SignupDto {
   @MinLength(6)
   password!: string;
 
-  @IsOptional()
-  @IsEnum(AppRole)
-  role?: AppRole;
+  @IsNotEmpty()
+  @IsEnum([AppRole.DISPATCHER, AppRole.CITIZEN], {
+    message: 'Role must be either dispatcher or citizen',
+  })
+  role!: AppRole;
 }

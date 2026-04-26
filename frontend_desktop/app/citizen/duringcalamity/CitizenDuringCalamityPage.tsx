@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { submitIncidentReport } from "../../lib/api";
+import { loadSession } from "../../lib/session";
 
 type FlowStep =
   | "rescue_decision"
@@ -79,6 +81,8 @@ export default function CitizenDuringCalamityPage() {
   const [internetAvailable, setInternetAvailable] = useState<boolean | null>(null);
   const [identityType, setIdentityType] = useState<"INDIVIDUAL" | "FAMILY" | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const previewUrl = useMemo(() => {
     return selectedFile ? URL.createObjectURL(selectedFile) : null;
@@ -159,6 +163,8 @@ export default function CitizenDuringCalamityPage() {
             <textarea 
               placeholder="E.g., Flood waters rising rapidly, need immediate medical assistance for an elderly family member..."
               style={{ width: "100%", padding: "1.25rem", borderRadius: "1rem", border: "1.5px solid rgba(112, 122, 108, 0.2)", fontSize: "1rem", minHeight: "100px", resize: "vertical", background: "#f9f9f6", fontFamily: "inherit" }}
+              value={incidentDescription}
+              onChange={(e) => setIncidentDescription(e.target.value)}
             />
           </div>
 
@@ -215,12 +221,34 @@ export default function CitizenDuringCalamityPage() {
           <div className="wizard-choices-grid">
             <button
               className="wizard-choice is-info"
-              onClick={() => {
-                setInternetAvailable(true);
-                setStep("delivery_confirmation");
+              disabled={isSubmitting}
+              onClick={async () => {
+                const session = loadSession();
+                if (!session?.accessToken) {
+                  alert("You must be logged in to report an incident.");
+                  return;
+                }
+
+                setIsSubmitting(true);
+                try {
+                  await submitIncidentReport(session.accessToken, {
+                    title: "Citizen SOS Report",
+                    content: incidentDescription || "No description provided.",
+                    severity: "high",
+                    location: "Brgy. 102, District 4",
+                    attachmentKeys: [], // In a real app, upload file first and get keys
+                  });
+                  setInternetAvailable(true);
+                  setStep("delivery_confirmation");
+                } catch (err: any) {
+                  console.error("Failed to submit report:", err);
+                  alert(err.message || "Failed to submit report. Please try again.");
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
             >
-              <h3>Yes, I have internet</h3>
+              <h3>{isSubmitting ? "Sending..." : "Yes, I have internet"}</h3>
               <p>Send my full report with the photo immediately.</p>
             </button>
             <button

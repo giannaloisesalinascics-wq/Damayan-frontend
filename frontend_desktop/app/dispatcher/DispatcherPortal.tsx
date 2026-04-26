@@ -8,6 +8,9 @@ import {
   priorityColor, UNIT_TYPE_ICON, CATEGORY_ICON,
 } from "./data";
 import LiveMap, { MapMode } from "./LiveMap";
+import { getDispatcherIncidents, updateIncidentReport } from "../lib/api";
+import { loadSession } from "../lib/session";
+import { IncidentReport } from "../lib/types";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MINI COMPONENTS
@@ -62,6 +65,12 @@ function useToast() {
   const [msg, setMsg] = useState<string | null>(null);
   const show = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 2800); };
   return { msg, show };
+}
+
+function shortenId(id: string) {
+  if (!id) return "";
+  if (id.includes("-")) return id.split("-")[0].toUpperCase();
+  return id.substring(0, 8).toUpperCase();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -231,12 +240,12 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
   const deployed  = units.filter(u => u.status !== "Available" && u.status !== "Offline").length;
 
   const stats = [
-    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)" },
-    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)" },
-    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)" },
-    { label: "Critical / High",  value: critical.length,  color: "#c77700" },
-    { label: "Units Available",  value: avail,            color: "var(--d-blue)",    sub: `${deployed} deployed` },
-    { label: "Total Units",      value: units.length,     color: "var(--d-text)" },
+    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)", icon: "🚨" },
+    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)", icon: "🚑" },
+    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)", icon: "✅" },
+    { label: "Critical / High",  value: critical.length,  color: "#c77700", icon: "⚠️" },
+    { label: "Units Available",  value: avail,            color: "var(--d-blue)", icon: "🚔", sub: `${deployed} deployed` },
+    { label: "Total Units",      value: units.length,     color: "var(--d-text)", icon: "👥" },
   ];
 
   const ACTIVITY = [
@@ -312,7 +321,7 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
                     <div style={{ fontSize: "1.2rem", flexShrink: 0 }}>{CATEGORY_ICON[inc.category]}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.2rem", flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 700, color: "var(--d-primary)" }}>{inc.id}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 700, color: "var(--d-primary)" }}>{shortenId(inc.id)}</span>
                         <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
                         <Badge label={inc.situationType} cls={situationClass(inc.situationType)} />
                       </div>
@@ -422,16 +431,18 @@ function QueueRow({ inc, units, onDispatch, onMarkInvalid }: {
 
   return (
     <>
-      <div className="dp-queue-row">
-        <span className="dp-queue-id">{inc.id}</span>
+      <div 
+        className="dp-queue-row" 
+        style={{ cursor: "pointer" }}
+        onClick={() => setTicketModal(true)}
+      >
+        <span className="dp-queue-id">{shortenId(inc.id)}</span>
         <span className="dp-queue-type">{inc.type}</span>
         <span className="dp-queue-loc">{inc.location}</span>
         <span className="dp-queue-time">{inc.timeReported}</span>
         <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
-        {inc.status === "Dispatched"
-          ? <button style={{ background: "none", border: "none", color: "var(--d-blue)", fontWeight: 700, fontSize: "0.825rem", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "inherit" }} onClick={() => setTicketModal(true)}>View Ticket</button>
-          : <Badge label={inc.status} cls={statusClass(inc.status)} />}
-        <div className="dp-queue-actions">
+        <Badge label={inc.status} cls={statusClass(inc.status)} />
+        <div className="dp-queue-actions" onClick={e => e.stopPropagation()}>
           <button className="dp-btn dp-btn-sm dp-btn-green" onClick={() => onDispatch(inc)}>Dispatch</button>
           <button className="dp-btn dp-btn-sm dp-btn-ghost" onClick={() => setInvalidModal(true)}>Invalid</button>
         </div>
@@ -474,7 +485,7 @@ function TicketModal({ inc, units, onClose }: { inc: Incident; units: Unit[]; on
       {/* Header block */}
       <div className="dp-ticket-header-block">
         <div>
-          <div className="dp-ticket-id">{inc.id}</div>
+          <div className="dp-ticket-id">{shortenId(inc.id)}</div>
           <div className="dp-ticket-type-title">{inc.type} — {inc.category}</div>
           <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
             <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
@@ -565,7 +576,6 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
   const [assigned, setAssigned] = useState<string[]>(dispatchTarget?.assignedUnits ?? []);
   const [invalidModal, setInvalidModal] = useState<Incident | null>(null);
   const [reason, setReason] = useState("");
-  const [mapKey, setMapKey] = useState(0);
   const toast = useToast();
 
   // When a new dispatchTarget comes in from Shell, switch to dispatch mode
@@ -574,37 +584,37 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
       setSelInc(dispatchTarget);
       setAssigned(dispatchTarget.assignedUnits ?? []);
       setMapMode("dispatch");
-      setMapKey(k => k + 1);
     }
   }, [dispatchTarget?.id]);
 
   useEffect(() => {
     (window as any).__dpAssign = (uid: string) => {
-      setAssigned(p => p.includes(uid) ? p : [...p, uid]);
-      if (selInc) {
-        onUpdate(selInc.id, {
-          status: "Dispatched",
-          assignedUnits: [...new Set([...(selInc.assignedUnits ?? []), uid])],
-          dispatchedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
-        });
-        toast.show(`${uid} assigned to ${selInc.id}`);
-        setMapKey(k => k + 1);
-      }
+      setAssigned(p => {
+        if (p.includes(uid)) {
+          toast.show(`${uid} deselected`);
+          return p.filter(id => id !== uid);
+        }
+        toast.show(`${uid} selected for assignment`);
+        return [...p, uid];
+      });
     };
     (window as any).__dpMsg = (uid: string) => toast.show(`Message sent to ${uid}`);
     return () => { delete (window as any).__dpAssign; delete (window as any).__dpMsg; };
   }, [selInc]);
 
   const confirmDispatch = () => {
-    // Move incident to In Progress
+    // Move incident to Dispatched/In Progress
     if (selInc) {
-      onUpdate(selInc.id, { status: "In Progress" });
+      onUpdate(selInc.id, {
+        status: "Dispatched",
+        assignedUnits: assigned,
+        dispatchedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
+      });
     }
     setMapMode("monitoring");
     setSelInc(null);
     setAssigned([]);
     onClearDispatchTarget();
-    setMapKey(k => k + 1);
     toast.show("Dispatch confirmed — incident moved to Rescue Monitoring");
   };
 
@@ -614,7 +624,6 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
     toast.show(`${invalidModal.id} marked invalid`);
     setInvalidModal(null);
     setReason("");
-    setMapKey(k => k + 1);
   };
 
   const assignedUnits = assigned.map(id => units.find(u => u.id === id)).filter(Boolean) as Unit[];
@@ -634,7 +643,6 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
               onClick={() => {
                 if (m !== "dispatch") { setSelInc(null); setAssigned([]); onClearDispatchTarget(); }
                 setMapMode(m);
-                setMapKey(k => k + 1);
               }}
             >
               {m === "monitoring" ? "🗺 Live Monitoring" : "🚨 Dispatch Select"}
@@ -647,7 +655,7 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
           ))}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <select className="dp-input" style={{ width: "auto", padding: "0.4rem 0.7rem", fontSize: "0.8rem" }} value={filterType} onChange={e => { setFilterType(e.target.value); setMapKey(k => k + 1); }}>
+          <select className="dp-input" style={{ width: "auto", padding: "0.4rem 0.7rem", fontSize: "0.8rem" }} value={filterType} onChange={e => { setFilterType(e.target.value); }}>
             <option value="All">All Units</option>
             <option value="FIRE">🔥 Fire</option>
             <option value="AMB">🚑 Ambulance</option>
@@ -657,67 +665,94 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
             <button className="dp-btn dp-btn-green dp-btn-sm" onClick={confirmDispatch}>✓ Confirm Dispatch</button>
           )}
           {mapMode !== "monitoring" && (
-            <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => { setMapMode("monitoring"); setSelInc(null); setAssigned([]); onClearDispatchTarget(); setMapKey(k => k + 1); }}>← Back</button>
+            <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => { setMapMode("monitoring"); setSelInc(null); setAssigned([]); onClearDispatchTarget(); }}>← Back</button>
           )}
         </div>
       </div>
 
       <div className="dp-map-body">
         {/* Dispatch side panel */}
-        {mapMode === "dispatch" && selInc && (
+        {/* Dispatch side panel */}
+        {mapMode === "dispatch" && (
           <div className="dp-dispatch-panel">
-            <div className="dp-dispatch-panel-header">
-              <div className="dp-dispatch-panel-title">Dispatching units to</div>
-              <div className="dp-dispatch-panel-id">{selInc.id} — {selInc.type}</div>
-              <div className="dp-dispatch-panel-addr">📍 {selInc.address}</div>
-            </div>
-            <div className="dp-dispatch-units">
-              <div style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--d-text-sub)", marginBottom: "0.6rem" }}>Available Units</div>
-              {units.filter(u => u.status === "Available").map(u => {
-                const isAss = assigned.includes(u.id);
-                const c = unitTypeColor(u.type);
-                return (
-                  <div key={u.id} className={`dp-unit-card ${isAss ? "assigned" : ""}`}>
-                    <div className="dp-unit-card-name">
-                      <span style={{ fontSize: "1rem" }}>{UNIT_TYPE_ICON[u.type]}</span>{u.name}
+            {!selInc ? (
+              <div className="dp-dispatch-panel-empty">
+                <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--d-text-sub)", marginBottom: "1rem", marginTop: "0.75rem", padding: "0 0.75rem" }}>
+                  Select Incident to Dispatch
+                </div>
+                <div className="dp-dispatch-units" style={{ flex: 1, overflowY: "auto", padding: "0 0.4rem" }}>
+                  {incidents.filter(i => ["New", "Waiting"].includes(i.status)).map(i => (
+                    <div key={i.id} className="dp-unit-card" style={{ cursor: "pointer", borderLeft: `4px solid ${priorityColor(i.priority)}`, padding: "0.8rem" }} onClick={() => setSelInc(i)}>
+                      <div className="dp-unit-card-name" style={{ fontSize: "0.9rem", marginBottom: "0.4rem" }}>{i.type}</div>
+                      <div className="dp-unit-card-info" style={{ fontSize: "0.75rem", lineHeight: 1.5 }}>
+                        ID: <strong style={{ fontFamily: "monospace" }}>{shortenId(i.id)}</strong><br />
+                        Loc: {i.location}<br />
+                        Time: {i.timeReported}
+                      </div>
                     </div>
-                    <div className="dp-unit-card-info">
-                      Station: {u.station}<br />
-                      Distance: <strong>{u.distance}</strong> · ETA: <strong>{u.eta}</strong><br />
-                      Crew: <strong>{u.personnel}</strong> · {u.teamLeader}
-                    </div>
-                    <div className="dp-unit-card-actions">
-                      <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ flex: 1 }} onClick={() => toast.show(`Message sent to ${u.name}`)}>Message</button>
-                      <button
-                        className="dp-btn dp-btn-sm"
-                        style={{ flex: 1, background: isAss ? "var(--d-green)" : c, color: "#fff", border: "none" }}
-                        onClick={() => (window as any).__dpAssign(u.id)}
-                      >
-                        {isAss ? "✓ Assigned" : "Assign"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {assignedUnits.length > 0 && (
-              <div className="dp-dispatch-assigned">
-                <div className="dp-dispatch-assigned-title">Assigned Units ({assignedUnits.length})</div>
-                <table className="dp-table" style={{ fontSize: "0.78rem" }}>
-                  <thead><tr><th>ID</th><th>Type</th><th>ETA</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {assignedUnits.map(u => (
-                      <tr key={u.id}>
-                        <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{u.id}</td>
-                        <td>{u.type}</td>
-                        <td>{u.eta}</td>
-                        <td style={{ color: "var(--d-blue)", fontWeight: 700 }}>On Route</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <button className="dp-btn dp-btn-orange" style={{ width: "100%", marginTop: "0.6rem", justifyContent: "center" }} onClick={confirmDispatch}>Confirm Dispatch →</button>
+                  ))}
+                  {incidents.filter(i => ["New", "Waiting"].includes(i.status)).length === 0 && (
+                    <p style={{ fontSize: "0.85rem", color: "var(--d-text-sub)", textAlign: "center", marginTop: "2rem" }}>No pending incidents.</p>
+                  )}
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="dp-dispatch-panel-header">
+                  <div className="dp-dispatch-panel-title">Dispatching units to</div>
+                  <div className="dp-dispatch-panel-id">{shortenId(selInc.id)} — {selInc.type}</div>
+                  <div className="dp-dispatch-panel-addr">📍 {selInc.address}</div>
+                  <button className="dp-btn dp-btn-ghost dp-btn-xs" style={{ marginTop: "0.5rem" }} onClick={() => { setSelInc(null); setAssigned([]); }}>Change Incident</button>
+                </div>
+                <div className="dp-dispatch-units">
+                  <div style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--d-text-sub)", marginBottom: "0.6rem" }}>Available Units</div>
+                  {units.filter(u => u.status === "Available").map(u => {
+                    const isAss = assigned.includes(u.id);
+                    const c = unitTypeColor(u.type);
+                    return (
+                      <div key={u.id} className={`dp-unit-card ${isAss ? "assigned" : ""}`}>
+                        <div className="dp-unit-card-name">
+                          <span style={{ fontSize: "1rem" }}>{UNIT_TYPE_ICON[u.type]}</span>{u.name}
+                        </div>
+                        <div className="dp-unit-card-info">
+                          Station: {u.station}<br />
+                          Distance: <strong>{u.distance}</strong> · ETA: <strong>{u.eta}</strong><br />
+                          Crew: <strong>{u.personnel}</strong> · {u.teamLeader}
+                        </div>
+                        <div className="dp-unit-card-actions">
+                          <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ flex: 1 }} onClick={() => toast.show(`Message sent to ${u.name}`)}>Message</button>
+                          <button
+                            className="dp-btn dp-btn-sm"
+                            style={{ flex: 1, background: isAss ? "var(--d-green)" : c, color: "#fff", border: "none" }}
+                            onClick={() => (window as any).__dpAssign(u.id)}
+                          >
+                            {isAss ? "✓ Assigned" : "Assign"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {assignedUnits.length > 0 && (
+                  <div className="dp-dispatch-assigned">
+                    <div className="dp-dispatch-assigned-title">Assigned Units ({assignedUnits.length})</div>
+                    <table className="dp-table" style={{ fontSize: "0.78rem" }}>
+                      <thead><tr><th>ID</th><th>Type</th><th>ETA</th><th>Status</th></tr></thead>
+                      <tbody>
+                        {assignedUnits.map(u => (
+                          <tr key={u.id}>
+                            <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{u.id}</td>
+                            <td>{u.type}</td>
+                            <td>{u.eta}</td>
+                            <td style={{ color: "var(--d-blue)", fontWeight: 700 }}>On Route</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <button className="dp-btn dp-btn-orange" style={{ width: "100%", marginTop: "0.6rem", justifyContent: "center" }} onClick={confirmDispatch}>Confirm Dispatch →</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -726,7 +761,6 @@ function ResourceMapPage({ incidents, units, onUpdate, dispatchTarget, onClearDi
         <div className="dp-map-container" style={{ flex: 1 }}>
           <div style={{ flex: 1, minHeight: 0 }}>
             <LiveMap
-              key={mapKey}
               mode={mapMode === "dispatch" ? "dispatch" : "monitoring"}
               incidents={incidents}
               units={units}
@@ -774,12 +808,11 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
   const [backupModal, setBackupModal] = useState<Incident | null>(null);
   const [escalateModal, setEscalateModal] = useState<Incident | null>(null);
   const [backupNote, setBackupNote] = useState("");
-  const [mapKey, setMapKey] = useState(0);
   const toast = useToast();
 
   useEffect(() => {
-    (window as any).__dpBackup   = (id: string) => { onUpdate(id, { situationType: "Escalating" }); toast.show(`Backup requested for ${id}`); setMapKey(k => k + 1); };
-    (window as any).__dpEscalate = (id: string) => { onUpdate(id, { situationType: "Critical"  }); toast.show(`${id} escalated`); setMapKey(k => k + 1); };
+    (window as any).__dpBackup   = (id: string) => { onUpdate(id, { situationType: "Escalating" }); toast.show(`Backup requested for ${id}`); };
+    (window as any).__dpEscalate = (id: string) => { onUpdate(id, { situationType: "Critical"  }); toast.show(`${id} escalated`); };
     return () => { delete (window as any).__dpBackup; delete (window as any).__dpEscalate; };
   }, []);
 
@@ -788,14 +821,12 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
 
   const handleSelect = (inc: Incident) => {
     setSelInc(inc);
-    setMapKey(k => k + 1); // re-renders map so it zooms to selected
   };
 
   const handleResolve = (inc: Incident) => {
     onUpdate(inc.id, { status: "Resolved", resolvedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) });
     toast.show(`${inc.id} marked as Resolved`);
     setSelInc(null);
-    setMapKey(k => k + 1);
   };
 
   return (
@@ -887,7 +918,6 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
         {/* Map — zooms to selected incident */}
         <div style={{ flex: selInc ? "0 0 42%" : "1", minHeight: 0 }}>
           <LiveMap
-            key={mapKey}
             mode="rescue"
             incidents={incidents}
             units={units}
@@ -925,7 +955,7 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
             <button className="dp-btn dp-btn-orange" disabled={!backupNote.trim()} onClick={() => {
               onUpdate(backupModal.id, { situationType: "Escalating" });
               toast.show(`Backup requested for ${backupModal.id}`);
-              setBackupModal(null); setBackupNote(""); setMapKey(k => k + 1);
+              setBackupModal(null); setBackupNote("");
             }}>Send Backup Request</button>
           </div>
         </Modal>
@@ -945,7 +975,7 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
             <button className="dp-btn dp-btn-red" onClick={() => {
               onUpdate(escalateModal.id, { situationType: "Critical" });
               toast.show(`${escalateModal.id} escalated`);
-              setEscalateModal(null); setMapKey(k => k + 1);
+              setEscalateModal(null);
             }}>Confirm Escalation</button>
           </div>
         </Modal>
@@ -1842,10 +1872,52 @@ function ProfilePage({ onLogout }: { onLogout: () => void }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN SHELL
 // ══════════════════════════════════════════════════════════════════════════════
+function mapBackendToFrontendIncident(report: IncidentReport): Incident {
+  const priorityMap: Record<string, IncidentPriority> = {
+    low: "LOW",
+    moderate: "MEDIUM",
+    high: "HIGH",
+    critical: "CRITICAL",
+  };
+
+  const statusMap: Record<string, IncidentStatus> = {
+    pending: "New",
+    reviewed: "Waiting",
+    actioned: "Dispatched",
+    closed: "Resolved",
+  };
+
+  return {
+    id: report.id,
+    type: report.title,
+    category: "Other",
+    reporter: "Citizen Report",
+    reporterPhone: "Verified",
+    address: report.location,
+    barangay: "",
+    city: "",
+    location: report.location,
+    lat: 14.6042,
+    lng: 120.9822,
+    timeReported: new Date(report.createdAt).toLocaleTimeString("en-PH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    dateReported: new Date(report.createdAt).toLocaleDateString("en-PH"),
+    priority: priorityMap[report.severity?.toLowerCase() || "moderate"] || "MEDIUM",
+    status: statusMap[report.status?.toLowerCase() || "pending"] || "New",
+    situationType: "Under Control",
+    assignedUnits: [],
+    description: report.content,
+    notes: "",
+    timeActive: 0,
+  };
+}
+
 function Shell({ onLogout }: { onLogout: () => void }) {
   const [page, setPage] = useState<NavPage>("dashboard");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [units, setUnits] = useState<Unit[]>(MOCK_UNITS);
   const [dropdown, setDropdown] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
@@ -1857,15 +1929,84 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const session = loadSession();
+    if (session?.accessToken) {
+      getDispatcherIncidents(session.accessToken)
+        .then((data) => {
+          setIncidents(data.map(mapBackendToFrontendIncident));
+        })
+        .catch((err) => {
+          console.error("Failed to fetch incidents:", err);
+          if (err.status === 401) {
+            toast.show("Session expired. Please log in again.");
+            setTimeout(() => onLogout(), 1500);
+          } else {
+            toast.show("Error connecting to incident queue.");
+          }
+        });
+    } else {
+      // No token, force logout
+      onLogout();
+    }
+  }, []);
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropdown(false);
+      if (dropRef.current && !dropRef.current.contains(e.target as Node))
+        setDropdown(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const updateIncident = (id: string, patch: Partial<Incident>) =>
-    setIncidents(p => p.map(i => i.id === id ? { ...i, ...patch } : i));
+  const updateIncident = async (id: string, patch: Partial<Incident>) => {
+    const session = loadSession();
+    if (!session?.accessToken) return;
+
+    // Map frontend values back to backend expectations
+    const backendPatch: any = {};
+    if (patch.status) {
+      const statusMap: Record<string, string> = {
+        New: "pending",
+        Waiting: "reviewed",
+        Dispatched: "actioned",
+        "In Progress": "actioned",
+        Resolved: "closed",
+        Invalid: "closed",
+      };
+      backendPatch.status = statusMap[patch.status] || "pending";
+    }
+    if (patch.priority) {
+      const priorityMap: Record<string, string> = {
+        LOW: "low",
+        MEDIUM: "moderate",
+        HIGH: "high",
+        CRITICAL: "critical",
+      };
+      backendPatch.severity = priorityMap[patch.priority] || "moderate";
+    }
+    if (patch.type) backendPatch.title = patch.type;
+    if (patch.description) backendPatch.content = patch.description;
+    if (patch.location) backendPatch.location = patch.location;
+
+    try {
+      // Find the real backend ID (since we might have shortened it for display)
+      // Actually, for now, we assume the shortened ID is unique enough or we keep the full ID in the state
+      // In mapBackendToFrontendIncident, I used report.id.split("-")[0]. 
+      // I should probably keep the full ID in a hidden property or use the full ID.
+      
+      // I'll update mapBackendToFrontendIncident to keep the full ID but display shortened.
+      // Wait, I'll just use the full ID for now to be safe.
+      
+      await updateIncidentReport(session.accessToken, id, backendPatch);
+      setIncidents((p) =>
+        p.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+      );
+    } catch (err) {
+      console.error("Failed to update incident:", err);
+      toast.show("Failed to sync update to server.");
+    }
+  };
 
   const handleDashboardDispatch = (inc: Incident) => {
     setDispatchTarget(inc);

@@ -24,4 +24,12 @@ export class UpdateFamilyDto {
   @IsOptional()
   @IsString()
   userId?: string;
+
+  @IsOptional()
+  @IsString()
+  age?: number;
+
+  @IsOptional()
+  @IsString()
+  accessibilityNeeds?: string;
 }

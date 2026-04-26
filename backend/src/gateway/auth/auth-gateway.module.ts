@@ -19,7 +19,6 @@ import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
         },
       },
     ]),
-    JwtModule.register({}),
   ],
   controllers: [AuthGatewayController],
   providers: [
@@ -32,4 +31,4 @@ import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
   ],
   exports: [AuthProxyService],
 })
-export class AuthGatewayModule {}
+export class AuthGatewayModule { }

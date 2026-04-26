@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { AppRole } from '../../../libs/contracts/src/roles.js';
 
 export class LoginDto {
   @IsEmail()
@@ -13,4 +14,8 @@ export class LoginDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   rememberMe?: boolean;
+
+  @IsOptional()
+  @IsEnum(AppRole)
+  requiredRole?: AppRole;
 }

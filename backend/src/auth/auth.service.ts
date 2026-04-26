@@ -5,6 +5,7 @@ import {
   ConflictException,
   BadRequestException,
   GatewayTimeoutException,
+  Logger,
 } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
@@ -39,32 +40,39 @@ interface PasswordResetRequestRow {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(JwtService) private readonly jwtService: JwtService,
     @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
     @Inject(NotificationsService) private readonly notificationsService: NotificationsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async signup(signupDto: SignupDto) {
-    const supabase = this.supabaseService.getClient() as any;
-    const formattedPhone = this.formatPhoneForStorage(signupDto.phone);
-    const requestedRole = signupDto.role ?? AppRole.LINE_MANAGER;
-
-    if (
-      requestedRole === AppRole.ADMIN &&
-      process.env.ALLOW_ADMIN_SELF_SIGNUP !== 'true'
-    ) {
-      throw new BadRequestException(
-        'Admin accounts must be provisioned by an existing administrator',
-      );
+    const requestedRole = signupDto.role || AppRole.CITIZEN;
+    
+    // Check if roles are allowed for self-signup
+    if (requestedRole !== AppRole.DISPATCHER && requestedRole !== AppRole.CITIZEN) {
+      if (!this.configService.get<boolean>('ALLOW_ADMIN_SELF_SIGNUP')) {
+        throw new BadRequestException('Only dispatcher and citizen roles can self-signup.');
+      }
     }
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
-      {
-        email: signupDto.email,
-        password: signupDto.password,
+    const supabase = this.supabaseService.getClient();
+    const formattedPhone = this.formatPhoneForStorage(signupDto.phone);
+
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: signupDto.email,
+      password: signupDto.password,
+      options: {
+        data: {
+          first_name: signupDto.firstName,
+          last_name: signupDto.lastName,
+          role: requestedRole,
+        },
       },
-    );
+    });
 
     if (signUpError) {
       if (signUpError.message.toLowerCase().includes('already registered')) {
@@ -117,6 +125,7 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
+    this.logger.log(`AuthService.login Payload: ${JSON.stringify(loginDto)}`);
     const supabase = this.supabaseService.getClient() as any;
 
     const { data, error } = await this.withTimeout<any>(
@@ -145,10 +154,29 @@ export class AuthService {
       throw new BadRequestException(profileError.message);
     }
 
+    // If a profile exists, use its role; otherwise, default to citizen for general access
+    const userRole = (profile?.role as string) || 'citizen';
+    const requiredRole = loginDto.requiredRole as string | undefined;
+
+    this.logger.debug(
+      `Verifying access: userRole='${userRole}', requiredRole='${requiredRole}'`,
+    );
+
+    // CRITICAL: If a specific role is required, and we either:
+    // 1. Found no profile (userRole defaulted to citizen)
+    // 2. The role doesn't match
+    // ...then we must block access.
+    if (requiredRole && (!profile || userRole !== requiredRole)) {
+      const displayRole = requiredRole.replace('line_manager', 'site manager').replace('_', ' ');
+      throw new UnauthorizedException(
+        `This account does not have ${displayRole} access.`,
+      );
+    }
+
     const payload = {
       sub: userId,
       email: loginDto.email,
-      role: (profile?.role as AppRole | undefined) ?? AppRole.CITIZEN,
+      role: userRole,
     };
     const accessToken = await this.jwtService.signAsync(payload, {
       expiresIn: loginDto.rememberMe ? '30d' : '7d',
@@ -214,7 +242,7 @@ export class AuthService {
     };
   }
 
-  private async withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 10000): Promise<T> {
+  private async withTimeout<T>(promise: Promise<T>, message: string, timeoutMs = 15000): Promise<T> {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
 
     try {

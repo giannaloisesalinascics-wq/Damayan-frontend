@@ -3,14 +3,44 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
+import { login } from "../../lib/api";
+import { saveSession } from "../../lib/session";
+import { AppRole } from "../../lib/types";
 
 export default function DispatcherLoginPage() {
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/dispatcher/beforecalamity");
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("dispatcher-email") as string;
+    const password = formData.get("dispatcher-password") as string;
+
+    try {
+      const response = await login({
+        email,
+        password,
+        requiredRole: AppRole.DISPATCHER,
+      });
+
+      saveSession({
+        accessToken: response.access_token,
+        expiresIn: response.expiresIn,
+        user: response.user,
+      });
+
+      router.push("/dispatcher/beforecalamity");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -34,13 +64,13 @@ export default function DispatcherLoginPage() {
     >
       <form className="auth-form" onSubmit={handleLogin}>
         <div className="auth-field">
-          <label htmlFor="dispatcher-username">Username</label>
+          <label htmlFor="dispatcher-email">Email Address</label>
           <input
-            id="dispatcher-username"
-            name="dispatcher-username"
-            type="text"
-            placeholder="dispatcher.id"
-            autoComplete="username"
+            id="dispatcher-email"
+            name="dispatcher-email"
+            type="email"
+            placeholder="dispatcher@damayan.ph"
+            autoComplete="email"
             required
           />
         </div>
@@ -69,8 +99,15 @@ export default function DispatcherLoginPage() {
           </div>
         </div>
 
-        <button className="auth-submit" type="submit">
-          Log In to Dispatch Dashboard
+        {error && <p className="auth-error-copy">{error}</p>}
+
+        <button 
+          className="auth-submit" 
+          type="submit" 
+          disabled={isLoading}
+          style={{ opacity: isLoading ? 0.7 : 1, cursor: isLoading ? "not-allowed" : "pointer" }}
+        >
+          {isLoading ? "Signing in..." : "Log In to Dispatch Dashboard"}
         </button>
       </form>
     </AuthLayout>

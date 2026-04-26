@@ -19,19 +19,19 @@ export class AuthProxyService {
 
   signup(signupDto: SignupDto) {
     return firstValueFrom(
-      this.authClient.send(AUTH_PATTERNS.SIGNUP, signupDto).pipe(timeout(10000)),
+      this.authClient.send(AUTH_PATTERNS.SIGNUP, signupDto).pipe(timeout(20000)),
     );
   }
 
   login(loginDto: LoginDto) {
     return firstValueFrom(
-      this.authClient.send(AUTH_PATTERNS.LOGIN, loginDto).pipe(timeout(10000)),
+      this.authClient.send(AUTH_PATTERNS.LOGIN, loginDto).pipe(timeout(20000)),
     );
   }
 
   getProfile(userId: string) {
     return firstValueFrom(
-      this.authClient.send(AUTH_PATTERNS.GET_PROFILE, { userId }).pipe(timeout(10000)),
+      this.authClient.send(AUTH_PATTERNS.GET_PROFILE, { userId }).pipe(timeout(20000)),
     );
   }
 
@@ -39,7 +39,7 @@ export class AuthProxyService {
     return firstValueFrom(
       this.authClient
         .send(AUTH_PATTERNS.FORGOT_PASSWORD, forgotPasswordDto)
-        .pipe(timeout(10000)),
+        .pipe(timeout(20000)),
     );
   }
 
@@ -47,7 +47,7 @@ export class AuthProxyService {
     return firstValueFrom(
       this.authClient
         .send(AUTH_PATTERNS.RESET_PASSWORD, resetPasswordDto)
-        .pipe(timeout(10000)),
+        .pipe(timeout(20000)),
     );
   }
 }

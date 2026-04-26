@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Logger,
   Post,
   Req,
   UseGuards,
@@ -27,6 +28,8 @@ interface RequestWithUser {
 
 @Controller('auth')
 export class AuthGatewayController {
+  private readonly logger = new Logger(AuthGatewayController.name);
+
   constructor(
     @Inject(AuthProxyService) private readonly authProxyService: AuthProxyService,
   ) {}
@@ -39,6 +42,7 @@ export class AuthGatewayController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() loginDto: LoginDto) {
+    this.logger.log(`Gateway login request: email=${loginDto.email}, requiredRole=${loginDto.requiredRole}`);
     return this.authProxyService.login(loginDto);
   }
 

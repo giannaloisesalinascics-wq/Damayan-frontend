@@ -12,4 +12,4 @@ import { RolesGuard } from '../../common/auth/roles.guard.js';
   controllers: [AdminController],
   providers: [SiteManagerProxyService, AdminProxyService, JwtAuthGuard, RolesGuard],
 })
-export class AdminGatewayModule {}
+export class AdminGatewayModule { }

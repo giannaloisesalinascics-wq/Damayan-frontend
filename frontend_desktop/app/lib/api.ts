@@ -1,4 +1,5 @@
 import type {
+  AppRole,
   AuthSession,
   CapacityCenter,
   CheckInRecord,
@@ -38,19 +39,34 @@ async function request<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  console.log(`[Api] Requesting ${path}`, { method: init.method || 'GET' });
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers,
   });
 
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as unknown) : null;
+  console.log(`[Api] Response for ${path}: status=${response.status}`);
+  
+  let payload: any = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch (e) {
+    console.error(`[Api] Failed to parse JSON response from ${path}:`, text);
+    payload = { message: text || "Invalid server response" };
+  }
 
   if (!response.ok) {
     const message =
       typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message?: string }).message)
+        ? (Array.isArray(payload.message) ? payload.message.join(", ") : String(payload.message))
         : `Request failed with status ${response.status}`;
+    
+    if (response.status >= 500) {
+      console.error(`[Api] Error ${response.status}: ${message}`);
+    } else {
+      console.warn(`[Api] Warning ${response.status}: ${message}`);
+    }
     throw new ApiError(message, response.status);
   }
 
@@ -61,6 +77,7 @@ export async function login(payload: {
   email: string;
   password: string;
   rememberMe?: boolean;
+  requiredRole?: AppRole;
 }) {
   return request<{
     access_token: string;
@@ -79,6 +96,12 @@ export async function signup(payload: {
   phone: string;
   password: string;
   role?: string;
+  registrationType?: string;
+  birthDate?: string;
+  gender?: string;
+  bloodType?: string;
+  medicalConditions?: string;
+  familyMembers?: any[];
 }) {
   return request<{
     access_token: string;
@@ -158,6 +181,10 @@ export async function getIncidentReports(token: string) {
   return request<IncidentReport[]>("/site-manager/incident-reports", {}, token);
 }
 
+export async function getDispatcherIncidents(token: string) {
+  return request<IncidentReport[]>("/dispatcher/incident-reports", {}, token);
+}
+
 export async function createManualCheckIn(
   token: string,
   payload: {
@@ -174,6 +201,26 @@ export async function createManualCheckIn(
   }, token);
 }
 
+export async function updateIncidentReport(
+  token: string,
+  id: string,
+  payload: Partial<{
+    disasterId: string;
+    reportedBy: string;
+    title: string;
+    content: string;
+    severity: string;
+    location: string;
+    status: string;
+  }>,
+) {
+  // Use dispatcher prefix for dispatcher operations
+  return request<IncidentReport>(`/dispatcher/incident-reports/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
 export async function createIncidentReport(
   token: string,
   payload: {
@@ -186,6 +233,92 @@ export async function createIncidentReport(
   },
 ) {
   return request<IncidentReport>("/site-manager/incident-reports", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getCitizenProfile(token: string) {
+  return request<any>("/citizen/profile", {
+    method: "GET",
+  }, token);
+}
+
+export async function registerCitizen(token: string, payload: {
+  fullName: string;
+  birthDate: string;
+  gender: string;
+  bloodType: string;
+  medicalConditions: string;
+  registrationType: "Individual" | "Household";
+  qrCodeId: string;
+}) {
+  return request<any>("/citizen/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function addFamilyMember(token: string, payload: {
+  qrCodeId: string;
+  headFullName: string;
+  familyMemberName: string;
+  relationship: string;
+  age: number;
+  accessibilityNeeds: string;
+  familyMemberCount: number;
+}) {
+  return request<any>("/citizen/family", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function addAnimal(token: string, payload: {
+  name: string;
+  species: string;
+  needsCage: boolean;
+  qrCodeId?: string;
+}) {
+  return request<any>("/citizen/animal", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function clearFamilyMembers(token: string, qrCodeId: string) {
+  return request<any>(`/citizen/family/${qrCodeId}`, {
+    method: "DELETE",
+  }, token);
+}
+
+export async function clearAnimals(token: string) {
+  return request<any>("/citizen/animal", {
+    method: "DELETE",
+  }, token);
+}
+
+export async function getFamilyMembers(token: string) {
+  return request<any[]>("/citizen/family", {
+    method: "GET",
+  }, token);
+}
+
+export async function getAnimals(token: string) {
+  return request<any[]>("/citizen/animals", {
+    method: "GET",
+  }, token);
+}
+
+export async function submitIncidentReport(token: string, payload: {
+  title: string;
+  content: string;
+  severity: string;
+  location: string;
+  attachmentKeys?: string[];
+  disasterId?: string;
+}) {
+  return request<any>("/citizen/incident-report", {
     method: "POST",
     body: JSON.stringify(payload),
   }, token);

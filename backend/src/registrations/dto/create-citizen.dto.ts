@@ -5,13 +5,13 @@ export class CreateCitizenDto {
   @IsString()
   userId?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  firstName!: string;
+  firstName?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  lastName!: string;
+  lastName?: string;
 
   @IsOptional()
   @IsString()
@@ -44,4 +44,16 @@ export class CreateCitizenDto {
   @IsOptional()
   @IsString()
   familyId?: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  bloodType?: string;
+
+  @IsOptional()
+  @IsString()
+  medicalConditions?: string;
 }

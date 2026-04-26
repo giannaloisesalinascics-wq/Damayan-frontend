@@ -44,4 +44,16 @@ export class UpdateCitizenDto {
   @IsOptional()
   @IsString()
   familyId?: string;
+
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  bloodType?: string;
+
+  @IsOptional()
+  @IsString()
+  medicalConditions?: string;
 }

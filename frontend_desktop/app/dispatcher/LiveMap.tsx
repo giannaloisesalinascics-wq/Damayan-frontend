@@ -23,6 +23,8 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
   const mapR = useRef<any>(null);
   const LR   = useRef<any>(null);
   const mks  = useRef<any[]>([]);
+  const prevMode = useRef<string>("");
+  const prevSelId = useRef<string>("");
 
   useEffect(() => {
     if (typeof window==="undefined" || mapR.current) return;
@@ -101,7 +103,11 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
     }
 
     if (mode==="dispatch" && selectedIncident) {
-      map.setView([selectedIncident.lat,selectedIncident.lng],15);
+      if (prevMode.current !== mode || prevSelId.current !== selectedIncident.id) {
+        map.setView([selectedIncident.lat,selectedIncident.lng],15);
+        prevMode.current = mode;
+        prevSelId.current = selectedIncident.id;
+      }
       const pin = `<svg width="26" height="38" viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#c2440a"/><circle cx="14" cy="14" r="6" fill="white"/></svg>`;
       const pinIcon = L.divIcon({className:"",html:pin,iconSize:[26,38],iconAnchor:[13,38]});
       mks.current.push(L.marker([selectedIncident.lat,selectedIncident.lng],{icon:pinIcon}).addTo(map).bindTooltip(`<b>${selectedIncident.id}</b><br/>${selectedIncident.address}`,{permanent:true,direction:"top"}).openTooltip());
@@ -122,9 +128,15 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
     if (mode==="rescue") {
       // Zoom in tight to selected incident, otherwise show overview
       if (selectedIncident) {
-        map.flyTo([selectedIncident.lat, selectedIncident.lng], 17, { animate: true, duration: 1.2 });
-      } else {
+        if (prevMode.current !== mode || prevSelId.current !== selectedIncident.id) {
+          map.flyTo([selectedIncident.lat, selectedIncident.lng], 17, { animate: true, duration: 1.2 });
+          prevMode.current = mode;
+          prevSelId.current = selectedIncident.id;
+        }
+      } else if (prevMode.current !== mode) {
         map.setView(PH, 13);
+        prevMode.current = mode;
+        prevSelId.current = "";
       }
       incidents.filter(i=>["Dispatched","In Progress"].includes(i.status)).forEach(i => {
         const sc = situationColor(i.situationType);

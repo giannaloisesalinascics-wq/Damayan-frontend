@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateDisasterEventDto } from './dto/create-disaster-event.dto.js';
 import { UpdateDisasterEventDto } from './dto/update-disaster-event.dto.js';
@@ -20,7 +20,7 @@ interface DisasterEventRow {
 
 @Injectable()
 export class DisasterEventsService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string) {
     const supabase = this.supabaseService.getClient() as any;
@@ -136,6 +136,12 @@ export class DisasterEventsService {
         ['high', 'severe', 'critical'].includes(event.severityLevel.toLowerCase()),
       ).length,
     };
+  }
+
+  async findActive() {
+    const events = await this.findAll();
+    // Return first 'active' or just the most recent one if none marked active
+    return events.find(e => e.status.toLowerCase() === 'active') || events[0];
   }
 
   private toEvent(row: DisasterEventRow) {
