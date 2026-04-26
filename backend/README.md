@@ -53,7 +53,13 @@ Single terminal option (recommended):
 npm run start:all
 ```
 
-`start:all` now auto-frees ports `3001`, `4001`, and `4002` before launching all three services, so rerunning the command will replace stale backend processes instead of failing with `EADDRINUSE`.
+`start:all` now runs a stable startup profile. It auto-frees ports `3001`, `4001`, and `4002`, launches all three services, and auto-restarts any service that exits unexpectedly.
+
+One-shot startup (no restart loop, useful for debugging):
+
+```bash
+npm run start:all:once
+```
 
 Stop all backend services:
 
@@ -68,6 +74,8 @@ npm run start:auth-service
 npm run start:operations-service
 npm run start:gateway
 ```
+
+Important: run backend commands from the `backend` folder. Running `npm run start:all` from the repository root will fail because the root has no backend `package.json`.
 
 ## Notes
 

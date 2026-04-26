@@ -87,6 +87,12 @@ export default function AdminLiveDashboard() {
         setOrganizations(orgs);
         setError(null);
       } catch (caughtError) {
+        if (caughtError instanceof ApiError && caughtError.status === 401) {
+          clearSession();
+          router.replace("/admin/login");
+          return;
+        }
+
         const nextMessage =
           caughtError instanceof ApiError
             ? caughtError.message

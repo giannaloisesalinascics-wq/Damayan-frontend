@@ -1,71 +1,199 @@
 "use client";
 
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { clearSession, hasRole, loadSession } from "../../lib/session";
+import {
+  createIncidentReport,
+  createManualCheckIn,
+  getCapacity,
+  getDisasterEvents,
+  getIncidentReports,
+  getInventory,
+} from "../../lib/api";
+import type {
+  AuthSession,
+  CapacityCenter,
+  DisasterEvent,
+  IncidentReport,
+  InventoryItem,
+} from "../../lib/types";
+
+// ─── Fallback data ───────────────────────────────────────────────────────────
+
+const FALLBACK_RESOURCES: InventoryItem[] = [
+  { id: "1", name: "Potable Water", category: "Water", quantity: 15000, unit: "Liters", status: "available" },
+  { id: "2", name: "Trauma Kits", category: "Medical", quantity: 54, unit: "Units", status: "low_stock" },
+  { id: "3", name: "Mobile Power", category: "Equipment", quantity: 8, unit: "Units", status: "available" },
+];
+
+const FALLBACK_SHELTERS: CapacityCenter[] = [
+  { id: "1", name: "North Elementary", address: "", municipality: "", barangay: "", capacity: 100, currentOccupancy: 98, availableSlots: 2, utilizationRate: 98, status: "active" },
+  { id: "2", name: "St. Jude Stadium", address: "", municipality: "", barangay: "", capacity: 100, currentOccupancy: 45, availableSlots: 55, utilizationRate: 45, status: "active" },
+  { id: "3", name: "East Coast Gym", address: "", municipality: "", barangay: "", capacity: 100, currentOccupancy: 0, availableSlots: 100, utilizationRate: 0, status: "inactive" },
+];
+
+const FALLBACK_FEED: IncidentReport[] = [
+  { id: "1", disasterId: "", reportedBy: "", title: "Bridge Warning", content: "Bridge in Sector 7 reported unstable. Rerouting team Bravo-2.", severity: "high", location: "Sector 7", status: "pending", createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString() },
+  { id: "2", disasterId: "", reportedBy: "", title: "Team Deployment", content: "Team Delta arrived at South Shelter. Starting health screenings.", severity: "moderate", location: "South Shelter", status: "resolved", createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString() },
+  { id: "3", disasterId: "", reportedBy: "", title: "Resource Received", content: "Food supplies batch #901 received at central hub.", severity: "low", location: "Central Hub", status: "resolved", createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString() },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function shelterTone(rate: number, status: string): string {
+  if (status === "inactive" || rate === 0) return "muted";
+  if (rate >= 85) return "error";
+  return "primary";
+}
+
+function shelterLevel(rate: number, status: string): string {
+  if (status === "inactive") return "Inactive";
+  return `${Math.round(rate)}% Full`;
+}
+
+function feedTone(severity: string): string {
+  if (severity === "critical" || severity === "high") return "warning";
+  if (severity === "moderate") return "primary";
+  return "neutral";
+}
+
+function feedIcon(severity: string): string {
+  if (severity === "critical" || severity === "high") return "!";
+  if (severity === "moderate") return "D";
+  return "R";
+}
+
+function feedTimeLabel(iso: string, severity: string): string {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const tag =
+    severity === "high" || severity === "critical"
+      ? "WARNING"
+      : severity === "moderate"
+        ? "DEPLOYMENT"
+        : "RESOURCE";
+  return `${time} – ${tag}`;
+}
+
+function resourceTone(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("low") || s.includes("critical") || s.includes("depleted")) return "error";
+  return "primary";
+}
+
+function resourceAvailability(status: string): string {
+  const s = status.toLowerCase();
+  if (s.includes("depleted")) return "OUT";
+  if (s.includes("low")) return "LOW";
+  return "AVAIL";
+}
+
+function avatarInitials(session: AuthSession | null): string {
+  if (!session) return "SM";
+  const f = session.user.firstName?.[0] ?? "";
+  const l = session.user.lastName?.[0] ?? "";
+  return (f + l).toUpperCase() || "SM";
+}
+
+const swimlane = [
+  "Evacuee Arrival",
+  "Scan QR or Manually Log ID",
+  "Update Site Capacity",
+  "Manage Relief Distribution",
+  "Report Site Incidents",
+];
 
 export default function DuringCalamityPage() {
+  const router = useRouter();
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [checkInMode, setCheckInMode] = useState<"scan" | "manual">("scan");
+  const [resources, setResources] = useState<InventoryItem[]>(FALLBACK_RESOURCES);
+  const [shelters, setShelters] = useState<CapacityCenter[]>(FALLBACK_SHELTERS);
+  const [feed, setFeed] = useState<IncidentReport[]>(FALLBACK_FEED);
+  const [activeEvents, setActiveEvents] = useState<DisasterEvent[]>([]);
+  const [incidentSeverity, setIncidentSeverity] = useState<"critical" | "high" | "moderate">("high");
+  const [checkInName, setCheckInName] = useState("");
+  const [checkInId, setCheckInId] = useState("");
+  const [incidentType, setIncidentType] = useState("Medical Emergency");
+  const [incidentDesc, setIncidentDesc] = useState("");
+  const [checkInMsg, setCheckInMsg] = useState<string | null>(null);
+  const [incidentMsg, setIncidentMsg] = useState<string | null>(null);
 
-  const resources = [
-    {
-      name: "Potable Water",
-      availability: "92% AVAIL",
-      value: 92,
-      tone: "primary",
-      icon: "W",
-    },
-    {
-      name: "Trauma Kits",
-      availability: "12% LOW",
-      value: 12,
-      tone: "error",
-      icon: "T",
-    },
-    {
-      name: "Mobile Power",
-      availability: "84% AVAIL",
-      value: 84,
-      tone: "primary",
-      icon: "P",
-    },
-  ];
+  useEffect(() => {
+    const stored = loadSession();
+    if (!hasRole(stored, "line_manager")) {
+      router.replace("/site-manager/login");
+      return;
+    }
+    setSession(stored);
 
-  const shelters = [
-    { name: "North Elementary", level: "98% Full", fill: 98, tone: "error" },
-    { name: "St. Jude Stadium", level: "45% Full", fill: 45, tone: "primary" },
-    { name: "East Coast Gym", level: "Inactive", fill: 0, tone: "muted" },
-  ];
+    async function hydrate() {
+      if (!stored) return;
+      const token = stored.accessToken;
+      const [invResult, capResult, irResult, evResult] = await Promise.allSettled([
+        getInventory("site-manager", token),
+        getCapacity(token),
+        getIncidentReports(token),
+        getDisasterEvents("site-manager", token),
+      ]);
+      if (invResult.status === "fulfilled" && invResult.value.length > 0) setResources(invResult.value.slice(0, 3));
+      if (capResult.status === "fulfilled" && capResult.value.length > 0) setShelters(capResult.value);
+      if (irResult.status === "fulfilled" && irResult.value.length > 0) setFeed(irResult.value.slice(0, 5));
+      if (evResult.status === "fulfilled") setActiveEvents(evResult.value.filter((e) => e.status === "active"));
+    }
 
-  const feed = [
-    {
-      time: "08:42 AM - WARNING",
-      message:
-        "Bridge in Sector 7 reported unstable. Rerouting team Bravo-2.",
-      tone: "warning",
-      icon: "!",
-    },
-    {
-      time: "08:35 AM - DEPLOYMENT",
-      message:
-        "Team Delta arrived at South Shelter. Starting health screenings.",
-      tone: "primary",
-      icon: "D",
-    },
-    {
-      time: "08:20 AM - RESOURCE",
-      message: "Food supplies batch #901 received at central hub.",
-      tone: "neutral",
-      icon: "R",
-    },
-  ];
+    hydrate();
+  }, [router]);
 
-  const swimlane = [
-    "Evacuee Arrival",
-    "Scan QR or Manually Log ID",
-    "Update Site Capacity",
-    "Manage Relief Distribution",
-    "Report Site Incidents",
-  ];
+  const totalDisplaced = shelters.reduce((sum, s) => sum + s.currentOccupancy, 0);
+  const activeSheltersCount = shelters.filter((s) => s.status !== "inactive").length;
+  const activeAlertCount = feed.filter((r) => r.status === "pending").length;
+  const firstActiveEventId = activeEvents[0]?.id ?? "";
+
+  async function handleCheckInSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!session || !checkInId.trim()) return;
+    const nameParts = checkInName.trim().split(" ");
+    try {
+      await createManualCheckIn(session.accessToken, {
+        evacueeNumber: checkInId.trim(),
+        firstName: nameParts[0] ?? "",
+        lastName: nameParts.slice(1).join(" ") || undefined,
+      });
+      setCheckInMsg("Check-in logged successfully.");
+      setCheckInName("");
+      setCheckInId("");
+    } catch {
+      setCheckInMsg("Failed to save. Please try again.");
+    }
+  }
+
+  async function handleIncidentSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!session || !incidentDesc.trim()) return;
+    try {
+      const report = await createIncidentReport(session.accessToken, {
+        disasterId: firstActiveEventId,
+        reportedBy: session.user.id,
+        title: incidentType,
+        content: incidentDesc.trim(),
+        severity: incidentSeverity,
+        location: session.user.name ?? "On-site",
+      });
+      setFeed((prev) => [report, ...prev.slice(0, 4)]);
+      setIncidentMsg("Incident report submitted.");
+      setIncidentDesc("");
+    } catch {
+      setIncidentMsg("Failed to submit. Please try again.");
+    }
+  }
+
+  function handleSignOut() {
+    clearSession();
+    router.replace("/site-manager/login");
+  }
 
   return (
     <div className="response-page">
@@ -113,9 +241,9 @@ export default function DuringCalamityPage() {
               Log Rapid Report
             </button>
             <button type="button">Support</button>
-            <Link className="response-signout-link" href="/site-manager/login">
+            <button className="response-signout-link" type="button" onClick={handleSignOut}>
               Sign Out
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -141,7 +269,7 @@ export default function DuringCalamityPage() {
 
           <div className="topbar-right">
             <span className="topbar-divider" />
-            <div className="topbar-avatar">SM</div>
+            <div className="topbar-avatar">{avatarInitials(session)}</div>
           </div>
         </header>
 
@@ -154,24 +282,31 @@ export default function DuringCalamityPage() {
                 </span>
                 <div className="response-critical-timer">
                   <span className="response-critical-dot" />
-                  <span>Critical Window: 04:22:10 remaining</span>
+                  <span>
+                    {activeEvents.length > 0
+                      ? `Active Event: ${activeEvents[0].name}`
+                      : "Critical Window: 04:22:10 remaining"}
+                  </span>
                 </div>
               </div>
               <h1>Live Status Map</h1>
               <p>
-                Live operational view of Typhoon 09B impact zone. Resources are
-                being prioritized for Zone A-4 flooding.
+                Live operational view of{" "}
+                {activeEvents.length > 0
+                  ? `${activeEvents[0].name} (${activeEvents[0].type})`
+                  : "Typhoon 09B"}{" "}
+                impact zone. Resources are being prioritized for affected areas.
               </p>
             </div>
 
             <div className="response-summary-grid">
               <div className="response-summary-card">
                 <span>Total Displaced</span>
-                <strong>12,482</strong>
+                <strong>{totalDisplaced.toLocaleString()}</strong>
               </div>
               <div className="response-summary-card">
                 <span>Active Shelters</span>
-                <strong>42/45</strong>
+                <strong>{activeSheltersCount}/{shelters.length}</strong>
               </div>
             </div>
           </section>
@@ -275,18 +410,29 @@ export default function DuringCalamityPage() {
                 </div>
               </div>
 
-              <div className="scanner-manual-card">
+              <form className="scanner-manual-card" onSubmit={handleCheckInSubmit}>
                 <h3>Manual Intake Backup</h3>
                 <div className="manual-field">
                   <label>Evacuee Name</label>
-                  <input placeholder="Enter full name" type="text" />
+                  <input
+                    placeholder="Enter full name"
+                    type="text"
+                    value={checkInName}
+                    onChange={(e) => setCheckInName(e.target.value)}
+                  />
                 </div>
                 <div className="manual-field">
                   <label>Temporary ID</label>
-                  <input placeholder="Assign or enter ID" type="text" />
+                  <input
+                    placeholder="Assign or enter ID"
+                    type="text"
+                    value={checkInId}
+                    onChange={(e) => setCheckInId(e.target.value)}
+                  />
                 </div>
-                <button type="button">Save Manual Entry</button>
-              </div>
+                {checkInMsg && <p style={{ fontSize: "0.75rem", marginBottom: "0.5rem" }}>{checkInMsg}</p>}
+                <button type="submit">Save Manual Entry</button>
+              </form>
             </div>
           </section>
 
@@ -296,14 +442,20 @@ export default function DuringCalamityPage() {
                 <h2>Report Site Incident</h2>
                 <p>Log critical events, supply shortages, or medical emergencies immediately.</p>
               </div>
-              <div className="incident-count-badge">3 active alerts</div>
+              <div className="incident-count-badge">
+                {activeAlertCount > 0 ? `${activeAlertCount} active alert${activeAlertCount > 1 ? "s" : ""}` : "No active alerts"}
+              </div>
             </div>
 
-            <form className="incident-report-form">
+            <form className="incident-report-form" onSubmit={handleIncidentSubmit}>
               <div className="incident-form-grid">
                 <div className="manual-field">
                   <label>Incident Type</label>
-                  <select className="incident-select">
+                  <select
+                    className="incident-select"
+                    value={incidentType}
+                    onChange={(e) => setIncidentType(e.target.value)}
+                  >
                     <option>Medical Emergency</option>
                     <option>Supply Shortage</option>
                     <option>Infrastructure Damage</option>
@@ -314,16 +466,34 @@ export default function DuringCalamityPage() {
                 <div className="manual-field">
                   <label>Severity Level</label>
                   <div className="severity-toggle">
-                    <button type="button" className="severity-btn critical">Critical</button>
-                    <button type="button" className="severity-btn high active">High</button>
-                    <button type="button" className="severity-btn moderate">Moderate</button>
+                    <button
+                      type="button"
+                      className={`severity-btn critical${incidentSeverity === "critical" ? " active" : ""}`}
+                      onClick={() => setIncidentSeverity("critical")}
+                    >Critical</button>
+                    <button
+                      type="button"
+                      className={`severity-btn high${incidentSeverity === "high" ? " active" : ""}`}
+                      onClick={() => setIncidentSeverity("high")}
+                    >High</button>
+                    <button
+                      type="button"
+                      className={`severity-btn moderate${incidentSeverity === "moderate" ? " active" : ""}`}
+                      onClick={() => setIncidentSeverity("moderate")}
+                    >Moderate</button>
                   </div>
                 </div>
               </div>
               <div className="manual-field">
                 <label>Incident Description</label>
-                <textarea className="incident-textarea" placeholder="Describe the situation in detail..."></textarea>
+                <textarea
+                  className="incident-textarea"
+                  placeholder="Describe the situation in detail..."
+                  value={incidentDesc}
+                  onChange={(e) => setIncidentDesc(e.target.value)}
+                />
               </div>
+              {incidentMsg && <p style={{ fontSize: "0.75rem", marginBottom: "0.5rem" }}>{incidentMsg}</p>}
               <button type="submit" className="incident-submit-btn">Submit Incident Report</button>
             </form>
           </section>
@@ -365,25 +535,30 @@ export default function DuringCalamityPage() {
               </div>
 
               <div className="response-resource-grid">
-                {resources.map((resource) => (
-                  <article className="response-resource-card" key={resource.name}>
-                    <div className="response-resource-top">
-                      <div className={`resource-icon resource-${resource.tone}`}>
-                        {resource.icon}
+                {resources.map((resource) => {
+                  const tone = resourceTone(resource.status);
+                  const avail = resourceAvailability(resource.status);
+                  const pct = tone === "error" ? 20 : 85;
+                  return (
+                    <article className="response-resource-card" key={resource.id}>
+                      <div className="response-resource-top">
+                        <div className={`resource-icon resource-${tone}`}>
+                          {resource.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className={`resource-label resource-${tone}`}>
+                          {resource.quantity.toLocaleString()} {resource.unit} – {avail}
+                        </span>
                       </div>
-                      <span className={`resource-label resource-${resource.tone}`}>
-                        {resource.availability}
-                      </span>
-                    </div>
-                    <h3>{resource.name}</h3>
-                    <div className="resource-progress-track">
-                      <div
-                        className={`resource-progress-fill resource-${resource.tone}`}
-                        style={{ width: `${resource.value}%` }}
-                      />
-                    </div>
-                  </article>
-                ))}
+                      <h3>{resource.name}</h3>
+                      <div className="resource-progress-track">
+                        <div
+                          className={`resource-progress-fill resource-${tone}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </div>
 
@@ -395,23 +570,26 @@ export default function DuringCalamityPage() {
                 </div>
 
                 <div className="response-shelter-list">
-                  {shelters.map((shelter) => (
-                    <article
-                      className={`response-shelter-item shelter-${shelter.tone}`}
-                      key={shelter.name}
-                    >
-                      <div className="response-shelter-row">
-                        <span>{shelter.name}</span>
-                        <strong>{shelter.level}</strong>
-                      </div>
-                      <div className="response-shelter-track">
-                        <div
-                          className={`response-shelter-fill shelter-fill-${shelter.tone}`}
-                          style={{ width: `${shelter.fill}%` }}
-                        />
-                      </div>
-                    </article>
-                  ))}
+                  {shelters.map((shelter) => {
+                    const tone = shelterTone(shelter.utilizationRate, shelter.status);
+                    return (
+                      <article
+                        className={`response-shelter-item shelter-${tone}`}
+                        key={shelter.id}
+                      >
+                        <div className="response-shelter-row">
+                          <span>{shelter.name}</span>
+                          <strong>{shelterLevel(shelter.utilizationRate, shelter.status)}</strong>
+                        </div>
+                        <div className="response-shelter-track">
+                          <div
+                            className={`response-shelter-fill shelter-fill-${tone}`}
+                            style={{ width: `${Math.min(100, shelter.utilizationRate)}%` }}
+                          />
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -423,11 +601,11 @@ export default function DuringCalamityPage() {
 
                 <div className="response-feed-list">
                   {feed.map((item) => (
-                    <article className="response-feed-item" key={item.time}>
-                      <div className={`feed-icon feed-${item.tone}`}>{item.icon}</div>
+                    <article className="response-feed-item" key={item.id}>
+                      <div className={`feed-icon feed-${feedTone(item.severity)}`}>{feedIcon(item.severity)}</div>
                       <div>
-                        <span className="response-feed-time">{item.time}</span>
-                        <p>{item.message}</p>
+                        <span className="response-feed-time">{feedTimeLabel(item.createdAt, item.severity)}</span>
+                        <p>{item.content}</p>
                       </div>
                     </article>
                   ))}

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InventoryService } from '../../../src/inventory/inventory.service.js';
 import { CapacityService } from '../../../src/capacity/capacity.service.js';
 import { CheckInService } from '../../../src/check-in/check-in.service.js';
@@ -13,15 +13,22 @@ import { RegistrationsService } from '../../../src/registrations/registrations.s
 @Injectable()
 export class DashboardService {
   constructor(
-    private readonly inventoryService: InventoryService,
-    private readonly capacityService: CapacityService,
-    private readonly checkInService: CheckInService,
+    @Inject(InventoryService) private readonly inventoryService: InventoryService,
+    @Inject(CapacityService) private readonly capacityService: CapacityService,
+    @Inject(CheckInService) private readonly checkInService: CheckInService,
+    @Inject(OrganizationsService)
     private readonly organizationsService: OrganizationsService,
+    @Inject(DisasterEventsService)
     private readonly disasterEventsService: DisasterEventsService,
+    @Inject(DispatchOrdersService)
     private readonly dispatchOrdersService: DispatchOrdersService,
+    @Inject(ReliefOperationsService)
     private readonly reliefOperationsService: ReliefOperationsService,
+    @Inject(IncidentReportsService)
     private readonly incidentReportsService: IncidentReportsService,
+    @Inject(DistributionsService)
     private readonly distributionsService: DistributionsService,
+    @Inject(RegistrationsService)
     private readonly registrationsService: RegistrationsService,
   ) {}
 

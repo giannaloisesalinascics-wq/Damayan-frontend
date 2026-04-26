@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InventoryItem } from './interfaces/inventory-item.interface.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { UpdateItemDto } from './dto/update-item.dto.js';
@@ -9,7 +9,7 @@ import { SupabaseService } from '../supabase/supabase.service.js';
 export class InventoryService {
   private static readonly LOW_STOCK_THRESHOLD = 500;
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string): Promise<InventoryItem[]> {
     const supabase = this.supabaseService.getClient() as any;

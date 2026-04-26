@@ -57,13 +57,20 @@ export class OperationsMessageController {
     @Inject(InventoryService) private readonly inventoryService: InventoryService,
     @Inject(CapacityService) private readonly capacityService: CapacityService,
     @Inject(CheckInService) private readonly checkInService: CheckInService,
-    @Inject(OrganizationsService) private readonly organizationsService: OrganizationsService,
-    @Inject(DisasterEventsService) private readonly disasterEventsService: DisasterEventsService,
-    @Inject(DispatchOrdersService) private readonly dispatchOrdersService: DispatchOrdersService,
-    @Inject(ReliefOperationsService) private readonly reliefOperationsService: ReliefOperationsService,
-    @Inject(IncidentReportsService) private readonly incidentReportsService: IncidentReportsService,
-    @Inject(DistributionsService) private readonly distributionsService: DistributionsService,
-    @Inject(RegistrationsService) private readonly registrationsService: RegistrationsService,
+    @Inject(OrganizationsService)
+    private readonly organizationsService: OrganizationsService,
+    @Inject(DisasterEventsService)
+    private readonly disasterEventsService: DisasterEventsService,
+    @Inject(DispatchOrdersService)
+    private readonly dispatchOrdersService: DispatchOrdersService,
+    @Inject(ReliefOperationsService)
+    private readonly reliefOperationsService: ReliefOperationsService,
+    @Inject(IncidentReportsService)
+    private readonly incidentReportsService: IncidentReportsService,
+    @Inject(DistributionsService)
+    private readonly distributionsService: DistributionsService,
+    @Inject(RegistrationsService)
+    private readonly registrationsService: RegistrationsService,
     @Inject(UploadsService) private readonly uploadsService: UploadsService,
     @Inject(DashboardService) private readonly dashboardService: DashboardService,
   ) {}

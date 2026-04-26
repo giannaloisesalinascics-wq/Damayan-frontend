@@ -7,7 +7,7 @@ import {
   GatewayTimeoutException,
   Logger,
 } from '@nestjs/common';
-import { randomInt } from 'node:crypto';
+import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -30,10 +30,11 @@ interface UserProfileRow {
 }
 
 interface PasswordResetRequestRow {
-  contact: string;
-  user_id: string;
-  method: RecoveryMethod;
-  code: string;
+  id: string;
+  auth_user_id: string;
+  email: string;
+  token_hash: string;
+  status: 'pending' | 'used' | 'expired';
   expires_at: string;
   used_at: string | null;
 }
@@ -282,22 +283,31 @@ export class AuthService {
     }
 
     const normalizedContact = this.normalizeContact(contact, method);
-    const userId = await this.findUserIdForPasswordReset(normalizedContact, method);
+    const resetIdentity = await this.findUserForPasswordReset(
+      normalizedContact,
+      method,
+    );
     const code = randomInt(1000, 10000).toString();
+    const tokenHash = this.hashResetCode(code);
+
+    await supabase
+      .from('password_reset_requests')
+      .update({
+        status: 'expired',
+      })
+      .eq('email', resetIdentity.email)
+      .eq('status', 'pending');
 
     const { error: resetRequestError } = await supabase
       .from('password_reset_requests')
-      .upsert(
-        {
-          contact: normalizedContact,
-          user_id: userId,
-          method,
-          code,
-          expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
-          used_at: null,
-        },
-        { onConflict: 'contact' },
-      );
+      .insert({
+        auth_user_id: resetIdentity.userId,
+        email: resetIdentity.email,
+        token_hash: tokenHash,
+        status: 'pending',
+        expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
+        used_at: null,
+      });
 
     if (resetRequestError) {
       throw new BadRequestException(
@@ -331,37 +341,52 @@ export class AuthService {
       ? RecoveryMethod.EMAIL
       : RecoveryMethod.SMS;
     const normalizedContact = this.normalizeContact(contact, method);
+    const resetIdentity = await this.findUserForPasswordReset(
+      normalizedContact,
+      method,
+    );
     const supabase = this.supabaseService.getClient() as any;
     const { data: resetRequest, error: resetRequestError } = await supabase
       .from('password_reset_requests')
-      .select('contact, user_id, method, code, expires_at, used_at')
-      .eq('contact', normalizedContact)
+      .select('id, auth_user_id, email, token_hash, status, expires_at, used_at')
+      .eq('email', resetIdentity.email)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
       .maybeSingle();
 
     if (resetRequestError) {
       throw new BadRequestException(resetRequestError.message);
     }
 
-    if (!resetRequest || resetRequest.code !== code) {
+    if (!resetRequest) {
       throw new UnauthorizedException('Invalid verification code');
     }
 
     const resetRequestRow = resetRequest as PasswordResetRequestRow;
 
-    if (resetRequestRow.used_at) {
+    if (resetRequestRow.status === 'used' || resetRequestRow.used_at) {
       throw new UnauthorizedException('Verification code has already been used');
+    }
+
+    if (resetRequestRow.status === 'expired') {
+      throw new UnauthorizedException('Verification code expired');
+    }
+
+    const incomingHash = this.hashResetCode(code);
+    if (!this.safeHashEquals(resetRequestRow.token_hash, incomingHash)) {
+      throw new UnauthorizedException('Invalid verification code');
     }
 
     if (new Date(resetRequestRow.expires_at).getTime() < Date.now()) {
       await supabase
         .from('password_reset_requests')
-        .delete()
-        .eq('contact', normalizedContact);
+        .update({ status: 'expired' })
+        .eq('id', resetRequestRow.id);
       throw new UnauthorizedException('Verification code expired');
     }
 
     const { error } = await supabase.auth.admin.updateUserById(
-      resetRequestRow.user_id,
+      resetRequestRow.auth_user_id,
       { password: newPassword },
     );
 
@@ -371,8 +396,11 @@ export class AuthService {
 
     await supabase
       .from('password_reset_requests')
-      .update({ used_at: new Date().toISOString() })
-      .eq('contact', normalizedContact);
+      .update({
+        status: 'used',
+        used_at: new Date().toISOString(),
+      })
+      .eq('id', resetRequestRow.id);
 
     return {
       message: 'Password reset successful.',
@@ -424,10 +452,10 @@ export class AuthService {
     return `+63-${localDigits.slice(0, 3)}-${localDigits.slice(3, 6)}-${localDigits.slice(6, 10)}`;
   }
 
-  private async findUserIdForPasswordReset(
+  private async findUserForPasswordReset(
     contact: string,
     method: RecoveryMethod,
-  ): Promise<string> {
+  ): Promise<{ userId: string; email: string }> {
     const supabase = this.supabaseService.getClient() as any;
 
     if (method === RecoveryMethod.EMAIL) {
@@ -445,7 +473,10 @@ export class AuthService {
         throw new BadRequestException('No account found for that email');
       }
 
-      return matchedUser.id;
+      return {
+        userId: matchedUser.id,
+        email: contact,
+      };
     }
 
     const formattedPhone = this.formatPhoneForStorage(contact);
@@ -470,6 +501,36 @@ export class AuthService {
       throw new BadRequestException('No account found for that phone number');
     }
 
-    return matchedProfile.auth_user_id;
+    const { data: authLookup, error: authLookupError } =
+      await supabase.auth.admin.getUserById(matchedProfile.auth_user_id);
+
+    if (authLookupError) {
+      throw new BadRequestException(authLookupError.message);
+    }
+
+    const resolvedEmail = authLookup?.user?.email?.trim().toLowerCase();
+    if (!resolvedEmail) {
+      throw new BadRequestException('Matched account does not have a valid email');
+    }
+
+    return {
+      userId: matchedProfile.auth_user_id,
+      email: resolvedEmail,
+    };
+  }
+
+  private hashResetCode(code: string): string {
+    return createHash('sha256').update(code).digest('hex');
+  }
+
+  private safeHashEquals(left: string, right: string): boolean {
+    const leftBuffer = Buffer.from(left, 'utf8');
+    const rightBuffer = Buffer.from(right, 'utf8');
+
+    if (leftBuffer.length !== rightBuffer.length) {
+      return false;
+    }
+
+    return timingSafeEqual(leftBuffer, rightBuffer);
   }
 }

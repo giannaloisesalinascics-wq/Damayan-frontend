@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -25,8 +26,7 @@ interface EvacueeRow {
 
 interface CitizenRow {
   user_id: string;
-  first_name: string | null;
-  last_name: string | null;
+  full_name: string | null;
   qr_code_id: string | null;
 }
 
@@ -38,7 +38,7 @@ interface EvacuationCenterRow {
 
 @Injectable()
 export class CheckInService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string): Promise<CheckIn[]> {
     const supabase = this.supabaseService.getClient() as any;
@@ -61,7 +61,7 @@ export class CheckInService {
     const { data: citizens } = authUserIds.length
       ? await supabase
           .from('register_citizens')
-          .select('user_id, first_name, last_name, qr_code_id')
+          .select('user_id, full_name, qr_code_id')
           .in('user_id', authUserIds)
       : { data: [] as CitizenRow[] };
 
@@ -115,7 +115,7 @@ export class CheckInService {
 
     const { data: citizen } = await supabase
       .from('register_citizens')
-      .select('user_id, first_name, last_name, qr_code_id')
+      .select('user_id, full_name, qr_code_id')
       .eq('user_id', row.auth_user_id)
       .maybeSingle();
 
@@ -259,7 +259,7 @@ export class CheckInService {
     const { data: citizens } = authUserIds.length
       ? await supabase
           .from('register_citizens')
-          .select('user_id, first_name, last_name, qr_code_id')
+          .select('user_id, full_name, qr_code_id')
           .in('user_id', authUserIds)
       : { data: [] as CitizenRow[] };
 
@@ -319,12 +319,14 @@ export class CheckInService {
     citizen?: CitizenRow,
     center?: EvacuationCenterRow,
   ): CheckIn {
+    const name = this.parseFullName(citizen?.full_name);
+
     return {
       id: row.id,
       evacueeId: row.id,
       evacueeNumber: row.id,
-      firstName: citizen?.first_name ?? 'Unknown',
-      lastName: citizen?.last_name ?? 'Evacuee',
+      firstName: name.firstName,
+      lastName: name.lastName,
       zone: center?.name ?? 'Unassigned Center',
       location: center?.barangay ?? 'Unknown Barangay',
       checkInTime: new Date(
@@ -341,6 +343,26 @@ export class CheckInService {
         (row.status as EvacueeDbStatus) === 'checked_out'
           ? 'checked-out'
           : 'checked-in',
+    };
+  }
+
+  private parseFullName(fullName?: string | null) {
+    const parts = (fullName ?? '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      return { firstName: 'Unknown', lastName: 'Evacuee' };
+    }
+
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: 'Evacuee' };
+    }
+
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(' '),
     };
   }
 }

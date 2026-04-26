@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateDispatchOrderDto } from './dto/create-dispatch-order.dto.js';
 import { UpdateDispatchOrderDto } from './dto/update-dispatch-order.dto.js';
@@ -17,7 +17,7 @@ interface DispatchOrderRow {
 
 @Injectable()
 export class DispatchOrdersService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string, operationId?: string) {
     const supabase = this.supabaseService.getClient() as any;

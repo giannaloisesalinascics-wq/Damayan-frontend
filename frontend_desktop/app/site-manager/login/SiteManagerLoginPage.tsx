@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import AuthLayout from "../../components/AuthLayout";
-import { ApiError, login } from "../../lib/api";
+import { ApiError, getProfile, login } from "../../lib/api";
 import { saveSession } from "../../lib/session";
 
 export default function SiteManagerLoginPage() {
@@ -28,10 +28,19 @@ export default function SiteManagerLoginPage() {
         return;
       }
 
+      const accessToken = result.access_token?.trim();
+      if (!accessToken) {
+        setError("Login succeeded but no access token was returned.");
+        return;
+      }
+
+      // Verify token before redirect to avoid page flash then immediate logout.
+      const profile = await getProfile(accessToken);
+
       saveSession({
-        accessToken: result.access_token,
+        accessToken,
         expiresIn: result.expiresIn,
-        user: result.user,
+        user: profile.user,
       });
       router.push("/site-manager/beforecalamity");
     } catch (caughtError) {

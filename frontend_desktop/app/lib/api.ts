@@ -36,14 +36,23 @@ async function request<T>(
   }
 
   if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+    const normalizedToken = token.replace(/^Bearer\s+/i, "").trim();
+    headers.set("Authorization", `Bearer ${normalizedToken}`);
   }
 
-  console.log(`[Api] Requesting ${path}`, { method: init.method || 'GET' });
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    console.log(`[Api] Requesting ${path}`, { method: init.method || 'GET' });
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      `Cannot connect to backend API at ${API_BASE_URL}. Start backend services and try again.`,
+      0,
+    );
+  }
 
   const text = await response.text();
   console.log(`[Api] Response for ${path}: status=${response.status}`);

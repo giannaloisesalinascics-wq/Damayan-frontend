@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateReliefOperationDto } from './dto/create-relief-operation.dto.js';
 import { UpdateReliefOperationDto } from './dto/update-relief-operation.dto.js';
@@ -18,7 +18,7 @@ interface ReliefOperationRow {
 
 @Injectable()
 export class ReliefOperationsService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findAll(search?: string, disasterId?: string) {
     const supabase = this.supabaseService.getClient() as any;

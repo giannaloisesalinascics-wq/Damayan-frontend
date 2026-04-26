@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { CreateCitizenDto } from './dto/create-citizen.dto.js';
 import { UpdateCitizenDto } from './dto/update-citizen.dto.js';
@@ -8,15 +8,15 @@ import { CreateAnimalDto } from './dto/create-animal.dto.js';
 
 interface CitizenRow {
   user_id: string;
+  full_name: string | null;
   birth_date: string | null;
   gender: string | null;
   registration_type: string | null;
-  family_id: string | null;
-  full_name: string | null;
+  qr_code_id: string | null;
   blood_type: string | null;
   medical_conditions: string | null;
-  qr_code_id: string | null;
   created_at: string | null;
+  family_id: string | null;
 }
 
 interface FamilyRow {
@@ -45,21 +45,16 @@ interface AnimalRow {
 
 @Injectable()
 export class RegistrationsService {
-  constructor(
-    @Inject(SupabaseService)
-    private readonly supabaseService: SupabaseService,
-  ) {}
+  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
 
   async findCitizens(search?: string) {
-    console.log('RegistrationsService.findCitizens called, search:', search);
     const supabase = this.supabaseService.getClient() as any;
     const { data, error } = await supabase
       .from('register_citizens')
-      .select('user_id, birth_date, gender, registration_type, family_id, full_name, blood_type, medical_conditions, qr_code_id, created_at')
+      .select('user_id, full_name, birth_date, gender, registration_type, qr_code_id, blood_type, medical_conditions, created_at, family_id')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('findCitizens error:', error);
       throw new NotFoundException(error.message);
     }
 
@@ -78,16 +73,14 @@ export class RegistrationsService {
   }
 
   async findCitizen(id: string) {
-    console.log('RegistrationsService.findCitizen called, id:', id);
     const supabase = this.supabaseService.getClient() as any;
     const { data, error } = await supabase
       .from('register_citizens')
-      .select('user_id, birth_date, gender, registration_type, family_id, full_name, blood_type, medical_conditions, qr_code_id, created_at')
+      .select('user_id, full_name, birth_date, gender, registration_type, qr_code_id, blood_type, medical_conditions, created_at, family_id')
       .eq('user_id', id)
       .maybeSingle();
 
     if (error || !data) {
-      console.warn(`Citizen profile for user ${id} not found`);
       throw new NotFoundException(`Citizen profile for user ${id} not found`);
     }
 
@@ -95,28 +88,24 @@ export class RegistrationsService {
   }
 
   async createCitizen(createCitizenDto: CreateCitizenDto) {
-    console.log('RegistrationsService.createCitizen called with:', JSON.stringify(createCitizenDto, null, 2));
-    
-    if (!this.supabaseService) {
-      console.error('RegistrationsService: supabaseService is undefined!');
-      throw new Error('Internal Server Error: Supabase service missing');
+    if (!createCitizenDto.userId) {
+      throw new BadRequestException('userId is required');
     }
 
     const supabase = this.supabaseService.getClient() as any;
-    if (!supabase) {
-      console.error('RegistrationsService: Failed to get supabase client!');
-      throw new Error('Internal Server Error: Supabase client missing');
-    }
-
     const { data, error } = await supabase
       .from('register_citizens')
       .upsert({
         user_id: createCitizenDto.userId,
+        full_name: createCitizenDto.fullName || this.buildFullName(
+          createCitizenDto.firstName,
+          createCitizenDto.lastName,
+          createCitizenDto.middleName,
+        ),
         birth_date: createCitizenDto.birthDate ?? null,
         gender: createCitizenDto.gender ?? null,
         registration_type: createCitizenDto.registrationType,
-        family_id: null,
-        full_name: createCitizenDto.fullName ?? null,
+        family_id: createCitizenDto.familyId ?? null,
         blood_type: createCitizenDto.bloodType ?? null,
         medical_conditions: createCitizenDto.medicalConditions ?? null,
         qr_code_id: createCitizenDto.qrCodeId,
@@ -125,7 +114,6 @@ export class RegistrationsService {
       .single();
 
     if (error) {
-      console.error('createCitizen error:', error);
       throw new NotFoundException(error.message);
     }
 
@@ -133,18 +121,24 @@ export class RegistrationsService {
   }
 
   async updateCitizen(id: string, updateCitizenDto: UpdateCitizenDto) {
+    const existing = await this.findCitizen(id);
     const supabase = this.supabaseService.getClient() as any;
+    
     const { data, error } = await supabase
       .from('register_citizens')
       .update({
-        birth_date: updateCitizenDto.birthDate,
-        gender: updateCitizenDto.gender,
-        registration_type: updateCitizenDto.registrationType,
-        family_id: updateCitizenDto.familyId,
-        full_name: updateCitizenDto.fullName,
-        blood_type: updateCitizenDto.bloodType,
-        medical_conditions: updateCitizenDto.medicalConditions,
-        qr_code_id: updateCitizenDto.qrCodeId,
+        full_name: updateCitizenDto.fullName || this.buildFullName(
+          updateCitizenDto.firstName,
+          updateCitizenDto.lastName,
+          updateCitizenDto.middleName,
+        ),
+        birth_date: updateCitizenDto.birthDate ?? existing.birthDate ?? null,
+        gender: updateCitizenDto.gender ?? existing.gender ?? null,
+        registration_type: updateCitizenDto.registrationType ?? existing.registrationType ?? null,
+        qr_code_id: updateCitizenDto.qrCodeId ?? existing.qrCodeId ?? null,
+        family_id: updateCitizenDto.familyId ?? existing.familyId ?? null,
+        blood_type: updateCitizenDto.bloodType ?? existing.bloodType ?? null,
+        medical_conditions: updateCitizenDto.medicalConditions ?? existing.medicalConditions ?? null,
       })
       .eq('user_id', id)
       .select()
@@ -211,13 +205,7 @@ export class RegistrationsService {
   }
 
   async createFamily(createFamilyDto: CreateFamilyDto) {
-    console.log('RegistrationsService.createFamily called with:', JSON.stringify(createFamilyDto, null, 2));
     const supabase = this.supabaseService.getClient() as any;
-    if (!supabase) {
-      console.error('RegistrationsService: Failed to get supabase client in createFamily!');
-      throw new Error('Internal Server Error: Supabase client missing');
-    }
-
     const { data, error } = await supabase
       .from('families')
       .insert({
@@ -275,13 +263,7 @@ export class RegistrationsService {
   }
 
   async createAnimal(createAnimalDto: CreateAnimalDto) {
-    console.log('RegistrationsService.createAnimal called with:', JSON.stringify(createAnimalDto, null, 2));
     const supabase = this.supabaseService.getClient() as any;
-    if (!supabase) {
-      console.error('RegistrationsService: Failed to get supabase client in createAnimal!');
-      throw new Error('Internal Server Error: Supabase client missing');
-    }
-
     const { data, error } = await supabase
       .from('household_animals')
       .insert({
@@ -295,7 +277,6 @@ export class RegistrationsService {
       .single();
 
     if (error) {
-      console.error('createAnimal error:', error);
       throw new NotFoundException(error.message);
     }
 
@@ -354,10 +335,15 @@ export class RegistrationsService {
   }
 
   private toCitizen(row: CitizenRow) {
+    const parsedName = this.parseFullName(row.full_name ?? '');
+
     return {
-      id: row.user_id, // Using user_id as ID
+      id: row.user_id,
       userId: row.user_id,
       fullName: row.full_name ?? undefined,
+      firstName: parsedName.firstName,
+      lastName: parsedName.lastName,
+      middleName: parsedName.middleName,
       birthDate: row.birth_date ?? undefined,
       gender: row.gender ?? undefined,
       registrationType: row.registration_type ?? undefined,
@@ -367,6 +353,35 @@ export class RegistrationsService {
       medicalConditions: row.medical_conditions ?? undefined,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     };
+  }
+
+  private parseFullName(fullName: string) {
+    const parts = fullName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      return { firstName: 'Unknown', lastName: 'User', middleName: undefined as string | undefined };
+    }
+
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: '', middleName: undefined as string | undefined };
+    }
+
+    if (parts.length === 2) {
+      return { firstName: parts[0], lastName: parts[1], middleName: undefined as string | undefined };
+    }
+
+    return {
+      firstName: parts[0],
+      middleName: parts.slice(1, -1).join(' '),
+      lastName: parts[parts.length - 1],
+    };
+  }
+
+  private buildFullName(firstName?: string, lastName?: string, middleName?: string) {
+    return [firstName, middleName, lastName].filter((part) => !!part && part.trim().length > 0).join(' ');
   }
 
   private toFamily(rows: FamilyRow[]) {
