@@ -247,6 +247,27 @@ export async function createIncidentReport(
   }, token);
 }
 
+export async function getCitizens(token: string) {
+  return request<{
+    id: string;
+    userId: string;
+    fullName?: string;
+    registrationType?: string;
+    qrCodeId?: string;
+    createdAt: string | Date;
+  }[]>("/admin/citizens", {}, token);
+}
+
+export async function getFamilies(token: string) {
+  return request<{
+    id: string;
+    qrCodeId: string;
+    headFullName?: string;
+    members: { id: string; name: string }[];
+    createdAt: string | Date;
+  }[]>("/admin/families", {}, token);
+}
+
 export async function getCitizenProfile(token: string) {
   return request<any>("/citizen/profile", {
     method: "GET",

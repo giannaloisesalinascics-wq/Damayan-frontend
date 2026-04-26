@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { hasRole, loadSession } from "../lib/session";
+import { hasRole, loadSession, clearSession } from "../lib/session";
+import { getDashboard, getDisasterEvents, getCitizens, getFamilies } from "../lib/api";
+import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
 import "./AdminPortal.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -622,12 +624,14 @@ function OverviewPage({
   disasters,
   activityLog,
   setPage,
+  overview,
 }: {
   accounts: PendingAccount[];
   qrRecords: QRRecord[];
   disasters: DisasterEvent[];
   activityLog: { time: string; type: string; msg: string; col: string }[];
   setPage: (p: AdminPage) => void;
+  overview: DashboardOverview | null;
 }) {
   const pending = accounts.filter((a) => a.status === "PENDING").length;
   const activeDisasters = disasters.filter((d) => d.phase !== "AFTER").length;
@@ -656,18 +660,18 @@ function OverviewPage({
           <div className="admin-stat-note">Awaiting review</div>
         </div>
         <div className="admin-stat blue">
-          <div className="admin-stat-label">QR Codes Issued</div>
-          <div className="admin-stat-value">{qrRecords.length}</div>
-          <div className="admin-stat-note">Total issued</div>
+          <div className="admin-stat-label">Evacuee Check-ins</div>
+          <div className="admin-stat-value">{overview?.checkIns?.total ?? qrRecords.length}</div>
+          <div className="admin-stat-note">Total check-ins</div>
         </div>
         <div className="admin-stat green">
-          <div className="admin-stat-label">Active Dispatchers</div>
-          <div className="admin-stat-value">5</div>
-          <div className="admin-stat-note">On duty</div>
+          <div className="admin-stat-label">Inventory Items</div>
+          <div className="admin-stat-value">{overview?.inventory?.totalItems ?? 0}</div>
+          <div className="admin-stat-note">Across all centers</div>
         </div>
         <div className="admin-stat violet">
-          <div className="admin-stat-label">Total Tickets</div>
-          <div className="admin-stat-value">{disasters.reduce((s, d) => s + d.tickets, 0)}</div>
+          <div className="admin-stat-label">Incident Reports</div>
+          <div className="admin-stat-value">{overview?.incidentReports?.totalReports ?? 0}</div>
           <div className="admin-stat-note">All events</div>
         </div>
       </div>
@@ -2046,6 +2050,34 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
   );
 }
 
+// ─── Backend data mapper ─────────────────────────────────────────────────────
+function mapBackendDisaster(d: BackendDisasterEvent): DisasterEvent {
+  const statusToPhase = (s: string): CalamityPhase => {
+    if (s === "active") return "DURING";
+    if (s === "resolved" || s === "ended") return "AFTER";
+    return "BEFORE";
+  };
+  const levelToRisk = (s: string): RiskLevel => {
+    const sl = s.toLowerCase();
+    if (sl === "critical" || sl === "catastrophic") return "CRITICAL";
+    if (sl === "high" || sl === "severe") return "HIGH";
+    if (sl === "medium" || sl === "moderate") return "MEDIUM";
+    return "LOW";
+  };
+  return {
+    id: d.id,
+    name: d.name,
+    type: d.type,
+    severity: d.severityLevel,
+    phase: statusToPhase(d.status),
+    areas: d.affectedAreas.length > 0 ? d.affectedAreas.join(", ") : d.province,
+    affected: 0,
+    tickets: 0,
+    dispatchers: 0,
+    riskLevel: levelToRisk(d.severityLevel),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ROOT ADMIN PORTAL
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2058,6 +2090,9 @@ export default function AdminPortal() {
   const [disasters, setDisasters] = useState<DisasterEvent[]>(INITIAL_DISASTERS);
   const [profile, setProfile] = useState<AdminProfile>(ADMIN_PROFILE);
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -2072,7 +2107,69 @@ export default function AdminPortal() {
     const stored = loadSession();
     if (!hasRole(stored, "admin")) {
       router.replace("/admin/login");
+      return;
     }
+    setSession(stored);
+    // Populate profile from the real logged-in session
+    const u = stored!.user;
+    const initials = ((u.firstName?.[0] ?? "") + (u.lastName?.[0] ?? "")).toUpperCase() || "AD";
+    setProfile({
+      name: u.name || u.email,
+      initials,
+      badge: `ADM-${u.id.slice(0, 8).toUpperCase()}`,
+      station: "Damayan National Operations Center",
+      email: u.email,
+      phone: u.phone || "",
+      role: "System Administrator",
+    });
+    // Hydrate dashboard and disaster data from the backend
+    async function hydrate() {
+      const token = stored!.accessToken;
+      const [ovResult, evResult, citizenResult, familyResult] = await Promise.allSettled([
+        getDashboard("admin", token),
+        getDisasterEvents("admin", token),
+        getCitizens(token),
+        getFamilies(token),
+      ]);
+      if (ovResult.status === "fulfilled") {
+        setOverview(ovResult.value);
+      }
+      if (evResult.status === "fulfilled" && evResult.value.length > 0) {
+        setDisasters(evResult.value.map(mapBackendDisaster));
+      }
+      // Build QR records from real registered citizens and families
+      const qrList: QRRecord[] = [];
+      if (citizenResult.status === "fulfilled") {
+        for (const c of citizenResult.value) {
+          if (!c.qrCodeId) continue;
+          qrList.push({
+            id: c.qrCodeId,
+            name: c.fullName || "Unknown",
+            type: "individual",
+            area: "—",
+            issuedAt: new Date(c.createdAt).toLocaleDateString("en-PH"),
+            linkedAccountId: c.userId,
+          });
+        }
+      }
+      if (familyResult.status === "fulfilled") {
+        for (const f of familyResult.value) {
+          if (!f.qrCodeId) continue;
+          qrList.push({
+            id: f.qrCodeId,
+            name: f.headFullName ? `${f.headFullName} Family` : "Unknown Family",
+            type: "family",
+            area: "—",
+            issuedAt: new Date(f.createdAt).toLocaleDateString("en-PH"),
+            familySize: f.members.length || undefined,
+          });
+        }
+      }
+      if (qrList.length > 0) {
+        setQRRecords(qrList);
+      }
+    }
+    void hydrate();
   }, [router]);
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
@@ -2242,7 +2339,7 @@ export default function AdminPortal() {
                   <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>👤 View Profile</button>
                   <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>✏️ Edit Profile</button>
                   <div style={{ height: "1px", background: "var(--admin-outline)" }} />
-                  <button className="admin-profile-dropdown-item danger" onClick={() => { window.location.href = "/admin/login"; }}>
+                  <button className="admin-profile-dropdown-item danger" onClick={() => { clearSession(); router.replace("/admin/login"); }}>
                     ⏻ Log Out
                   </button>
                 </div>
@@ -2254,7 +2351,7 @@ export default function AdminPortal() {
         {/* Content */}
         <div className="admin-content">
           {page === "overview" && (
-            <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} />
+            <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} overview={overview} />
           )}
           {page === "approvals" && (
             <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} />
