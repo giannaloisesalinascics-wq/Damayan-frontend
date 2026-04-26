@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { hasRole, loadSession, clearSession } from "../lib/session";
 import { getDashboard, getDisasterEvents, getCitizens, getFamilies } from "../lib/api";
 import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
+import { AppRole } from "../lib/types";
 import "./AdminPortal.css";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2105,7 +2106,7 @@ export default function AdminPortal() {
 
   useEffect(() => {
     const stored = loadSession();
-    if (!hasRole(stored, "admin")) {
+    if (!hasRole(stored, AppRole.ADMIN)) {
       router.replace("/admin/login");
       return;
     }
