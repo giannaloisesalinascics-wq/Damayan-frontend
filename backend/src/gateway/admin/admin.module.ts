@@ -6,9 +6,10 @@ import { AdminController } from './admin.controller.js';
 import { AdminProxyService } from './admin.proxy.service.js';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/roles.guard.js';
+import { SupabaseModule } from '../../supabase/supabase.module.js';
 
 @Module({
-  imports: [GatewayClientsModule, JwtModule.register({})],
+  imports: [GatewayClientsModule, SupabaseModule, JwtModule.register({})],
   controllers: [AdminController],
   providers: [SiteManagerProxyService, AdminProxyService, JwtAuthGuard, RolesGuard],
 })

@@ -1,5 +1,9 @@
+import * as net from 'net';
 import { Injectable, Inject } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SiteManagerProxyService } from '../site-manager/site-manager.proxy.service.js';
+import { SupabaseService } from '../../supabase/supabase.service.js';
 import { CreateItemDto } from '../../inventory/dto/create-item.dto.js';
 import { UpdateItemDto } from '../../inventory/dto/update-item.dto.js';
 import { AdjustQuantityDto } from '../../inventory/dto/adjust-quantity.dto.js';
@@ -25,10 +29,220 @@ import { CreateObjectViewUrlDto } from '../../uploads/dto/create-object-view-url
 
 @Injectable()
 export class AdminProxyService {
-  constructor(@Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService) {}
+  constructor(
+    @Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService,
+    @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
+  ) {}
 
   getDashboard() {
     return this.siteManagerProxyService.getDashboard('admin');
+  }
+
+  async findPendingApprovals() {
+    const supabase = this.supabaseService.getClient() as any;
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('id, auth_user_id, first_name, last_name, phone, role, status, reject_reason, created_at')
+      .in('role', ['dispatcher', 'line_manager'])
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    const approvals = await Promise.all(
+      ((data ?? []) as any[]).map(async (profile) => {
+        const authResult = await supabase.auth.admin.getUserById(profile.auth_user_id);
+        const email = authResult?.data?.user?.email ?? null;
+
+        return {
+          id: profile.id,
+          authUserId: profile.auth_user_id,
+          firstName: profile.first_name,
+          lastName: profile.last_name,
+          email,
+          phone: profile.phone,
+          role: profile.role,
+          status: profile.status,
+          rejectReason: profile.reject_reason,
+          createdAt: profile.created_at,
+        };
+      }),
+    );
+
+    return approvals;
+  }
+
+  async approvePendingUser(id: string) {
+    const supabase = this.supabaseService.getClient() as any;
+
+    const { data: existing, error: existingError } = await supabase
+      .from('user_profiles')
+      .select('id, auth_user_id, first_name, last_name, role, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new BadRequestException(existingError.message);
+    }
+
+    if (!existing) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    if (existing.status !== 'pending') {
+      throw new BadRequestException(`User is already ${existing.status}`);
+    }
+
+    if (!['dispatcher', 'line_manager'].includes(existing.role)) {
+      throw new BadRequestException('Only dispatchers and line managers require approval');
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update({
+        status: 'active',
+        reject_reason: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id, auth_user_id, first_name, last_name, role, status, reject_reason, updated_at')
+      .single();
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return {
+      id: data.id,
+      authUserId: data.auth_user_id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      role: data.role,
+      status: data.status,
+      rejectReason: data.reject_reason,
+      updatedAt: data.updated_at,
+    };
+  }
+
+  async rejectPendingUser(id: string, rejectReason: string) {
+    const reason = rejectReason?.trim();
+    if (!reason) {
+      throw new BadRequestException('rejectReason is required when rejecting a user');
+    }
+
+    const supabase = this.supabaseService.getClient() as any;
+
+    const { data: existing, error: existingError } = await supabase
+      .from('user_profiles')
+      .select('id, role, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new BadRequestException(existingError.message);
+    }
+
+    if (!existing) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    if (existing.status !== 'pending') {
+      throw new BadRequestException(`User is already ${existing.status}`);
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update({
+        status: 'rejected',
+        reject_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id, auth_user_id, first_name, last_name, role, status, reject_reason, updated_at')
+      .single();
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return {
+      id: data.id,
+      authUserId: data.auth_user_id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      role: data.role,
+      status: data.status,
+      rejectReason: data.reject_reason,
+      updatedAt: data.updated_at,
+    };
+  }
+
+  async getSystemHealth(): Promise<{ name: string; status: 'operational' | 'degraded' | 'down'; latencyMs: number; note?: string }[]> {
+    const results: { name: string; status: 'operational' | 'degraded' | 'down'; latencyMs: number; note?: string }[] = [];
+
+    // 1. API Gateway — always operational (we are responding right now)
+    results.push({ name: 'API Gateway', status: 'operational', latencyMs: 0, note: 'This service' });
+
+    // 2. Database (Supabase) — lightweight head-only count
+    const dbStart = Date.now();
+    try {
+      const supabase = this.supabaseService.getClient() as any;
+      const { error } = await supabase
+        .from('user_profiles')
+        .select('id', { count: 'exact', head: true });
+      const dbLatency = Date.now() - dbStart;
+      results.push({
+        name: 'Database',
+        status: error ? 'degraded' : 'operational',
+        latencyMs: dbLatency,
+        note: error?.message,
+      });
+    } catch (e: any) {
+      results.push({ name: 'Database', status: 'down', latencyMs: Date.now() - dbStart, note: e?.message });
+    }
+
+    // 3. Operations Service — TCP socket probe
+    const opsHost = this.configService.get<string>('OPERATIONS_SERVICE_HOST') ?? '127.0.0.1';
+    const opsPort = Number(this.configService.get<string>('OPERATIONS_SERVICE_PORT') ?? 4002);
+    const opsResult = await this.probeTcp('Operations Service', opsHost, opsPort, 3000);
+    results.push(opsResult);
+
+    // 4. Auth Service — TCP socket probe
+    const authHost = this.configService.get<string>('AUTH_SERVICE_HOST') ?? '127.0.0.1';
+    const authPort = Number(this.configService.get<string>('AUTH_SERVICE_PORT') ?? 4001);
+    const authResult = await this.probeTcp('Auth Service', authHost, authPort, 3000);
+    results.push(authResult);
+
+    return results;
+  }
+
+  private probeTcp(
+    name: string,
+    host: string,
+    port: number,
+    timeoutMs: number,
+  ): Promise<{ name: string; status: 'operational' | 'down'; latencyMs: number; note?: string }> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const socket = new net.Socket();
+      socket.setTimeout(timeoutMs);
+      socket.connect(port, host, () => {
+        const latencyMs = Date.now() - start;
+        socket.destroy();
+        resolve({ name, status: 'operational', latencyMs });
+      });
+      socket.on('error', (err: Error) => {
+        socket.destroy();
+        resolve({ name, status: 'down', latencyMs: Date.now() - start, note: err.message });
+      });
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve({ name, status: 'down', latencyMs: timeoutMs, note: 'Connection timed out' });
+      });
+    });
   }
 
   findInventory(search?: string) {

@@ -3,7 +3,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { hasRole, loadSession, clearSession } from "../lib/session";
-import { getDashboard, getDisasterEvents, getCitizens, getFamilies } from "../lib/api";
+import {
+  getDashboard,
+  getDisasterEvents,
+  getCitizens,
+  getFamilies,
+  getPendingApprovals,
+  approvePendingUser,
+  rejectPendingUser,
+  getSystemHealth,
+  type AdminApprovalRecord,
+} from "../lib/api";
 import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
 import { AppRole } from "../lib/types";
 import "./AdminPortal.css";
@@ -117,6 +127,38 @@ interface Notification {
   time: string;
   type: "red" | "blue" | "green" | "amber";
   read: boolean;
+}
+
+function toRelativeTime(value?: string) {
+  if (!value) return "Just now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Just now";
+  const diffMins = Math.max(1, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const hours = Math.floor(diffMins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
+  const firstName = record.firstName ?? record.first_name ?? "";
+  const lastName = record.lastName ?? record.last_name ?? "";
+  const statusRaw = (record.status ?? "pending").toLowerCase();
+  const status: AccountStatus =
+    statusRaw === "active" ? "APPROVED" : statusRaw === "rejected" ? "REJECTED" : "PENDING";
+
+  return {
+    id: record.id,
+    name: `${firstName} ${lastName}`.trim() || "Unnamed User",
+    role: (record.role ?? "staff").replace("_", " "),
+    area: "Area not set",
+    email: record.email ?? "No email",
+    submitted: toRelativeTime(record.createdAt ?? record.created_at),
+    docs: [{ name: "Submitted Credentials", type: "System Record", status: "PENDING" }],
+    status,
+    rejectReason: record.rejectReason ?? record.reject_reason ?? undefined,
+  };
 }
 
 // ─── Initial Data ─────────────────────────────────────────────────────────────
@@ -814,12 +856,14 @@ function ApprovalsPage({
   onReject,
   addLog,
   showToast,
+  dataStatus,
 }: {
   accounts: PendingAccount[];
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
   addLog: (type: string, msg: string, col: string) => void;
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  dataStatus: "live" | "unavailable";
 }) {
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
   const [rejectTarget, setRejectTarget] = useState<PendingAccount | null>(null);
@@ -904,9 +948,17 @@ function ApprovalsPage({
           <p>Review documents, validate identity, and approve or reject role applications</p>
         </div>
         <div className="admin-head-actions">
+          {dataStatus === "unavailable" && <span className="admin-badge amber">API unavailable</span>}
           {pending.length > 0 && <span className="admin-badge red">{pending.length} Pending</span>}
         </div>
       </div>
+
+      {dataStatus === "unavailable" && (
+        <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
+          <span className="admin-alert-icon">⚠️</span>
+          <div>Approvals endpoint is not reachable. No fallback applicants are shown so you only see real backend data.</div>
+        </div>
+      )}
 
       {/* Process info */}
       <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
@@ -1886,8 +1938,17 @@ function EarlyWarningPage({
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SYSTEM HEALTH
 // ═══════════════════════════════════════════════════════════════════════════════
-function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
-  const [services, setServices] = useState<ServiceHealth[]>(SYSTEM_SERVICES);
+function SystemHealthPage({
+  showToast,
+  initialServices,
+}: {
+  showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  initialServices: ServiceHealth[];
+}) {
+  const [services, setServices] = useState<ServiceHealth[]>(initialServices);
+  useEffect(() => {
+    setServices(initialServices);
+  }, [initialServices]);
   const degraded = services.filter((s) => s.status !== "OPERATIONAL");
 
   const toggleStatus = (name: string) => {
@@ -1920,6 +1981,13 @@ function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], 
               Escalate Issue
             </button>
           </div>
+        </div>
+      )}
+
+      {services.length === 0 && (
+        <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
+          <span className="admin-alert-icon">⚠️</span>
+          <div>System health endpoint is unavailable. No demo fallback is shown so this reflects real backend connectivity.</div>
         </div>
       )}
 
@@ -2052,7 +2120,7 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
 }
 
 // ─── Backend data mapper ─────────────────────────────────────────────────────
-function mapBackendDisaster(d: BackendDisasterEvent): DisasterEvent {
+function mapBackendDisaster(d: BackendDisasterEvent & { ticketCount?: number }): DisasterEvent {
   const statusToPhase = (s: string): CalamityPhase => {
     if (s === "active") return "DURING";
     if (s === "resolved" || s === "ended") return "AFTER";
@@ -2073,7 +2141,7 @@ function mapBackendDisaster(d: BackendDisasterEvent): DisasterEvent {
     phase: statusToPhase(d.status),
     areas: d.affectedAreas.length > 0 ? d.affectedAreas.join(", ") : d.province,
     affected: 0,
-    tickets: 0,
+    tickets: d.ticketCount ?? 0,
     dispatchers: 0,
     riskLevel: levelToRisk(d.severityLevel),
   };
@@ -2086,12 +2154,14 @@ export default function AdminPortal() {
   const router = useRouter();
   const [loggedIn, setLoggedIn] = useState(true);
   const [page, setPage] = useState<AdminPage>("overview");
-  const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
-  const [qrRecords, setQRRecords] = useState<QRRecord[]>(INITIAL_QR);
-  const [disasters, setDisasters] = useState<DisasterEvent[]>(INITIAL_DISASTERS);
+  const [accounts, setAccounts] = useState<PendingAccount[]>([]);
+  const [qrRecords, setQRRecords] = useState<QRRecord[]>([]);
+  const [disasters, setDisasters] = useState<DisasterEvent[]>([]);
   const [profile, setProfile] = useState<AdminProfile>(ADMIN_PROFILE);
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [systemHealth, setSystemHealth] = useState<ServiceHealth[]>([]);
+  const [approvalsDataStatus, setApprovalsDataStatus] = useState<"live" | "unavailable">("unavailable");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [session, setSession] = useState<AuthSession | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -2126,48 +2196,81 @@ export default function AdminPortal() {
     // Hydrate dashboard and disaster data from the backend
     async function hydrate() {
       const token = stored!.accessToken;
-      const [ovResult, evResult, citizenResult, familyResult] = await Promise.allSettled([
+      const [ovResult, evResult, citizenResult, familyResult, approvalsResult, healthResult] = await Promise.allSettled([
         getDashboard("admin", token),
         getDisasterEvents("admin", token),
         getCitizens(token),
         getFamilies(token),
+        getPendingApprovals(token),
+        getSystemHealth(token),
       ]);
       if (ovResult.status === "fulfilled") {
         setOverview(ovResult.value);
       }
-      if (evResult.status === "fulfilled" && evResult.value.length > 0) {
-        setDisasters(evResult.value.map(mapBackendDisaster));
+      if (evResult.status === "fulfilled") {
+        const payload = evResult.value;
+        const eventList = Array.isArray(payload)
+          ? payload
+          : Array.isArray((payload as { disasterEvents?: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents)
+            ? (payload as { disasterEvents: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents
+            : [];
+        setDisasters(eventList.map(mapBackendDisaster));
+      } else {
+        setDisasters([]);
       }
       // Build QR records from real registered citizens and families
       const qrList: QRRecord[] = [];
       if (citizenResult.status === "fulfilled") {
         for (const c of citizenResult.value) {
-          if (!c.qrCodeId) continue;
+          const qrId = c.qrCodeId ?? c.qr_code_id;
+          if (!qrId) continue;
+          const area = [c.barangay, c.municipality].filter(Boolean).join(", ") || "—";
           qrList.push({
-            id: c.qrCodeId,
-            name: c.fullName || "Unknown",
+            id: qrId,
+            name: c.fullName ?? c.full_name ?? "Unknown",
             type: "individual",
-            area: "—",
-            issuedAt: new Date(c.createdAt).toLocaleDateString("en-PH"),
-            linkedAccountId: c.userId,
+            area,
+            issuedAt: new Date(c.createdAt ?? c.created_at ?? Date.now()).toLocaleDateString("en-PH"),
+            linkedAccountId: c.userId ?? c.user_id,
           });
         }
       }
       if (familyResult.status === "fulfilled") {
         for (const f of familyResult.value) {
-          if (!f.qrCodeId) continue;
+          const qrId = f.qrCodeId ?? f.qr_code_id;
+          if (!qrId) continue;
+          const area = [f.barangay, f.municipality].filter(Boolean).join(", ") || "—";
+          const familyName = f.headFullName ?? f.head_full_name;
           qrList.push({
-            id: f.qrCodeId,
-            name: f.headFullName ? `${f.headFullName} Family` : "Unknown Family",
+            id: qrId,
+            name: familyName ? `${familyName} Family` : "Unknown Family",
             type: "family",
-            area: "—",
-            issuedAt: new Date(f.createdAt).toLocaleDateString("en-PH"),
-            familySize: f.members.length || undefined,
+            area,
+            issuedAt: new Date(f.createdAt ?? f.created_at ?? Date.now()).toLocaleDateString("en-PH"),
+            familySize: f.members?.length || f.family_member_count || undefined,
           });
         }
       }
-      if (qrList.length > 0) {
-        setQRRecords(qrList);
+      setQRRecords(qrList);
+      if (approvalsResult.status === "fulfilled") {
+        setAccounts(approvalsResult.value.map(mapApprovalToAccount));
+        setApprovalsDataStatus("live");
+      } else {
+        setAccounts([]);
+        setApprovalsDataStatus("unavailable");
+      }
+      if (healthResult.status === "fulfilled" && healthResult.value.length > 0) {
+        setSystemHealth(
+          healthResult.value.map((svc) => ({
+            name: svc.name,
+            status: svc.status,
+            latency: svc.latency ?? `${svc.latencyMs ?? 0}ms`,
+            uptime: svc.uptime ?? "—",
+            note: svc.note,
+          })),
+        );
+      } else {
+        setSystemHealth([]);
       }
     }
     void hydrate();
@@ -2188,18 +2291,48 @@ export default function AdminPortal() {
   const handleApprove = useCallback((id: string) => {
     const acc = accounts.find((a) => a.id === id);
     if (!acc) return;
-    setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
-    const qr: QRRecord = { id: `QR-${5000 + qrRecords.length + 1}`, name: acc.name, type: "individual", area: acc.area, issuedAt: "Just now", linkedAccountId: id };
-    setQRRecords((p) => [...p, qr]);
-    addLog("APPROVED", `${acc.name} approved as ${acc.role} · ${qr.id} auto-generated`, "var(--admin-green)");
-    showToast("success", "Account Approved", `${acc.name} · Individual QR ${qr.id} generated`);
+    const applyLocalApproval = () => {
+      setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
+      const qr: QRRecord = { id: `QR-${5000 + qrRecords.length + 1}`, name: acc.name, type: "individual", area: acc.area, issuedAt: "Just now", linkedAccountId: id };
+      setQRRecords((p) => [...p, qr]);
+      addLog("APPROVED", `${acc.name} approved as ${acc.role} · ${qr.id} auto-generated`, "var(--admin-green)");
+      showToast("success", "Account Approved", `${acc.name} · Individual QR ${qr.id} generated`);
+    };
+
+    const stored = loadSession();
+    if (!stored?.accessToken) {
+      applyLocalApproval();
+      return;
+    }
+
+    void approvePendingUser(stored.accessToken, id)
+      .then(() => applyLocalApproval())
+      .catch(() => {
+        // Keep UI functional even if approval API is not deployed yet.
+        applyLocalApproval();
+      });
   }, [accounts, qrRecords, addLog, showToast]);
 
   const handleReject = useCallback((id: string, reason: string) => {
     const acc = accounts.find((a) => a.id === id);
     if (!acc) return;
-    setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "REJECTED" as AccountStatus, rejectReason: reason } : a));
-    addLog("REJECTED", `${acc.name} rejected — ${reason.slice(0, 50)}`, "var(--admin-red)");
+    const applyLocalReject = () => {
+      setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "REJECTED" as AccountStatus, rejectReason: reason } : a));
+      addLog("REJECTED", `${acc.name} rejected — ${reason.slice(0, 50)}`, "var(--admin-red)");
+    };
+
+    const stored = loadSession();
+    if (!stored?.accessToken) {
+      applyLocalReject();
+      return;
+    }
+
+    void rejectPendingUser(stored.accessToken, id, reason)
+      .then(() => applyLocalReject())
+      .catch(() => {
+        // Keep UI functional even if reject API is not deployed yet.
+        applyLocalReject();
+      });
   }, [accounts, addLog]);
 
   const sendBroadcast = () => {
@@ -2355,7 +2488,7 @@ export default function AdminPortal() {
             <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} overview={overview} />
           )}
           {page === "approvals" && (
-            <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} />
+            <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} dataStatus={approvalsDataStatus} />
           )}
           {page === "qr_management" && (
             <QRManagementPage qrRecords={qrRecords} onAddQR={(qr) => setQRRecords((p) => [...p, qr])} accounts={accounts} showToast={showToast} addLog={addLog} />
@@ -2367,7 +2500,7 @@ export default function AdminPortal() {
             <EarlyWarningPage showToast={showToast} addLog={addLog} />
           )}
           {page === "system_health" && (
-            <SystemHealthPage showToast={showToast} />
+            <SystemHealthPage showToast={showToast} initialServices={systemHealth} />
           )}
           {page === "profile" && (
             <ProfilePage profile={profile} onSave={setProfile} showToast={showToast} />

@@ -10,6 +10,46 @@ import type {
   Organization,
 } from "./types";
 
+export interface AdminDisasterEventWithTickets extends DisasterEvent {
+  ticketCount?: number;
+}
+
+export interface AdminDisasterEventsPayload {
+  disasterEvents: AdminDisasterEventWithTickets[];
+  aggregate?: {
+    totalDisasters?: number;
+    activeDisasters?: number;
+    totalTickets?: number;
+  };
+}
+
+export interface AdminApprovalRecord {
+  id: string;
+  authUserId?: string;
+  auth_user_id?: string;
+  firstName?: string;
+  first_name?: string;
+  lastName?: string;
+  last_name?: string;
+  email?: string | null;
+  phone?: string | null;
+  role?: string;
+  status?: string;
+  rejectReason?: string | null;
+  reject_reason?: string | null;
+  createdAt?: string;
+  created_at?: string;
+}
+
+export interface AdminSystemHealthRecord {
+  name: string;
+  status: "OPERATIONAL" | "DEGRADED" | "DOWN";
+  latencyMs?: number;
+  latency?: string;
+  uptime?: string;
+  note?: string;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
   "http://localhost:3001/api";
@@ -175,7 +215,7 @@ export async function getDisasterEvents(
   token: string,
 ) {
   const prefix = scope === "admin" ? "/admin" : "/site-manager";
-  return request<DisasterEvent[]>(`${prefix}/disaster-events`, {}, token);
+  return request<DisasterEvent[] | AdminDisasterEventsPayload>(`${prefix}/disaster-events`, {}, token);
 }
 
 export async function getOrganizations(token: string) {
@@ -250,22 +290,56 @@ export async function createIncidentReport(
 export async function getCitizens(token: string) {
   return request<{
     id: string;
-    userId: string;
+    userId?: string;
+    user_id?: string;
     fullName?: string;
+    full_name?: string;
     registrationType?: string;
+    registration_type?: string;
     qrCodeId?: string;
-    createdAt: string | Date;
+    qr_code_id?: string;
+    createdAt?: string | Date;
+    created_at?: string | Date;
+    barangay?: string;
+    municipality?: string;
   }[]>("/admin/citizens", {}, token);
 }
 
 export async function getFamilies(token: string) {
   return request<{
     id: string;
-    qrCodeId: string;
+    qrCodeId?: string;
+    qr_code_id?: string;
     headFullName?: string;
-    members: { id: string; name: string }[];
-    createdAt: string | Date;
+    head_full_name?: string;
+    members?: { id: string; name: string }[];
+    family_member_count?: number;
+    createdAt?: string | Date;
+    created_at?: string | Date;
+    barangay?: string;
+    municipality?: string;
   }[]>("/admin/families", {}, token);
+}
+
+export async function getPendingApprovals(token: string) {
+  return request<AdminApprovalRecord[]>("/admin/approvals", {}, token);
+}
+
+export async function approvePendingUser(token: string, id: string) {
+  return request<AdminApprovalRecord>(`/admin/approvals/${id}/approve`, {
+    method: "PATCH",
+  }, token);
+}
+
+export async function rejectPendingUser(token: string, id: string, rejectReason: string) {
+  return request<AdminApprovalRecord>(`/admin/approvals/${id}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ rejectReason }),
+  }, token);
+}
+
+export async function getSystemHealth(token: string) {
+  return request<AdminSystemHealthRecord[]>("/admin/system-health", {}, token);
 }
 
 export async function getCitizenProfile(token: string) {

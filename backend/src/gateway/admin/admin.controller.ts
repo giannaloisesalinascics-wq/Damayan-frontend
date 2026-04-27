@@ -96,6 +96,26 @@ export class AdminController {
     return this.adminProxyService.findOrganizations(search);
   }
 
+  @Get('approvals')
+  findPendingApprovals() {
+    return this.adminProxyService.findPendingApprovals();
+  }
+
+  @Patch('approvals/:id/approve')
+  approvePendingUser(@Param('id') id: string) {
+    return this.adminProxyService.approvePendingUser(id);
+  }
+
+  @Patch('approvals/:id/reject')
+  rejectPendingUser(@Param('id') id: string, @Body('rejectReason') rejectReason: string) {
+    return this.adminProxyService.rejectPendingUser(id, rejectReason);
+  }
+
+  @Get('system-health')
+  getSystemHealth() {
+    return this.adminProxyService.getSystemHealth();
+  }
+
   @Get('organizations/stats')
   getOrganizationStats() {
     return this.adminProxyService.getOrganizationStats();
