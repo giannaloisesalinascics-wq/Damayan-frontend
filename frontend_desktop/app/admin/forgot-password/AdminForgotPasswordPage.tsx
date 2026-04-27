@@ -91,12 +91,6 @@ export default function AdminForgotPasswordPage() {
             </p>
           </header>
 
-          {debugCode ? (
-            <div className="auth-info-box">
-              Dev verification code: <strong>{debugCode}</strong>
-            </div>
-          ) : null}
-
           <button
             className="auth-submit"
             type="button"

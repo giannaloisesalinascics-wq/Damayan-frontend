@@ -13,6 +13,7 @@ import {
   rejectPendingUser,
   getSystemHealth,
   type AdminApprovalRecord,
+  type AdminSystemHealthRecord,
 } from "../lib/api";
 import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
 import { AppRole } from "../lib/types";
@@ -161,88 +162,6 @@ function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
   };
 }
 
-// ─── Initial Data ─────────────────────────────────────────────────────────────
-const INITIAL_ACCOUNTS: PendingAccount[] = [
-  {
-    id: "ACC-1041",
-    name: "Ana Torres",
-    role: "Dispatcher",
-    area: "Metro Cluster 5",
-    email: "a.torres@ndrrmc.gov.ph",
-    submitted: "2h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "UMID", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1042",
-    name: "Renz Villanueva",
-    role: "Dispatcher",
-    area: "Metro Cluster 3",
-    email: "r.villanueva@ndrrmc.gov.ph",
-    submitted: "4h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Passport", status: "VERIFIED" },
-      { name: "Barangay Clearance", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1043",
-    name: "Liza Ramos",
-    role: "Site Manager",
-    area: "Zone B-3",
-    email: "l.ramos@dswd.gov.ph",
-    submitted: "1d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Driver's License", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-      { name: "Authorization Letter", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1044",
-    name: "Carlos Mendez",
-    role: "Site Manager",
-    area: "District 4",
-    email: "c.mendez@lgu-qc.gov.ph",
-    submitted: "2d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "PhilSys ID", status: "VERIFIED" },
-      { name: "Appointment Order", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "APPROVED",
-    qrGenerated: true,
-  },
-  {
-    id: "ACC-1045",
-    name: "Patricia Gomez",
-    role: "Dispatcher",
-    area: "Metro Cluster 7",
-    email: "p.gomez@ndrrmc.gov.ph",
-    submitted: "3d ago",
-    docs: [{ name: "Government-Issued ID", type: "UMID", status: "FAILED" }],
-    status: "REJECTED",
-    rejectReason: "Submitted ID is expired. Please resubmit with a valid document.",
-  },
-];
-
-const INITIAL_QR: QRRecord[] = [
-  { id: "QR-5001", name: "Carlos Mendez", type: "individual", area: "District 4", issuedAt: "Today 10:00", linkedAccountId: "ACC-1044" },
-  { id: "QR-5002", name: "Santos Family", type: "family", area: "Zone A-4", issuedAt: "Today 09:30", familySize: 5 },
-  { id: "QR-5003", name: "Maria Reyes", type: "individual", area: "North District", issuedAt: "Today 09:00" },
-  { id: "QR-5004", name: "Dela Rosa Family", type: "family", area: "Sector 12", issuedAt: "Yesterday", familySize: 3 },
-];
-
-const INITIAL_DISASTERS: DisasterEvent[] = [
-  { id: "DIS-001", name: "Typhoon Kristine", type: "Typhoon", severity: "CAT 3", phase: "DURING", areas: "Metro Manila, Rizal, Laguna", affected: 18432, tickets: 142, dispatchers: 4, riskLevel: "CRITICAL" },
-  { id: "DIS-002", name: "Flooding — Laguna Basin", type: "Flood", severity: "WATCH", phase: "BEFORE", areas: "Laguna, Cavite", affected: 3200, tickets: 12, dispatchers: 1, riskLevel: "HIGH" },
-  { id: "DIS-003", name: "Landslide — Rizal Province", type: "Landslide", severity: "RESOLVED", phase: "AFTER", areas: "Antipolo, Montalban", affected: 780, tickets: 87, dispatchers: 0, riskLevel: "LOW" },
-];
-
 const FORECAST_DATA = [
   { area: "Metro Manila", risk: "CRITICAL" as RiskLevel, rainfall: "Heavy (120mm+)", wind: "140 km/h", action: "Immediate evacuation recommended" },
   { area: "Laguna Basin", risk: "HIGH" as RiskLevel, rainfall: "Moderate-Heavy", wind: "80 km/h", action: "Pre-position resources, monitor closely" },
@@ -258,17 +177,6 @@ const LIVE_FEEDS = [
   { src: "River Level Monitor", data: "Marikina River: 18.6m — Alert Level 2 (threshold: 20m)", status: "LIVE" },
 ];
 
-const SYSTEM_SERVICES: ServiceHealth[] = [
-  { name: "API Gateway", status: "OPERATIONAL", latency: "11ms", uptime: "99.98%" },
-  { name: "Auth Service", status: "OPERATIONAL", latency: "8ms", uptime: "99.99%" },
-  { name: "Notification Service", status: "DEGRADED", latency: "340ms", uptime: "98.1%", note: "SMS provider rate limiting — ETA fix 15min" },
-  { name: "GIS / Mapping API", status: "OPERATIONAL", latency: "24ms", uptime: "99.95%" },
-  { name: "Screening API", status: "OPERATIONAL", latency: "58ms", uptime: "99.91%" },
-  { name: "QR Code Service", status: "OPERATIONAL", latency: "15ms", uptime: "99.97%" },
-  { name: "Database (Supabase)", status: "OPERATIONAL", latency: "18ms", uptime: "99.99%" },
-  { name: "File Storage", status: "OPERATIONAL", latency: "22ms", uptime: "99.93%" },
-];
-
 const ADMIN_PROFILE: AdminProfile = {
   name: "Juan C. dela Cruz",
   initials: "JD",
@@ -278,13 +186,6 @@ const ADMIN_PROFILE: AdminProfile = {
   phone: "09XX-801-0012",
   role: "System Administrator",
 };
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 1, title: "3 Pending Approvals", sub: "ACC-1041, ACC-1042, ACC-1043 awaiting review", time: "Just now", type: "red", read: false },
-  { id: 2, title: "Notification Service Degraded", sub: "SMS latency 340ms — engineering notified", time: "5 min ago", type: "amber", read: false },
-  { id: 3, title: "DIS-001 Status Update", sub: "Typhoon Kristine — risk level remains CRITICAL", time: "12 min ago", type: "red", read: false },
-  { id: 4, title: "QR-5001 Issued", sub: "Carlos Mendez individual QR generated", time: "2h ago", type: "green", read: true },
-];
 
 // ─── Color maps ───────────────────────────────────────────────────────────────
 const RISK_CLASS: Record<RiskLevel, string> = {
@@ -1940,19 +1841,25 @@ function EarlyWarningPage({
 // ═══════════════════════════════════════════════════════════════════════════════
 function SystemHealthPage({
   showToast,
-  initialServices,
+  services,
+  refreshing,
+  onRefresh,
 }: {
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
-  initialServices: ServiceHealth[];
+  services: ServiceHealth[];
+  refreshing: boolean;
+  onRefresh: () => Promise<boolean>;
 }) {
-  const [services, setServices] = useState<ServiceHealth[]>(initialServices);
-  useEffect(() => {
-    setServices(initialServices);
-  }, [initialServices]);
   const degraded = services.filter((s) => s.status !== "OPERATIONAL");
 
-  const toggleStatus = (name: string) => {
-    setServices((p) => p.map((s) => s.name === name ? { ...s, status: s.status === "OPERATIONAL" ? "DEGRADED" : "OPERATIONAL" } : s));
+  const handleRecheck = () => {
+    void onRefresh().then((ok) => {
+      if (!ok) {
+        showToast("error", "Health Recheck Failed", "Could not reach backend health endpoint");
+        return;
+      }
+      showToast("success", "Health Rechecked", "Service statuses were refreshed from backend");
+    });
   };
 
   return (
@@ -1963,6 +1870,9 @@ function SystemHealthPage({
           <p>Live status of all DAMAYAN platform services and components</p>
         </div>
         <div className="admin-head-actions">
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={handleRecheck} disabled={refreshing}>
+            {refreshing ? "Checking..." : "Recheck Health"}
+          </button>
           {degraded.length === 0
             ? <span className="admin-badge green">● All Systems Operational</span>
             : <span className="admin-badge amber">⚠ {degraded.length} Service(s) Degraded</span>
@@ -2033,8 +1943,8 @@ function SystemHealthPage({
                   <td style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", maxWidth: "14rem" }}>{svc.note || "—"}</td>
                   <td>
                     {svc.status !== "OPERATIONAL" && (
-                      <button className="admin-btn admin-btn-success admin-btn-xs" onClick={() => { toggleStatus(svc.name); showToast("success", `${svc.name} Restored`, "Service is now operational"); }}>
-                        Restore
+                      <button className="admin-btn admin-btn-success admin-btn-xs" onClick={handleRecheck} disabled={refreshing}>
+                        {refreshing ? "Checking..." : "Recheck"}
                       </button>
                     )}
                   </td>
@@ -2147,12 +2057,29 @@ function mapBackendDisaster(d: BackendDisasterEvent & { ticketCount?: number }):
   };
 }
 
+function normalizeHealthStatus(status?: string): ServiceStatus {
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "OPERATIONAL" || normalized === "DEGRADED" || normalized === "DOWN") {
+    return normalized;
+  }
+  return "DOWN";
+}
+
+function mapSystemHealthRecord(svc: AdminSystemHealthRecord): ServiceHealth {
+  return {
+    name: svc.name,
+    status: normalizeHealthStatus(svc.status),
+    latency: svc.latency ?? `${svc.latencyMs ?? 0}ms`,
+    uptime: svc.uptime ?? "—",
+    note: svc.note,
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ROOT ADMIN PORTAL
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPortal() {
   const router = useRouter();
-  const [loggedIn, setLoggedIn] = useState(true);
   const [page, setPage] = useState<AdminPage>("overview");
   const [accounts, setAccounts] = useState<PendingAccount[]>([]);
   const [qrRecords, setQRRecords] = useState<QRRecord[]>([]);
@@ -2161,11 +2088,12 @@ export default function AdminPortal() {
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [systemHealth, setSystemHealth] = useState<ServiceHealth[]>([]);
+  const [healthRefreshing, setHealthRefreshing] = useState(false);
   const [approvalsDataStatus, setApprovalsDataStatus] = useState<"live" | "unavailable">("unavailable");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [session, setSession] = useState<AuthSession | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
@@ -2173,6 +2101,30 @@ export default function AdminPortal() {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef(0);
+
+  const refreshSystemHealth = useCallback(async (tokenOverride?: string) => {
+    const token = tokenOverride ?? loadSession()?.accessToken;
+    if (!token) {
+      setSystemHealth([]);
+      return false;
+    }
+
+    setHealthRefreshing(true);
+    try {
+      const health = await getSystemHealth(token);
+      if (health.length > 0) {
+        setSystemHealth(health.map(mapSystemHealthRecord));
+      } else {
+        setSystemHealth([]);
+      }
+      return true;
+    } catch {
+      setSystemHealth([]);
+      return false;
+    } finally {
+      setHealthRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     const stored = loadSession();
@@ -2196,13 +2148,12 @@ export default function AdminPortal() {
     // Hydrate dashboard and disaster data from the backend
     async function hydrate() {
       const token = stored!.accessToken;
-      const [ovResult, evResult, citizenResult, familyResult, approvalsResult, healthResult] = await Promise.allSettled([
+      const [ovResult, evResult, citizenResult, familyResult, approvalsResult] = await Promise.allSettled([
         getDashboard("admin", token),
         getDisasterEvents("admin", token),
         getCitizens(token),
         getFamilies(token),
         getPendingApprovals(token),
-        getSystemHealth(token),
       ]);
       if (ovResult.status === "fulfilled") {
         setOverview(ovResult.value);
@@ -2259,22 +2210,10 @@ export default function AdminPortal() {
         setAccounts([]);
         setApprovalsDataStatus("unavailable");
       }
-      if (healthResult.status === "fulfilled" && healthResult.value.length > 0) {
-        setSystemHealth(
-          healthResult.value.map((svc) => ({
-            name: svc.name,
-            status: svc.status,
-            latency: svc.latency ?? `${svc.latencyMs ?? 0}ms`,
-            uptime: svc.uptime ?? "—",
-            note: svc.note,
-          })),
-        );
-      } else {
-        setSystemHealth([]);
-      }
+      await refreshSystemHealth(token);
     }
     void hydrate();
-  }, [router]);
+  }, [router, refreshSystemHealth]);
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
     const id = ++toastRef.current;
@@ -2308,8 +2247,7 @@ export default function AdminPortal() {
     void approvePendingUser(stored.accessToken, id)
       .then(() => applyLocalApproval())
       .catch(() => {
-        // Keep UI functional even if approval API is not deployed yet.
-        applyLocalApproval();
+        showToast("error", "Approval Failed", "Could not approve user. Please try again.");
       });
   }, [accounts, qrRecords, addLog, showToast]);
 
@@ -2330,8 +2268,7 @@ export default function AdminPortal() {
     void rejectPendingUser(stored.accessToken, id, reason)
       .then(() => applyLocalReject())
       .catch(() => {
-        // Keep UI functional even if reject API is not deployed yet.
-        applyLocalReject();
+        showToast("error", "Rejection Failed", "Could not reject user. Please try again.");
       });
   }, [accounts, addLog]);
 
@@ -2367,8 +2304,6 @@ export default function AdminPortal() {
   };
 
   const pt = PAGE_TITLES[page];
-
-  if (!loggedIn) return <AdminLoginPage onLogin={() => setLoggedIn(true)} />;
 
   return (
     <div className="admin-root">
@@ -2500,7 +2435,12 @@ export default function AdminPortal() {
             <EarlyWarningPage showToast={showToast} addLog={addLog} />
           )}
           {page === "system_health" && (
-            <SystemHealthPage showToast={showToast} initialServices={systemHealth} />
+            <SystemHealthPage
+              showToast={showToast}
+              services={systemHealth}
+              refreshing={healthRefreshing}
+              onRefresh={refreshSystemHealth}
+            />
           )}
           {page === "profile" && (
             <ProfilePage profile={profile} onSave={setProfile} showToast={showToast} />
