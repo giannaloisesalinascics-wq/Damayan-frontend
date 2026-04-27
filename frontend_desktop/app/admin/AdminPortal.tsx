@@ -1233,8 +1233,8 @@ function QRManagementPage({
                 No family QR requests pending
               </div>
             ) : (
-              familyQRs.map((q) => (
-                <div key={q.id} style={{ display: "flex", gap: "0.75rem", alignItems: "center", padding: "0.75rem 0.85rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", border: "1px solid var(--admin-outline)" }}>
+              familyQRs.map((q, idx) => (
+                <div key={`${q.type}-${q.id}-${q.linkedAccountId ?? q.name}-${idx}`} style={{ display: "flex", gap: "0.75rem", alignItems: "center", padding: "0.75rem 0.85rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", border: "1px solid var(--admin-outline)" }}>
                   <span style={{ fontSize: "1.4rem" }}>👨‍👩‍👧‍👦</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{q.name}</div>
@@ -1271,8 +1271,8 @@ function QRManagementPage({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((q) => (
-                <tr key={q.id}>
+              {filtered.map((q, idx) => (
+                <tr key={`${q.type}-${q.id}-${q.linkedAccountId ?? q.name}-${idx}`}>
                   <td><span className="admin-mono" style={{ color: "var(--admin-blue)" }}>{q.id}</span></td>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: "0.82rem" }}>{q.name}</div>

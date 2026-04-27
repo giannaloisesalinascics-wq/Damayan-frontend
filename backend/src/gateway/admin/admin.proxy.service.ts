@@ -32,7 +32,7 @@ export class AdminProxyService {
   constructor(
     @Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService,
     @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
-    private readonly configService: ConfigService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
   ) {}
 
   getDashboard() {
@@ -205,14 +205,14 @@ export class AdminProxyService {
     }
 
     // 3. Operations Service — TCP socket probe
-    const opsHost = this.configService.get<string>('OPERATIONS_SERVICE_HOST') ?? '127.0.0.1';
-    const opsPort = Number(this.configService.get<string>('OPERATIONS_SERVICE_PORT') ?? 4002);
+    const opsHost = this.configService?.get<string>('OPERATIONS_SERVICE_HOST') ?? process.env.OPERATIONS_SERVICE_HOST ?? '127.0.0.1';
+    const opsPort = Number(this.configService?.get<string>('OPERATIONS_SERVICE_PORT') ?? process.env.OPERATIONS_SERVICE_PORT ?? 4002);
     const opsResult = await this.probeTcp('Operations Service', opsHost, opsPort, 3000);
     results.push(opsResult);
 
     // 4. Auth Service — TCP socket probe
-    const authHost = this.configService.get<string>('AUTH_SERVICE_HOST') ?? '127.0.0.1';
-    const authPort = Number(this.configService.get<string>('AUTH_SERVICE_PORT') ?? 4001);
+    const authHost = this.configService?.get<string>('AUTH_SERVICE_HOST') ?? process.env.AUTH_SERVICE_HOST ?? '127.0.0.1';
+    const authPort = Number(this.configService?.get<string>('AUTH_SERVICE_PORT') ?? process.env.AUTH_SERVICE_PORT ?? 4001);
     const authResult = await this.probeTcp('Auth Service', authHost, authPort, 3000);
     results.push(authResult);
 
