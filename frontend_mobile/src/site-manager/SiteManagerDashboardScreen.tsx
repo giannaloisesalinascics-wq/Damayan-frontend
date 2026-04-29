@@ -1,13 +1,15 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform, TouchableOpacity } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, fonts, roleColors } from "../theme";
+import { lightTheme, darkTheme, fonts, roleColors } from "../theme";
 import { SiteManagerBeforeScreen } from "./beforecalamity/SiteManagerBeforeScreen";
 import { SiteManagerDuringScreen } from "./duringcalamity/SiteManagerDuringScreen";
 import { SiteManagerAfterScreen } from "./aftercalamity/SiteManagerAfterScreen";
+import { SiteManagerInventoryScreen } from "./inventory/SiteManagerInventoryScreen";
+import { SiteManagerMapScreen } from "./map/SiteManagerMapScreen";
 
-export type Phase = "before" | "during" | "after";
+export type OperationalStage = "STAGING" | "RESPONSE" | "RECOVERY";
 export type NavDestination = "Overview" | "Operations" | "Resources" | "Reporting";
 
 interface SiteManagerDashboardScreenProps {
@@ -15,15 +17,15 @@ interface SiteManagerDashboardScreenProps {
 }
 
 export default function SiteManagerDashboardScreen({ onSignOut }: SiteManagerDashboardScreenProps) {
-  const [phase, setPhase] = useState<Phase>("before");
+  const [stage, setStage] = useState<OperationalStage>("STAGING");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeNav, setActiveNav] = useState<NavDestination>("Overview");
   const [targetStep, setTargetStep] = useState<string | null>(null);
 
-  const accent = roleColors.site_manager;
-  const styles = getStyles(isDarkMode ? darkTheme : lightTheme);
   const theme = isDarkMode ? darkTheme : lightTheme;
+  const accent = "#81C784"; // Updated to green per screenshot
+  const styles = getStyles(theme);
 
   return (
     <View style={styles.container}>
@@ -36,29 +38,25 @@ export default function SiteManagerDashboardScreen({ onSignOut }: SiteManagerDas
       {/* Header */}
       <SafeAreaView style={styles.headerSafe}>
         <View style={styles.headerInner}>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.brandText, { color: theme.text }]}>DAMAYAN</Text>
-            <View style={[
-              styles.phaseIndicator, 
-              { backgroundColor: phase === 'before' ? (isDarkMode ? theme.surfaceAlt : '#fff9eb') : phase === 'during' ? (isDarkMode ? theme.surfaceAlt : '#fff4e5') : (isDarkMode ? theme.surfaceAlt : '#eef2ff') }
-            ]}>
-               <Ionicons 
-                 name={phase === 'before' ? 'shield-checkmark' : phase === 'during' ? 'warning' : 'checkmark-done-circle'} 
-                 size={10} 
-                 color={phase === 'before' ? accent : phase === 'during' ? theme.warning : theme.info} 
-               />
-               <Text style={[
-                 styles.phaseText, 
-                 { color: phase === 'before' ? accent : phase === 'during' ? theme.warning : theme.info }
+          <View style={styles.headerLeft}>
+             <Text style={[styles.brandText, { color: theme.text }]}>DAMAYAN</Text>
+             <View style={[
+                 styles.stageBadge, 
+                 { backgroundColor: stage === 'STAGING' ? (isDarkMode ? theme.surfaceAlt : '#E8F5E9') : stage === 'RESPONSE' ? (isDarkMode ? theme.surfaceAlt : '#FFF3E0') : (isDarkMode ? theme.surfaceAlt : '#E3F2FD') }
                ]}>
-                 {phase === 'before' ? 'OPERATIONAL READINESS' : phase === 'during' ? 'EMERGENCY RESPONSE' : 'RECOVERY OPS'}
-               </Text>
-            </View>
+                  <View style={[styles.statusDot, { backgroundColor: stage === 'STAGING' ? theme.primary : stage === 'RESPONSE' ? theme.warning : theme.info }]} />
+                  <Text style={[
+                    styles.stageText, 
+                    { color: stage === 'STAGING' ? theme.primary : stage === 'RESPONSE' ? theme.warning : theme.info }
+                  ]}>
+                    {stage === 'STAGING' ? 'STAGING' : stage === 'RESPONSE' ? 'RESPONSE' : 'RECOVERY'}
+                  </Text>
+             </View>
           </View>
 
           <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
-            <View style={[styles.avatar, { borderColor: accent + "40", backgroundColor: theme.surface }]}>
-               <Ionicons name="business" size={20} color={accent} />
+            <View style={[styles.avatar, { borderColor: theme.line, backgroundColor: theme.surfaceAlt }]}>
+               <Ionicons name="business" size={20} color={theme.text} />
             </View>
           </Pressable>
         </View>
@@ -66,24 +64,35 @@ export default function SiteManagerDashboardScreen({ onSignOut }: SiteManagerDas
 
       {/* Main Content */}
       <View style={styles.content}>
-        {phase === "before" && (
-           <SiteManagerBeforeScreen 
-             onBack={onSignOut} 
-             onOpenResponse={() => setPhase("during")} 
-             isDarkMode={isDarkMode}
-           />
-        )}
-        {phase === "during" && (
-           <SiteManagerDuringScreen 
-             onBack={() => setPhase("before")} 
-             isDarkMode={isDarkMode}
-           />
-        )}
-        {phase === "after" && (
-           <SiteManagerAfterScreen 
-             onBack={() => setPhase("before")} 
-             isDarkMode={isDarkMode}
-           />
+        {activeNav === "Resources" ? (
+          <SiteManagerInventoryScreen isDarkMode={isDarkMode} />
+        ) : activeNav === "Operations" ? (
+          <SiteManagerMapScreen isDarkMode={isDarkMode} />
+        ) : (
+          <>
+            {stage === "STAGING" && (
+               <SiteManagerBeforeScreen 
+                 onBack={onSignOut} 
+                 onOpenResponse={() => setStage("RESPONSE")} 
+                 isDarkMode={isDarkMode}
+               />
+            )}
+            {stage === "RESPONSE" && (
+               <SiteManagerDuringScreen 
+                 onBack={() => setStage("STAGING")} 
+                 isDarkMode={isDarkMode}
+                 onEnterRecovery={() => setStage("RECOVERY")}
+               />
+            )}
+            {stage === "RECOVERY" && (
+               <SiteManagerAfterScreen 
+                 onBack={() => setStage("STAGING")} 
+                 onBackToResponse={() => setStage("RESPONSE")}
+                 isDarkMode={isDarkMode}
+                 onFinalize={() => setStage("STAGING")}
+               />
+            )}
+          </>
         )}
       </View>
 
@@ -91,31 +100,23 @@ export default function SiteManagerDashboardScreen({ onSignOut }: SiteManagerDas
       <View style={styles.bottomNavWrapper}>
         <View style={styles.bottomNavInner}>
           {[
-            { id: "Overview", icon: "grid", label: "Dashboard" },
-            { id: "Operations", icon: "flash", label: "Operations" },
-            { id: "Resources", icon: "cube", label: "Inventory" },
-            { id: "Reporting", icon: "stats-chart", label: "Reports" },
+            { id: "Overview", icon: "grid", label: "DASHBOARD" },
+            { id: "Resources", icon: "cube", label: "INVENTORY" },
+            { id: "Operations", icon: "map", label: "SITE MAP" },
           ].map((item) => {
             const isActive = activeNav === item.id;
             return (
               <Pressable
                 key={item.id}
-                onPress={() => {
-                  setActiveNav(item.id as NavDestination);
-                  if (item.id === "Operations") setPhase("during");
-                  else if (item.id === "Reporting") setPhase("after");
-                  else setPhase("before");
-                }}
-                style={styles.navTab}
+                onPress={() => setActiveNav(item.id as NavDestination)}
+                style={[styles.navTab, isActive && styles.navTabActive]}
               >
-                <View style={[styles.tabIconWrap, isActive && { backgroundColor: accent + "15" }]}>
-                  <Ionicons 
-                    name={(isActive ? item.icon : item.icon + "-outline") as any} 
-                    size={24} 
-                    color={isActive ? accent : theme.textLight} 
-                  />
-                </View>
-                <Text style={[styles.tabLabel, isActive && { color: accent }]}>{item.label}</Text>
+                <Ionicons 
+                  name={(isActive ? item.icon : item.icon + "-outline") as any} 
+                  size={22} 
+                  color={isActive ? "#fff" : theme.textLight} 
+                />
+                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{item.label}</Text>
               </Pressable>
             );
           })}
@@ -132,20 +133,33 @@ export default function SiteManagerDashboardScreen({ onSignOut }: SiteManagerDas
             </View>
             <View style={styles.profileActions}>
               <Pressable style={styles.profileActionItem} onPress={() => setIsDarkMode(!isDarkMode)}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: isDarkMode ? '#2196F3' + '15' : '#FFB300' + '15', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={isDarkMode ? "sunny-outline" : "moon-outline"} size={20} color={isDarkMode ? '#2196F3' : '#FFB300'} />
+                <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#E3F2FD20' : '#E3F2FD' }]}>
+                  <Ionicons name={isDarkMode ? "sunny" : "moon"} size={22} color="#2196F3" />
                 </View>
                 <Text style={styles.profileActionText}>{isDarkMode ? "Light Mode" : "Dark Mode"}</Text>
               </Pressable>
 
               <Pressable style={styles.profileActionItem} onPress={() => setIsProfileOpen(false)}>
-                <Ionicons name="settings-outline" size={20} color={accent} />
-                <Text style={styles.profileActionText}>System Settings</Text>
+                <View style={[styles.iconBox, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="person" size={22} color="#2E7D32" />
+                </View>
+                <Text style={styles.profileActionText}>View Profile</Text>
               </Pressable>
+
+              <Pressable style={styles.profileActionItem} onPress={() => setIsProfileOpen(false)}>
+                <View style={[styles.iconBox, { backgroundColor: '#FFF8E1' }]}>
+                  <Ionicons name="pencil" size={22} color="#FFB300" />
+                </View>
+                <Text style={styles.profileActionText}>Edit Profile</Text>
+              </Pressable>
+
               <View style={styles.divider} />
+
               <Pressable style={styles.profileActionItem} onPress={() => { setIsProfileOpen(false); onSignOut(); }}>
-                <Ionicons name="log-out-outline" size={20} color={theme.danger} />
-                <Text style={[styles.profileActionText, { color: theme.danger }]}>Sign Out</Text>
+                <View style={[styles.iconBox, { backgroundColor: '#FFEBEE' }]}>
+                  <Ionicons name="log-out" size={22} color="#D32F2F" />
+                </View>
+                <Text style={[styles.profileActionText, { color: "#D32F2F" }]}>Sign Out</Text>
               </Pressable>
             </View>
           </View>
@@ -166,38 +180,42 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderBottomColor: theme.line,
   },
   headerInner: {
-    height: 72,
+    height: 80,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 24,
   },
-  headerCenter: {
-    flex: 1,
+  headerLeft: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 40,
+    gap: 16,
   },
   brandText: {
     ...fonts.black,
-    fontSize: 22,
-    letterSpacing: -1.2,
+    fontSize: 20,
+    letterSpacing: -1,
   },
-  phaseIndicator: {
+  stageBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginTop: 2,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.03)",
   },
-  phaseText: {
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  stageText: {
     ...fonts.black,
-    fontSize: 9,
+    fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
   orb: {
     position: "absolute",
@@ -257,23 +275,29 @@ const getStyles = (theme: any) => StyleSheet.create({
     elevation: 10,
   },
   navTab: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    flex: 1,
+    gap: 12,
+    height: 56,
+    paddingHorizontal: 20,
+    borderRadius: 24,
   },
-  tabIconWrap: {
-    width: 48,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+  navTabActive: {
+    backgroundColor: "#81C784",
+    shadowColor: "#81C784",
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
   tabLabel: {
-    fontSize: 10,
-    ...fonts.bold,
+    fontSize: 12,
+    ...fonts.black,
     color: theme.textLight,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+  },
+  tabLabelActive: {
+    color: "#fff",
   },
   modalOverlay: {
     flex: 1,
@@ -326,9 +350,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     borderRadius: 16,
   },
   profileActionText: {
-    ...fonts.bold,
-    fontSize: 15,
-    color: theme.textMuted,
+    ...fonts.black,
+    fontSize: 16,
+    color: theme.text,
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   divider: {
     height: 1,

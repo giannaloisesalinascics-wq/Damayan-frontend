@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform } from "react-native";
+import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
@@ -96,8 +96,15 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
 
             {/* Profile on the Right */}
             <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
+              <View style={styles.profileTextContainer}>
+                <Text style={styles.headerProfileName}>Elena Villacruz</Text>
+                <Text style={styles.headerProfileSub}>BRGY. 102, DIST 4</Text>
+              </View>
               <View style={styles.avatar}>
-                 <Ionicons name="person" size={20} color={theme.primary} />
+                 <Image 
+                   source={{ uri: "file:///C:/Users/Administrator/.gemini/antigravity/brain/431eeb09-324f-4f13-a725-90119334481f/citizen_profile_avatar_1777474769780.png" }} 
+                   style={styles.avatarImage} 
+                 />
               </View>
             </Pressable>
           </View>
@@ -166,10 +173,10 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         <View style={styles.bottomNavWrapper}>
           <View style={styles.bottomNavInner}>
             {[
-              { id: "Overview", icon: "home", label: "Home" },
-              { id: "Family & ID", icon: "qr-code", label: "Identity" },
-              { id: "Safety Map", icon: "map", label: "Map" },
-              { id: "Relief Status", icon: "cube", label: "Relief" },
+              { id: "Overview", icon: "grid", label: "OVERVIEW" },
+              { id: "Family & ID", icon: "people", label: "FAMILY & ID" },
+              { id: "Safety Map", icon: "map", label: "SAFETY MAP" },
+              { id: "Relief Status", icon: "cube", label: "RELIEF STATUS" },
             ].map((item) => {
               const isActive = activeNav === item.id;
               return (
@@ -315,21 +322,41 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.secondary,
   },
   avatarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingLeft: 12,
   },
+  profileTextContainer: {
+    alignItems: "flex-end",
+  },
+  headerProfileName: {
+    ...fonts.black,
+    fontSize: 16,
+    color: theme.text,
+  },
+  headerProfileSub: {
+    ...fonts.black,
+    fontSize: 10,
+    color: theme.textLight,
+    letterSpacing: 1,
+  },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 16,
     backgroundColor: theme.surface,
     borderWidth: 1.5,
     borderColor: theme.line,
-    alignItems: "center",
-    justifyContent: "center",
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   content: {
     flex: 1,

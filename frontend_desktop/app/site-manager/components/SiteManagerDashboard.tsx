@@ -169,23 +169,23 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             
             {/* Profile Dropdown */}
             {isProfileOpen && (
-              <div className="absolute right-0 mt-4 w-64 bg-white/95 dark:bg-[#232622]/95 backdrop-blur-xl rounded-[2rem] border border-[#dadad5] dark:border-[#3b3b3b] shadow-2xl py-6 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="absolute right-0 mt-4 w-64 bg-white/95 dark:bg-[#232622]/95 backdrop-blur-xl rounded-[2.5rem] border border-[#dadad5] dark:border-[#3b3b3b] shadow-2xl py-6 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="px-8 pb-4 border-b border-[#dadad5]/50 dark:border-[#3b3b3b]/50">
-                  <p className="text-base font-black text-[#1a1c19] dark:text-[#e2e3dd]">Site Manager</p>
+                  <p className="text-lg font-black text-[#1a1c19] dark:text-[#e2e3dd]">Site Manager</p>
                   <p className="text-[10px] font-bold text-[#707a6c] dark:text-[#c4c7c0] uppercase tracking-[0.2em] mt-1">Central Visayas Cluster</p>
                 </div>
                 
-                <div className="p-2">
+                <div className="p-3 space-y-1">
                   <button 
                     onClick={toggleDarkMode}
-                    className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#2196F3] bg-opacity-15">
-                      <span className="material-symbols-outlined text-xl text-[#2196F3]">
+                    <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 bg-[#E3F2FD] dark:bg-[#2196F3]/20">
+                      <span className="material-symbols-outlined text-2xl text-[#2196F3]">
                         {isDarkMode ? "light_mode" : "dark_mode"}
                       </span>
                     </div>
-                    <span className="text-sm font-black text-[#444743] dark:text-[#c4c7c0] group-hover:text-[#1a1c19] dark:group-hover:text-white">
+                    <span className="text-base font-black text-[#1a1c19] dark:text-[#e2e3dd]">
                       {isDarkMode ? "Light Mode" : "Dark Mode"}
                     </span>
                   </button>
@@ -194,21 +194,33 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                       setIsProfileOpen(false);
                       setShowProfile(true);
                     }}
-                    className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: phaseConfig.primaryColor + "15" }}>
-                      <span className="material-symbols-outlined text-xl" style={{ color: phaseConfig.primaryColor }}>person</span>
+                    <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 bg-[#E8F5E9] dark:bg-[#2E7D32]/20">
+                      <span className="material-symbols-outlined text-2xl text-[#2E7D32]">person</span>
                     </div>
-                    <span className="text-sm font-black text-[#444743] dark:text-[#c4c7c0] group-hover:text-[#1a1c19] dark:group-hover:text-white">View Profile</span>
+                    <span className="text-base font-black text-[#1a1c19] dark:text-[#e2e3dd]">View Profile</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      // In a real app, this would navigate to edit profile
+                    }}
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
+                  >
+                    <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 bg-[#FFF8E1] dark:bg-[#FFB300]/20">
+                      <span className="material-symbols-outlined text-2xl text-[#FFB300]">edit</span>
+                    </div>
+                    <span className="text-base font-black text-[#1a1c19] dark:text-[#e2e3dd]">Edit Profile</span>
                   </button>
                 </div>
 
-                <div className="mt-2 pt-2 border-t border-[#dadad5]/50 dark:border-[#3b3b3b]/50 px-2">
-                  <Link href="/site-manager/login" className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group text-left">
-                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-xl text-red-600">logout</span>
+                <div className="mt-2 pt-2 border-t border-[#dadad5]/50 dark:border-[#3b3b3b]/50 px-3">
+                  <Link href="/site-manager/login" className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group text-left">
+                    <div className="w-12 h-12 rounded-[1.25rem] bg-[#FFEBEE] dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-2xl text-red-600">logout</span>
                     </div>
-                    <span className="text-sm font-black text-red-600">Sign Out</span>
+                    <span className="text-base font-black text-red-600">Sign Out</span>
                   </Link>
                 </div>
               </div>
