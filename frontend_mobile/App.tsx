@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
-import { AdminDashboardScreen } from "./src/admin";
 import {
   CitizenBeforeScreen,
   CitizenHouseholdMembersScreen,
@@ -9,11 +8,14 @@ import {
   CitizenHouseholdRegistrationScreen,
   CitizenIndividualRegistrationScreen,
   CitizenSignupScreen,
+  CitizenDashboardScreen,
+  CitizenLoginScreen,
 } from "./src/citizen";
-import { DispatcherBeforeScreen, DispatcherDuringScreen } from "./src/dispatcher";
-import { PortalLoginScreen, RoleSelectorScreen } from "./src/loginportal";
-import { SiteManagerBeforeScreen, SiteManagerDuringScreen, SiteManagerSignupScreen } from "./src/site-manager";
-import { AppRoute } from "./src/types";
+import { DispatcherBeforeScreen, DispatcherDuringScreen, DispatcherLoginScreen } from "./src/dispatcher";
+import { RoleSelectorScreen } from "./src/loginportal";
+import { SiteManagerBeforeScreen, SiteManagerDuringScreen, SiteManagerSignupScreen, SiteManagerLoginScreen, SiteManagerDashboardScreen } from "./src/site-manager";
+import { AdminDashboardScreen, AdminLoginScreen } from "./src/admin";
+import type { AppRoute } from "./src/types";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>("role-selector");
@@ -38,8 +40,7 @@ export default function App() {
       return (
         <>
           <StatusBar style="dark" />
-          <PortalLoginScreen
-            role="admin"
+          <AdminLoginScreen
             onBack={() => setRoute("role-selector")}
             onSubmit={() => setRoute("admin-dashboard")}
           />
@@ -56,8 +57,7 @@ export default function App() {
       return (
         <>
           <StatusBar style="dark" />
-          <PortalLoginScreen
-            role="dispatcher"
+          <DispatcherLoginScreen
             onBack={() => setRoute("role-selector")}
             onSubmit={() => setRoute("dispatcher-before")}
           />
@@ -84,8 +84,7 @@ export default function App() {
       return (
         <>
           <StatusBar style="dark" />
-          <PortalLoginScreen
-            role="site_manager"
+          <SiteManagerLoginScreen
             onBack={() => setRoute("role-selector")}
             onSubmit={() => setRoute("site-manager-before")}
             onSecondary={() => setRoute("site-manager-signup")}
@@ -104,30 +103,22 @@ export default function App() {
         </>
       );
     case "site-manager-before":
-      return (
-        <>
-          <StatusBar style="dark" />
-          <SiteManagerBeforeScreen
-            onBack={() => setRoute("site-manager-login")}
-            onOpenResponse={() => setRoute("site-manager-during")}
-          />
-        </>
-      );
     case "site-manager-during":
       return (
         <>
           <StatusBar style="dark" />
-          <SiteManagerDuringScreen onBack={() => setRoute("site-manager-before")} />
+          <SiteManagerDashboardScreen
+            onSignOut={() => setRoute("site-manager-login")}
+          />
         </>
       );
     case "citizen-login":
       return (
         <>
           <StatusBar style="dark" />
-          <PortalLoginScreen
-            role="citizen"
+          <CitizenLoginScreen
             onBack={() => setRoute("role-selector")}
-            onSubmit={() => setRoute("citizen-before")}
+            onSubmit={() => setRoute("citizen-dashboard")}
             onSecondary={() => setRoute("citizen-signup")}
             secondaryLabel="Create An Account"
           />
@@ -139,57 +130,17 @@ export default function App() {
           <StatusBar style="dark" />
           <CitizenSignupScreen
             onBack={() => setRoute("citizen-login")}
-            onSubmit={() => setRoute("citizen-before")}
+            onSubmit={() => setRoute("citizen-dashboard")}
           />
         </>
       );
-    case "citizen-before":
+    case "citizen-dashboard":
       return (
         <>
           <StatusBar style="dark" />
-          <CitizenBeforeScreen
-            onBack={() => setRoute("citizen-login")}
-            onOpenResponse={() => setRoute("citizen-during")}
-            onRegisterIndividual={() => setRoute("citizen-before-self")}
-            onRegisterHousehold={() => setRoute("citizen-before-household")}
+          <CitizenDashboardScreen
+            onSignOut={() => setRoute("citizen-login")}
           />
-        </>
-      );
-    case "citizen-before-self":
-      return (
-        <>
-          <StatusBar style="dark" />
-          <CitizenIndividualRegistrationScreen
-            onBack={() => setRoute("citizen-before")}
-            onContinue={() => setRoute("citizen-before")}
-          />
-        </>
-      );
-    case "citizen-before-household":
-      return (
-        <>
-          <StatusBar style="dark" />
-          <CitizenHouseholdRegistrationScreen
-            onBack={() => setRoute("citizen-before")}
-            onContinue={() => setRoute("citizen-before-household-members")}
-          />
-        </>
-      );
-    case "citizen-before-household-members":
-      return (
-        <>
-          <StatusBar style="dark" />
-          <CitizenHouseholdMembersScreen
-            onBack={() => setRoute("citizen-before-household")}
-            onContinue={() => setRoute("citizen-before")}
-          />
-        </>
-      );
-    case "citizen-during":
-      return (
-        <>
-          <StatusBar style="dark" />
-          <CitizenDuringScreen onBack={() => setRoute("citizen-before")} />
         </>
       );
     case "role-selector":

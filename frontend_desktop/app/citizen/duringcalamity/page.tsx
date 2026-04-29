@@ -1,6 +1,5 @@
-import "./page.css";
-import CitizenDuringCalamityPage from "./CitizenDuringCalamityPage";
+import CitizenDashboard from "../components/CitizenDashboard";
 
-export default function Page() {
-  return <CitizenDuringCalamityPage />;
+export default function DuringCalamityPage() {
+  return <CitizenDashboard initialPhase="during" />;
 }

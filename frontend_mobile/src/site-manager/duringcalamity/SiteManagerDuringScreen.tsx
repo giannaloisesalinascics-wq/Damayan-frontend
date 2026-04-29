@@ -1,34 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Animated, Text, View, StyleSheet, ScrollView, Pressable, Modal } from "react-native";
+import { Animated, Text, View, StyleSheet, ScrollView, Pressable, Modal, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MobileHeader, NavPills } from "../../components/MobileShell";
-import { Button, Input, Pill, Screen, SectionCard } from "../../components/UI";
+import { Screen, Pill, SectionCard, Input } from "../../components/UI";
 import { siteManagerStyles } from "../shared";
 import { theme, fonts } from "../../theme";
-import { styles } from "./SiteManagerDuringScreen.styles";
 
 export function SiteManagerDuringScreen({
   onBack,
 }: {
   onBack: () => void;
 }) {
-  const [active, setActive] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("Dashboard");
   const [checkInMode, setCheckInMode] = useState<"scan" | "manual">("scan");
   const [severity, setSeverity] = useState<"low" | "medium" | "high">("high");
   const [incidentType, setIncidentType] = useState("Medical Emergency");
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [description, setDescription] = useState("");
 
-  const incidentTypes = [
-    "Medical Emergency",
-    "Fire Incident",
-    "Structural Damage",
-    "Supply Shortage",
-    "Security Concern",
-    "Other",
-  ];
+  const incidentTypes = ["Medical Emergency", "Fire Incident", "Structural Damage", "Supply Shortage", "Security Concern", "Other"];
   
-  // Operations State
   const [capacity, setCapacity] = useState(500);
   const [occupancy, setOccupancy] = useState(420);
   
@@ -38,387 +28,264 @@ export function SiteManagerDuringScreen({
     if (checkInMode === "scan") {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(scanAnim, {
-            toValue: 1,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scanAnim, {
-            toValue: 0,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(scanAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+          Animated.timing(scanAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
         ])
       ).start();
-    } else {
-      scanAnim.setValue(0);
-      scanAnim.stopAnimation();
     }
-  }, [checkInMode, scanAnim]);
+  }, [checkInMode]);
 
   const translateY = scanAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, 150], 
+    outputRange: [0, 160], 
   });
 
   const percentOccupied = Math.min((occupancy / capacity) * 100, 100);
 
   function renderContent() {
-    switch(active) {
+    switch(activeTab) {
       case "Assessment":
         return (
-          <View style={{ gap: 16 }}>
-            <SectionCard>
-              <Text style={siteManagerStyles.sectionTitle}>Site Capacity Update</Text>
-              <Text style={siteManagerStyles.rowCopy}>Configure total shelter volume and current intake.</Text>
-              
-              <View style={siteManagerStyles.gaugeContainer}>
-                <View style={[siteManagerStyles.gaugeFill, { width: `${percentOccupied}%`, backgroundColor: percentOccupied > 90 ? theme.danger : theme.primary }]} />
-              </View>
-              
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
-                <Text style={{ fontSize: 24, ...fonts.black, color: theme.text }}>{occupancy} / {capacity}</Text>
-                <Text style={{ color: percentOccupied > 90 ? theme.danger : theme.textLight, fontWeight: "700" }}>
-                  {percentOccupied.toFixed(0)}% FULL
-                </Text>
-              </View>
+          <View style={{ gap: 24, paddingHorizontal: 24 }}>
+            <View>
+              <Text style={siteManagerStyles.sectionTitle}>Site Capacity</Text>
+              <Text style={siteManagerStyles.sectionSub}>Shelter Intake Monitoring</Text>
+            </View>
 
-              <View style={{ gap: 16 }}>
-                <View style={{ gap: 8 }}>
-                  <Text style={siteManagerStyles.swimLabel}>Current Occupancy</Text>
-                  <View style={siteManagerStyles.stepperRow}>
-                    <Pressable onPress={() => setOccupancy(o => Math.max(0, o - 1))} style={siteManagerStyles.stepperBtn}>
-                      <Text style={{ fontSize: 24, fontWeight: "900", color: theme.primary }}>-</Text>
-                    </Pressable>
-                    <Text style={siteManagerStyles.stepperValue}>{occupancy}</Text>
-                    <Pressable onPress={() => setOccupancy(o => Math.min(capacity, o + 1))} style={siteManagerStyles.stepperBtn}>
-                      <Text style={{ fontSize: 24, fontWeight: "900", color: theme.primary }}>+</Text>
-                    </Pressable>
+            <View style={[siteManagerStyles.checkCard, { gap: 24 }]}>
+               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <View>
+                    <Text style={{ fontSize: 42, ...fonts.black, color: theme.text, letterSpacing: -2 }}>{occupancy}</Text>
+                    <Text style={{ fontSize: 13, ...fonts.bold, color: theme.textLight, textTransform: "uppercase" }}>Current Occupancy</Text>
                   </View>
-                </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={{ fontSize: 18, ...fonts.black, color: percentOccupied > 90 ? theme.danger : theme.primary }}>{percentOccupied.toFixed(0)}%</Text>
+                    <Text style={{ fontSize: 10, ...fonts.bold, color: theme.textLight }}>UTILIZATION</Text>
+                  </View>
+               </View>
 
-                <View style={{ gap: 8 }}>
-                  <Text style={siteManagerStyles.swimLabel}>Total Capacity</Text>
-                  <Input 
-                    label="" 
-                    placeholder={capacity.toString()} 
-                    onChangeText={(val) => setCapacity(parseInt(val) || capacity)}
-                  />
-                </View>
-              </View>
-            </SectionCard>
+               <View style={{ height: 12, backgroundColor: theme.surfaceAlt, borderRadius: 6, overflow: "hidden" }}>
+                  <View style={{ height: "100%", width: `${percentOccupied}%`, backgroundColor: percentOccupied > 90 ? theme.danger : theme.primary }} />
+               </View>
 
-            <SectionCard>
+               <View style={{ flexDirection: "row", gap: 12 }}>
+                  <TouchableOpacity 
+                    onPress={() => setOccupancy(o => Math.max(0, o - 1))}
+                    style={{ flex: 1, height: 60, borderRadius: 18, backgroundColor: theme.surfaceAlt, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: theme.line }}
+                  >
+                    <Ionicons name="remove" size={24} color={theme.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => setOccupancy(o => Math.min(capacity, o + 1))}
+                    style={{ flex: 1, height: 60, borderRadius: 18, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center" }}
+                  >
+                    <Ionicons name="add" size={24} color="#fff" />
+                  </TouchableOpacity>
+               </View>
+            </View>
+
+            <View>
               <Text style={siteManagerStyles.sectionTitle}>Facility Status</Text>
-              <View style={{ gap: 12, marginTop: 12 }}>
+              <Text style={siteManagerStyles.sectionSub}>Resource Integrity</Text>
+            </View>
+
+            <View style={{ gap: 12 }}>
                 {[
-                  { label: "Power Supply", status: "STABLE", color: theme.success },
-                  { label: "Water Access", status: "RUNNING", color: theme.success },
-                  { label: "Sanitation", status: "CRITICAL", color: theme.danger },
+                  { label: "Power Supply", status: "STABLE", color: theme.success, icon: "flashlight" },
+                  { label: "Water Access", status: "RUNNING", color: theme.success, icon: "water" },
+                  { label: "Sanitation", status: "CRITICAL", color: theme.danger, icon: "trash" },
                 ].map(item => (
-                  <View key={item.label} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderColor: theme.line }}>
-                    <Text style={{ color: theme.text, fontWeight: "700" }}>{item.label}</Text>
-                    <View style={{ backgroundColor: item.color + "22", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
-                      <Text style={{ color: item.color, fontWeight: "900", fontSize: 10 }}>{item.status}</Text>
+                  <View key={item.label} style={[siteManagerStyles.distroCard, { marginBottom: 0 }]}>
+                    <View style={[siteManagerStyles.distroIconBox, { backgroundColor: item.color + "15" }]}>
+                      <Ionicons name={item.icon as any} size={24} color={item.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.text, ...fonts.bold, fontSize: 16 }}>{item.label}</Text>
+                      <Text style={{ color: theme.textLight, fontSize: 12 }}>Last checked: 14m ago</Text>
+                    </View>
+                    <View style={{ backgroundColor: item.color + "15", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                      <Text style={{ color: item.color, ...fonts.black, fontSize: 10 }}>{item.status}</Text>
                     </View>
                   </View>
                 ))}
-              </View>
-            </SectionCard>
+            </View>
           </View>
         );
 
       case "Distribution":
         return (
-          <View style={{ gap: 16 }}>
-            <SectionCard>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <View>
-                  <Text style={siteManagerStyles.sectionTitle}>Relief Distribution</Text>
-                  <Text style={siteManagerStyles.rowCopy}>Issue supplies to registered evacuees.</Text>
-                </View>
-                <Ionicons name="cube-outline" size={32} color={theme.primary} />
-              </View>
+          <View style={{ gap: 24, paddingHorizontal: 24 }}>
+            <View>
+              <Text style={siteManagerStyles.sectionTitle}>Relief Disbursal</Text>
+              <Text style={siteManagerStyles.sectionSub}>Inventory & Allocation</Text>
+            </View>
 
-              <View style={siteManagerStyles.distroGrid}>
+            <View style={siteManagerStyles.inventoryGrid}>
                 {[
-                  { name: "Water (1L)", stock: 120, icon: "water" },
-                  { name: "Med Kit", stock: 14, icon: "medkit" },
-                  { name: "Family Pack", stock: 45, icon: "gift" },
-                  { name: "Blankets", stock: 88, icon: "bed" },
+                  { name: "Water (1L)", stock: 120, icon: "water", color: theme.info },
+                  { name: "Med Kit", stock: 14, icon: "medkit", color: theme.danger },
+                  { name: "Family Pack", stock: 45, icon: "gift", color: theme.warning },
+                  { name: "Blankets", stock: 88, icon: "bed", color: theme.primary },
                 ].map(item => (
-                  <View key={item.name} style={siteManagerStyles.distroCard}>
-                    <View style={siteManagerStyles.distroIcon}>
-                      <Ionicons name={item.icon as any} size={20} color={theme.primary} />
+                  <View key={item.name} style={siteManagerStyles.inventoryCard}>
+                    <View style={[siteManagerStyles.inventoryIconBox, { backgroundColor: item.color + "15" }]}>
+                      <Ionicons name={item.icon as any} size={22} color={item.color} />
                     </View>
                     <View>
-                      <Text style={{ fontWeight: "800", fontSize: 13, color: theme.text }}>{item.name}</Text>
-                      <Text style={{ fontSize: 11, color: theme.textLight }}>{item.stock} in stock</Text>
+                      <Text style={siteManagerStyles.inventoryLevel}>{item.stock}</Text>
+                      <Text style={siteManagerStyles.inventoryName}>{item.name}</Text>
                     </View>
-                    <Pressable style={{ backgroundColor: theme.primary, borderRadius: 10, paddingVertical: 8, alignItems: "center" }}>
-                      <Text style={{ color: "#fff", fontWeight: "900", fontSize: 11 }}>DISBURSE</Text>
-                    </Pressable>
+                    <TouchableOpacity style={{ backgroundColor: theme.primary, borderRadius: 12, height: 44, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ color: "#fff", ...fonts.black, fontSize: 11, letterSpacing: 0.5 }}>DISBURSE</Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
-              </View>
-            </SectionCard>
-
-            <SectionCard>
-              <Text style={siteManagerStyles.sectionTitle}>Recent Activity</Text>
-              <View style={{ gap: 16, marginTop: 16 }}>
-                {[
-                  { user: "Samuel A.", item: "1x Med Kit", time: "2m ago" },
-                  { user: "Maria R.", item: "3x Water", time: "15m ago" },
-                ].map((log, i) => (
-                  <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.primary }} />
-                      <View>
-                        <Text style={{ fontWeight: "800", color: theme.text }}>{log.user}</Text>
-                        <Text style={{ fontSize: 12, color: theme.textMuted }}>{log.item}</Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 12, color: theme.textLight }}>{log.time}</Text>
-                  </View>
-                ))}
-              </View>
-            </SectionCard>
+            </View>
           </View>
         );
 
       case "Dashboard":
       default:
         return (
-          <View style={{ gap: 16 }}>
-            <SectionCard>
-              <View style={styles.incidentHeader}>
+          <View style={{ gap: 32, paddingHorizontal: 24 }}>
+            <View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <View>
                   <Text style={siteManagerStyles.sectionTitle}>Intake Scanner</Text>
-                  <Text style={siteManagerStyles.rowCopy}>Validate citizen QR IDs for entrance.</Text>
+                  <Text style={siteManagerStyles.sectionSub}>QR Validation System</Text>
                 </View>
-                <View style={{ backgroundColor: theme.primaryLight, borderRadius: 12, padding: 8 }}>
-                  <Text style={{ color: theme.primary, fontWeight: "900", fontSize: 12 }}>ID READY</Text>
-                </View>
+                <Pill label="Scanner Live" tone="primary" />
               </View>
 
-              {checkInMode === "scan" ? (
-                <View style={siteManagerStyles.scannerBox}>
-                  <View style={[styles.corner, styles.tl]} />
-                  <View style={[styles.corner, styles.tr]} />
-                  <View style={[styles.corner, styles.bl]} />
-                  <View style={[styles.corner, styles.br]} />
-                  <Ionicons name="qr-code-outline" size={80} color="rgba(255,255,255,0.2)" />
-                  <Animated.View style={[styles.laser, { transform: [{ translateY }] }]} />
-                  <Text style={[siteManagerStyles.scannerText, { position: "absolute", bottom: 16 }]}>
-                    Position QR within frame
-                  </Text>
-                </View>
-              ) : (
-                <View style={[siteManagerStyles.scannerBox, { backgroundColor: theme.surfaceSoft, borderWidth: 1, borderColor: theme.line }]}>
-                  <Ionicons name="create-outline" size={48} color={theme.textLight} />
-                  <Text style={{ color: theme.textMuted, marginTop: 8, fontWeight: "600" }}>Manual Entry Mode</Text>
-                </View>
-              )}
-
-              <View style={siteManagerStyles.modeRow}>
-                <Button
-                  label="Scan QR Code"
-                  onPress={() => setCheckInMode("scan")}
-                  tone={checkInMode === "scan" ? "primary" : "ghost"}
-                />
-                <Button
-                  label="Manual Entry"
-                  onPress={() => setCheckInMode("manual")}
-                  tone={checkInMode === "manual" ? "primary" : "ghost"}
-                />
-              </View>
-              
-              {checkInMode === "manual" ? (
-                <View style={siteManagerStyles.manualWrap}>
-                  <Input label="Evacuee Name" placeholder="Enter full name" />
-                  <Input label="Temporary ID" placeholder="Assign or enter ID" />
-                  <Button label="Save Manual Entry" onPress={() => {}} />
-                </View>
-              ) : (
-                <Text style={siteManagerStyles.helperText}>
-                  Manual intake is hidden. Tap "Manual Entry" above to manually register evacuees without IDs.
-                </Text>
-              )}
-            </SectionCard>
-
-            <SectionCard>
-              <View style={styles.incidentHeader}>
-                <View>
-                  <Text style={siteManagerStyles.sectionTitle}>Report Site Incident</Text>
-                  <Text style={{ color: theme.textMuted, fontSize: 13 }}>Log critical events immediately</Text>
-                </View>
-                <View style={{ backgroundColor: theme.dangerLight, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ color: theme.danger, fontWeight: "800", fontSize: 10 }}>3 ACTIVE</Text>
-                </View>
-              </View>
-
-              <View style={{ gap: 16 }}>
-                <View style={styles.manualWrap}>
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: theme.textMuted, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                    Incident Type
-                  </Text>
-                  <Pressable style={styles.typePicker} onPress={() => setShowTypePicker(true)}>
-                    <Text style={{ color: theme.text }}>{incidentType}</Text>
-                    <Ionicons name="chevron-down" size={20} color={theme.textLight} />
-                  </Pressable>
-                </View>
-                <Input 
-                  label="Detailed Description" 
-                  placeholder="Briefly describe the situation..." 
-                  onChangeText={setDescription}
-                />
-                <View style={styles.severityRow}>
-                  {["low", "medium", "high"].map(s => (
-                    <Pressable 
-                      key={s} 
-                      onPress={() => setSeverity(s as any)}
-                      style={[
-                        styles.severityBtn, 
-                        severity === s && { 
-                          backgroundColor: s === "high" ? theme.dangerLight : s === "medium" ? theme.warningLight : theme.primaryLight, 
-                          borderColor: s === "high" ? theme.danger : s === "medium" ? theme.warning : theme.primary 
-                        }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.severityLabel, 
-                        severity === s && { 
-                          color: s === "high" ? theme.danger : s === "medium" ? theme.warning : theme.primary 
-                        }
-                      ]}>{s}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Button 
-                  label="Post Incident Report" 
-                  onPress={() => {
-                    console.log("Reporting:", { incidentType, description, severity });
-                    alert(`Reported: ${incidentType} (${severity})`);
-                  }} 
-                  tone="danger" 
-                />
-              </View>
-
-              {/* Type Picker Modal */}
-              <Modal visible={showTypePicker} transparent animationType="slide">
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-                  <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                      <Text style={{ fontSize: 20, fontWeight: "900", color: theme.text }}>Select Incident Type</Text>
-                      <Pressable onPress={() => setShowTypePicker(false)}>
-                        <Ionicons name="close-circle" size={28} color={theme.textLight} />
-                      </Pressable>
-                    </View>
-                    <View style={{ gap: 12 }}>
-                      {incidentTypes.map(type => (
-                        <Pressable 
-                          key={type} 
-                          onPress={() => {
-                            setIncidentType(type);
-                            setShowTypePicker(false);
-                          }}
-                          style={{ 
-                            padding: 18, 
-                            borderRadius: 16, 
-                            backgroundColor: incidentType === type ? theme.primaryLight : theme.surfaceSoft,
-                            borderWidth: 1,
-                            borderColor: incidentType === type ? theme.primary : theme.line,
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                          }}
-                        >
-                          <Text style={{ color: incidentType === type ? theme.primary : theme.text, fontWeight: "700" }}>{type}</Text>
-                          {incidentType === type && <Ionicons name="checkmark-circle" size={20} color={theme.primary} />}
-                        </Pressable>
-                      ))}
+              <View style={{ marginTop: 20 }}>
+                {checkInMode === "scan" ? (
+                  <View style={siteManagerStyles.scannerHero}>
+                    <View style={siteManagerStyles.scannerOverlay} />
+                    <Animated.View style={[siteManagerStyles.scannerBeam, { transform: [{ translateY }] }]} />
+                    <Ionicons name="qr-code-outline" size={80} color="rgba(255,255,255,0.1)" />
+                    <View style={{ position: "absolute", bottom: 24, backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 }}>
+                       <Text style={{ color: "#fff", ...fonts.bold, fontSize: 12 }}>Align QR ID within frame</Text>
                     </View>
                   </View>
+                ) : (
+                  <View style={[siteManagerStyles.scannerHero, { backgroundColor: theme.surfaceAlt, borderWidth: 2, borderStyle: "dashed", borderColor: theme.line }]}>
+                    <Ionicons name="create-outline" size={48} color={theme.textLight} />
+                    <Text style={{ color: theme.textMuted, marginTop: 12, ...fonts.bold }}>Manual Entry Mode</Text>
+                  </View>
+                )}
+
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <TouchableOpacity 
+                    onPress={() => setCheckInMode("scan")}
+                    style={{ flex: 1, height: 60, borderRadius: 20, backgroundColor: checkInMode === 'scan' ? theme.primary : theme.surfaceAlt, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: checkInMode === 'scan' ? theme.primary : theme.line }}
+                  >
+                    <Text style={{ color: checkInMode === 'scan' ? "#fff" : theme.textLight, ...fonts.black, fontSize: 14 }}>SCAN QR</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => setCheckInMode("manual")}
+                    style={{ flex: 1, height: 60, borderRadius: 20, backgroundColor: checkInMode === 'manual' ? theme.primary : theme.surfaceAlt, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: checkInMode === 'manual' ? theme.primary : theme.line }}
+                  >
+                    <Text style={{ color: checkInMode === 'manual' ? "#fff" : theme.textLight, ...fonts.black, fontSize: 14 }}>MANUAL</Text>
+                  </TouchableOpacity>
                 </View>
-              </Modal>
-            </SectionCard>
+
+                {checkInMode === "manual" && (
+                  <View style={{ marginTop: 20, gap: 16 }}>
+                    <Input label="Full Name" placeholder="e.g. Elena Villacruz" />
+                    <Input label="Temporary ID" placeholder="284-XXX-XXX" />
+                    <TouchableOpacity style={{ height: 60, backgroundColor: theme.primary, borderRadius: 20, alignItems: "center", justifyContent: "center" }}>
+                      <Text style={{ color: "#fff", ...fonts.black, fontSize: 15 }}>VALIDATE ENTRANCE</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View>
+              <Text style={siteManagerStyles.sectionTitle}>Report Site Incident</Text>
+              <Text style={siteManagerStyles.sectionSub}>Log Critical Site Events</Text>
+              
+              <View style={{ marginTop: 20, gap: 16 }}>
+                 <View style={{ gap: 8 }}>
+                    <Text style={{ fontSize: 11, ...fonts.bold, color: theme.textLight, textTransform: "uppercase", letterSpacing: 1.5 }}>Incident Category</Text>
+                    <TouchableOpacity onPress={() => setShowTypePicker(true)} style={{ height: 64, borderRadius: 20, backgroundColor: theme.surfaceAlt, borderWidth: 1.5, borderColor: theme.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20 }}>
+                       <Text style={{ fontSize: 16, ...fonts.semibold, color: theme.text }}>{incidentType}</Text>
+                       <Ionicons name="chevron-down" size={20} color={theme.textLight} />
+                    </TouchableOpacity>
+                 </View>
+
+                 <Input label="Situation Brief" placeholder="Briefly describe the emergency..." />
+
+                 <View style={{ flexDirection: "row", gap: 12 }}>
+                    {["low", "medium", "high"].map((s) => (
+                      <TouchableOpacity 
+                        key={s} 
+                        onPress={() => setSeverity(s as any)}
+                        style={{ 
+                          flex: 1, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", 
+                          backgroundColor: severity === s ? (s === 'high' ? theme.danger : s === 'medium' ? theme.warning : theme.primary) : theme.surfaceAlt,
+                          borderWidth: 1.5, borderColor: severity === s ? (s === 'high' ? theme.danger : s === 'medium' ? theme.warning : theme.primary) : theme.line
+                        }}
+                      >
+                        <Text style={{ color: severity === s ? "#fff" : theme.textLight, ...fonts.black, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                 </View>
+
+                 <TouchableOpacity style={{ height: 64, borderRadius: 22, backgroundColor: theme.danger, alignItems: "center", justifyContent: "center", shadowColor: theme.danger, shadowOpacity: 0.3, shadowRadius: 15, shadowOffset: { width: 0, height: 8 } }}>
+                    <Text style={{ color: "#fff", ...fonts.black, fontSize: 16, letterSpacing: 1 }}>BROADCAST INCIDENT</Text>
+                 </TouchableOpacity>
+              </View>
+            </View>
           </View>
         );
     }
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ backgroundColor: theme.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}>
-        <MobileHeader title="Damayan Portal" subtitle="Site Manager" onBack={onBack} />
-        <NavPills
-          items={["Dashboard", "Assessment", "Distribution", "Recovery"]}
-          active={active}
-          onSelect={setActive}
-        />
-
-      {/* Swimlane Metrics */}
-      <View style={siteManagerStyles.swimlane}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={siteManagerStyles.swimScroll}
-        >
-          <View style={siteManagerStyles.swimItem}>
-            <View style={siteManagerStyles.swimDot} />
-            <Text style={siteManagerStyles.swimLabel}>SHELTER LOAD</Text>
-            <Text style={siteManagerStyles.swimValue}>84%</Text>
-          </View>
-          <View style={{ width: 1, height: 14, backgroundColor: theme.line }} />
-          <View style={siteManagerStyles.swimItem}>
-            <Text style={siteManagerStyles.swimLabel}>SUPPLIES</Text>
-            <Text style={siteManagerStyles.swimValue}>SECURE</Text>
-          </View>
-          <View style={{ width: 1, height: 14, backgroundColor: theme.line }} />
-          <View style={siteManagerStyles.swimItem}>
-            <Text style={siteManagerStyles.swimLabel}>TEAMS</Text>
-            <Text style={siteManagerStyles.swimValue}>12 ACTIVE</Text>
-          </View>
-          <View style={{ width: 1, height: 14, backgroundColor: theme.line }} />
-          <View style={siteManagerStyles.swimItem}>
-            <Text style={siteManagerStyles.swimLabel}>ZONE</Text>
-            <Text style={siteManagerStyles.swimValue}>SECTOR 4</Text>
-          </View>
-        </ScrollView>
-      </View>
-    </View>
-
-      <Screen>
+    <View style={siteManagerStyles.shell}>
+      <ScrollView contentContainerStyle={siteManagerStyles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={{ height: 24 }} />
         {renderContent()}
-      </Screen>
+        <View style={{ height: 120 }} />
+      </ScrollView>
 
-      {/* FAB */}
-      <Pressable 
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: 20,
-          backgroundColor: theme.primary,
-          paddingHorizontal: 20,
-          paddingVertical: 14,
-          borderRadius: 999,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          shadowColor: theme.primary,
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.3,
-          shadowRadius: 15,
-          elevation: 8,
-        }}
+      {/* Incident FAB */}
+      <TouchableOpacity 
+        style={{ position: "absolute", right: 24, bottom: 32, width: 72, height: 72, borderRadius: 24, backgroundColor: theme.danger, alignItems: "center", justifyContent: "center", shadowColor: theme.danger, shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 12 }}
       >
-        <View style={{ width: 22, height: 22, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 11, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}>!</Text>
+        <Ionicons name=" megaphone" size={32} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Type Picker Modal */}
+      <Modal visible={showTypePicker} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <Text style={{ fontSize: 22, ...fonts.black, color: theme.text }}>Incident Type</Text>
+              <TouchableOpacity onPress={() => setShowTypePicker(false)}>
+                <Ionicons name="close-circle" size={32} color={theme.textLight} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ gap: 12 }}>
+              {incidentTypes.map(type => (
+                <TouchableOpacity 
+                  key={type} 
+                  onPress={() => { setIncidentType(type); setShowTypePicker(false); }}
+                  style={{ 
+                    padding: 20, borderRadius: 20, backgroundColor: incidentType === type ? theme.primarySoft : theme.surfaceAlt, 
+                    borderWidth: 1.5, borderColor: incidentType === type ? theme.primary : theme.line,
+                    flexDirection: "row", justifyContent: "space-between", alignItems: "center"
+                  }}
+                >
+                  <Text style={{ color: incidentType === type ? theme.primary : theme.text, ...fonts.bold, fontSize: 16 }}>{type}</Text>
+                  {incidentType === type && <Ionicons name="checkmark-circle" size={24} color={theme.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
-        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>Broadcast Alert</Text>
-      </Pressable>
+      </Modal>
     </View>
   );
 }
-
-

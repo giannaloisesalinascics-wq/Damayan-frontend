@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { CitizenBottomNav } from "../../shared";
 import { theme, fonts } from "../../../theme";
 import { styles } from "../styles/CitizenHouseholdRegistrationScreen.styles";
 
@@ -155,8 +154,6 @@ export function CitizenHouseholdRegistrationScreen({
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </Pressable>
       </View>
-
-      <CitizenBottomNav active={active} />
     </ScrollView>
   );
 }

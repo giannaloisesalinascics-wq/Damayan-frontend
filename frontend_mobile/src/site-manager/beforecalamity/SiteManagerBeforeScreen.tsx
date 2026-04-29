@@ -1,10 +1,9 @@
-import React, { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { Pressable, Text, View, ScrollView, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MobileHeader, NavPills } from "../../components/MobileShell";
-import { Button, Pill, Screen, SectionCard } from "../../components/UI";
+import { Screen, Pill, SectionCard } from "../../components/UI";
 import { siteManagerStyles } from "../shared";
-import { theme } from "../../theme";
+import { theme, fonts } from "../../theme";
 
 export function SiteManagerBeforeScreen({
   onBack,
@@ -13,12 +12,12 @@ export function SiteManagerBeforeScreen({
   onBack: () => void;
   onOpenResponse: () => void;
 }) {
-  const [active, setActive] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("Dashboard");
   
   const [checklist, setChecklist] = useState([
-    { id: "1", label: "Verify Inventory & Capacity", status: "Pending" },
-    { id: "2", label: "Enable Check-In Scanner", status: "Pending" },
-    { id: "3", label: "Confirm Responder Coverage", status: "Pending" },
+    { id: "1", label: "Verify Shelter Inventory", status: "Pending", icon: "cube" },
+    { id: "2", label: "Scanner Hardware Sync", status: "Pending", icon: "qr-code" },
+    { id: "3", label: "Coverage Confirmation", status: "Pending", icon: "people" },
   ]);
 
   const toggleItem = (id: string) => {
@@ -35,145 +34,159 @@ export function SiteManagerBeforeScreen({
   const progressPercent = (completedCount / checklist.length) * 100;
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ backgroundColor: theme.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}>
-        <MobileHeader title="Damayan Portal" subtitle="Site Manager" onBack={onBack} />
-        <NavPills
-          items={["Dashboard", "Assessment", "Distribution", "Recovery"]}
-          active={active}
-          onSelect={setActive}
-        />
-      </View>
-
-      <Screen>
-      <SectionCard style={siteManagerStyles.primaryHero}>
-        <Pill label="Phase 1" tone="warning" />
-        <Text style={siteManagerStyles.heroTitle}>Regional Preparedness Dashboard</Text>
-        <Text style={siteManagerStyles.heroText}>
-          Monitor shelter readiness, inventory, and intake scanner preparation.
-        </Text>
-        
-        {/* Metric Row */}
-        <View style={siteManagerStyles.metricRow}>
-          <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>88%</Text>
-            <Text style={siteManagerStyles.metricLabel}>Readiness</Text>
+    <View style={siteManagerStyles.shell}>
+      <ScrollView contentContainerStyle={siteManagerStyles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={{ height: 24 }} />
+        {/* Hero Dashboard */}
+        <View style={siteManagerStyles.primaryHero}>
+          <View style={siteManagerStyles.heroGradient} />
+          <View style={{ alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 }}>
+            <Text style={{ color: "#fff", fontSize: 10, ...fonts.black, letterSpacing: 1.5 }}>PREPAREDNESS MODE</Text>
           </View>
-          <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>72h</Text>
-            <Text style={siteManagerStyles.metricLabel}>Window</Text>
+          <Text style={siteManagerStyles.heroTitle}>Regional Readiness Dashboard</Text>
+          <Text style={siteManagerStyles.heroText}>
+            Monitoring shelter capacity, critical supplies, and intake system preparation.
+          </Text>
+          
+          <View style={siteManagerStyles.metricRow}>
+            <View style={siteManagerStyles.metricCard}>
+              <Text style={siteManagerStyles.metricValue}>94%</Text>
+              <Text style={siteManagerStyles.metricLabel}>Capacity</Text>
+            </View>
+            <View style={siteManagerStyles.metricCard}>
+              <Text style={siteManagerStyles.metricValue}>12h</Text>
+              <Text style={siteManagerStyles.metricLabel}>Sync Age</Text>
+            </View>
+            <View style={siteManagerStyles.metricCard}>
+              <Text style={siteManagerStyles.metricValue}>8/10</Text>
+              <Text style={siteManagerStyles.metricLabel}>Zones</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            onPress={onOpenResponse}
+            style={{ 
+              backgroundColor: "#fff", 
+              height: 64, 
+              borderRadius: 22, 
+              flexDirection: "row", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              gap: 12, 
+              marginTop: 8,
+              shadowColor: "#000",
+              shadowOpacity: 0.1,
+              shadowRadius: 10
+            }}
+          >
+            <Text style={{ color: theme.primary, fontSize: 16, ...fonts.black, letterSpacing: 1 }}>OPEN ACTIVE RESPONSE</Text>
+            <Ionicons name="flash" size={18} color={theme.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Readiness Checklist */}
+        <View style={{ paddingHorizontal: 24, marginTop: 32 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
+            <View>
+              <Text style={siteManagerStyles.sectionTitle}>Operational Tasks</Text>
+              <Text style={siteManagerStyles.sectionSub}>Critical Steps to Response</Text>
+            </View>
+            <Text style={{ fontSize: 14, ...fonts.black, color: theme.primary }}>{completedCount}/{checklist.length}</Text>
+          </View>
+
+          <View style={siteManagerStyles.checkCard}>
+            <View style={{ height: 6, backgroundColor: theme.surfaceAlt, borderRadius: 3, marginBottom: 24, overflow: "hidden" }}>
+              <View style={{ height: "100%", width: `${progressPercent}%`, backgroundColor: theme.primary }} />
+            </View>
+
+            {checklist.map((item, idx) => {
+              const isReady = item.status === "Ready";
+              return (
+                <TouchableOpacity 
+                  key={item.id} 
+                  onPress={() => toggleItem(item.id)}
+                  style={[
+                    siteManagerStyles.checkRow,
+                    idx < checklist.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.line, paddingBottom: 16, marginBottom: 16 }
+                  ]}
+                >
+                  <View style={[siteManagerStyles.checkIconWrap, isReady && { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
+                    <Ionicons 
+                      name={isReady ? "checkmark-circle" : (item.icon as any)} 
+                      size={20} 
+                      color={isReady ? theme.primary : theme.textLight} 
+                    />
+                  </View>
+                  <Text style={[siteManagerStyles.checkLabel, isReady && { color: theme.textLight, textDecorationLine: "line-through" }]}>
+                    {item.label}
+                  </Text>
+                  <Pill label={item.status} tone={isReady ? "primary" : "default"} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        <Button label="Open Active Response" tone="secondary" onPress={onOpenResponse} />
-      </SectionCard>
-
-      {/* Before Calamity Tasks */}
-      <SectionCard>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
-          <Text style={siteManagerStyles.sectionTitle}>Before Calamity</Text>
-          <Text style={{ fontWeight: "800", color: theme.textLight }}>{completedCount} / {checklist.length}</Text>
-        </View>
-        
-          <View style={{ height: 8, backgroundColor: theme.surfaceSoft, borderRadius: 4, marginBottom: 20, overflow: "hidden" }}>
-          <View style={{ height: "100%", width: `${progressPercent}%` as const, backgroundColor: theme.primary }} />
+        {/* Supply Inventory Grid */}
+        <View style={{ paddingHorizontal: 24, marginTop: 32 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <View>
+              <Text style={siteManagerStyles.sectionTitle}>Global Inventory</Text>
+              <Text style={siteManagerStyles.sectionSub}>Resource Distribution</Text>
+            </View>
+            <TouchableOpacity>
+              <Text style={{ fontSize: 12, ...fonts.black, color: theme.primary, letterSpacing: 1 }}>VIEW ALL</Text>
+            </TouchableOpacity>
           </View>
 
-        {checklist.map((item) => {
-          const isReady = item.status === "Ready";
-          return (
-            <Pressable 
-              key={item.id} 
-              style={[siteManagerStyles.checkRow, { opacity: isReady ? 0.6 : 1 }]}
-              onPress={() => toggleItem(item.id)}
-            >
-              <Ionicons 
-                name={isReady ? "checkmark-circle" : "ellipse-outline"} 
-                size={24} 
-                color={isReady ? theme.success : theme.textLight} 
-              />
-              <Text style={[siteManagerStyles.checkLabel, isReady && { textDecorationLine: "line-through", color: theme.textLight }]}>
-                {item.label}
-              </Text>
-              <Pill label={item.status} tone={isReady ? "success" : "default"} />
-            </Pressable>
-          );
-        })}
-      </SectionCard>
-
-      {/* Supply Inventory Grid */}
-      <SectionCard>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <Text style={siteManagerStyles.sectionTitle}>Supply Inventory</Text>
-          <Text style={{ fontSize: 12, color: theme.primary, fontWeight: "800" }}>VIEW ALL</Text>
-        </View>
-        
-        <View style={siteManagerStyles.inventoryGrid}>
-          {[
-            { icon: "water", name: "Potable Water", level: "92%", color: theme.primary },
-            { icon: "medical", name: "Medical Kits", level: "84%", color: theme.primary },
-            { icon: "leaf", name: "Dry Rations", level: "95%", color: theme.primary },
-            { icon: "bed", name: "Blankets", level: "61%", color: theme.warning },
-          ].map((item, idx) => (
-            <View key={idx} style={siteManagerStyles.inventoryItem}>
-              <View style={[siteManagerStyles.inventoryIcon, { backgroundColor: item.color + "15" }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
+          <View style={siteManagerStyles.inventoryGrid}>
+            {[
+              { icon: "water", name: "Potable Water", level: "92%", color: theme.info },
+              { icon: "medkit", name: "Medical Kits", level: "84%", color: theme.danger },
+              { icon: "fast-food", name: "Dry Rations", level: "95%", color: theme.warning },
+              { icon: "bed", name: "Blankets", level: "61%", color: theme.primary },
+            ].map((item, idx) => (
+              <View key={idx} style={siteManagerStyles.inventoryCard}>
+                <View style={[siteManagerStyles.inventoryIconBox, { backgroundColor: item.color + "15" }]}>
+                  <Ionicons name={item.icon as any} size={22} color={item.color} />
+                </View>
+                <View>
+                  <Text style={siteManagerStyles.inventoryLevel}>{item.level}</Text>
+                  <Text style={siteManagerStyles.inventoryName}>{item.name}</Text>
+                </View>
+                <View style={{ height: 4, backgroundColor: theme.line, borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ height: "100%", width: item.level, backgroundColor: item.color }} />
+                </View>
               </View>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: theme.text }}>{item.level}</Text>
-              <Text style={{ fontSize: 11, color: theme.textMuted }}>{item.name}</Text>
+            ))}
+          </View>
+        </View>
+
+        {/* Recent Activity Log */}
+        <View style={{ paddingHorizontal: 24, marginTop: 32 }}>
+          <Text style={siteManagerStyles.sectionTitle}>Live Activity Feed</Text>
+          <Text style={[siteManagerStyles.sectionSub, { marginBottom: 24 }]}>Real-time updates</Text>
+
+          {[
+            { time: "08:45 AM", title: "Convoy Delta Arrival", desc: "15 Medical responders safely staged at Sector 7.", type: "success" },
+            { time: "07:12 AM", title: "Comms Uplink Stable", desc: "Satellite signal confirmed at 94% efficiency.", type: "info" },
+            { time: "06:30 AM", title: "Inventory Audit", desc: "Potable water supply verified at main cluster.", type: "primary" },
+          ].map((item, idx, arr) => (
+            <View key={idx} style={siteManagerStyles.activityItem}>
+              <Text style={siteManagerStyles.activityTime}>{item.time}</Text>
+              <View style={siteManagerStyles.activityIndicator}>
+                <View style={[siteManagerStyles.activityDot, { backgroundColor: item.type === 'success' ? theme.success : item.type === 'info' ? theme.info : theme.primary }]} />
+                {idx < arr.length - 1 && <View style={siteManagerStyles.activityLine} />}
+              </View>
+              <View style={siteManagerStyles.activityContent}>
+                <Text style={siteManagerStyles.activityTitle}>{item.title}</Text>
+                <Text style={siteManagerStyles.activityDesc}>{item.desc}</Text>
+              </View>
             </View>
           ))}
         </View>
-      </SectionCard>
-
-      {/* Deployment Tracker */}
-      <SectionCard>
-        <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 16 }]}>Team Deployment</Text>
-        
-        {[
-          { label: "Medical Responders", current: 24, total: 30, percent: "80%" },
-          { label: "Logistics Personnel", current: 12, total: 12, percent: "100%" },
-          { label: "Community Volunteers", current: 145, total: 200, percent: "72%" },
-        ].map((item, idx) => (
-          <View key={idx} style={{ marginBottom: 16 }}>
-            <View style={siteManagerStyles.progRow}>
-              <Text style={siteManagerStyles.progLabel}>{item.label}</Text>
-              <Text style={{ fontSize: 12, color: theme.textMuted }}>{item.current} / {item.total}</Text>
-            </View>
-            <View style={{ height: 6, backgroundColor: theme.surfaceSoft, borderRadius: 3, overflow: "hidden" }}>
-              <View
-                style={{
-                  height: "100%",
-                  width: item.percent as `${number}%`,
-                  backgroundColor: item.percent === "100%" ? theme.success : theme.primary,
-                }}
-              />
-            </View>
-          </View>
-        ))}
-      </SectionCard>
-
-      {/* Timeline */}
-      <SectionCard>
-        <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 20 }]}>Recent Activities</Text>
-        {[
-          { time: "08:45 AM", title: "Convoy Gamma Arrived", desc: "10 Responders safely staged at Sector 4." },
-          { time: "07:12 AM", title: "Sector 4 Comms Live", desc: "Satellite uplink established (92% signal)." },
-        ].map((item, idx, arr) => (
-          <View key={idx} style={siteManagerStyles.timelineItem}>
-            <View>
-              <View style={siteManagerStyles.timelineDot} />
-              {idx < arr.length - 1 && <View style={siteManagerStyles.timelineLine} />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: "800", color: theme.textLight }}>{item.time}</Text>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: theme.text, marginTop: 2 }}>{item.title}</Text>
-              <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 4, lineHeight: 18 }}>{item.desc}</Text>
-            </View>
-          </View>
-        ))}
-      </SectionCard>
-    </Screen>
+        <View style={{ height: 120 }} />
+      </ScrollView>
     </View>
   );
 }

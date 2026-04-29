@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Image, Pressable, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, Screen } from "../../../components/UI";
-import { CitizenBottomNav } from "../../shared";
 import { theme, fonts } from "../../../theme";
 import { styles } from "../styles/CitizenIndividualRegistrationScreen.styles";
 
@@ -131,10 +130,7 @@ export function CitizenIndividualRegistrationScreen({
           <Text style={styles.primaryActionText}>Save to Device</Text>
         </Pressable>
 
-        <Button label="Go To Dashboard" onPress={onContinue} tone="ghost" />
       </View>
-
-      <CitizenBottomNav active="qr" />
     </Screen>
   );
 }

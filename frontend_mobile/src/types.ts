@@ -11,10 +11,13 @@ export type AppRoute =
   | "site-manager-signup"
   | "site-manager-before"
   | "site-manager-during"
+  | "site-manager-dashboard"
   | "citizen-login"
   | "citizen-signup"
+  | "citizen-dashboard"
   | "citizen-before"
   | "citizen-before-self"
   | "citizen-before-household"
   | "citizen-before-household-members"
-  | "citizen-during";
+  | "citizen-during"
+  | "citizen-after";
