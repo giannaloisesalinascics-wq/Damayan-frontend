@@ -1,179 +1,254 @@
-import React, { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { Pressable, Text, View, ScrollView, TouchableOpacity, Animated, Image, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MobileHeader, NavPills } from "../../components/MobileShell";
-import { Button, Pill, Screen, SectionCard } from "../../components/UI";
-import { siteManagerStyles } from "../shared";
-import { theme } from "../../theme";
+import { theme, fonts, lightTheme, darkTheme } from "../../theme";
 
 export function SiteManagerBeforeScreen({
   onBack,
   onOpenResponse,
+  isDarkMode,
 }: {
   onBack: () => void;
   onOpenResponse: () => void;
+  isDarkMode?: boolean;
 }) {
-  const [active, setActive] = useState("Dashboard");
-  
-  const [checklist, setChecklist] = useState([
-    { id: "1", label: "Verify Inventory & Capacity", status: "Pending" },
-    { id: "2", label: "Enable Check-In Scanner", status: "Pending" },
-    { id: "3", label: "Confirm Responder Coverage", status: "Pending" },
-  ]);
-
-  const toggleItem = (id: string) => {
-    setChecklist(prev =>
-      prev.map(item =>
-        item.id === id
-          ? { ...item, status: item.status === "Pending" ? "Ready" : "Pending" }
-          : item
-      )
-    );
-  };
-
-  const completedCount = checklist.filter(i => i.status === "Ready").length;
-  const progressPercent = (completedCount / checklist.length) * 100;
+  const [activeTab, setActiveTab] = useState("Dashboard");
+  const theme = isDarkMode ? darkTheme : lightTheme;
+  const localStyles = getStyles(theme);
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <View style={{ backgroundColor: theme.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 }}>
-        <MobileHeader title="Damayan Portal" subtitle="Site Manager" onBack={onBack} />
-        <NavPills
-          items={["Dashboard", "Assessment", "Distribution", "Recovery"]}
-          active={active}
-          onSelect={setActive}
-        />
+    <ScrollView 
+      style={localStyles.container}
+      contentContainerStyle={localStyles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={localStyles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <View style={localStyles.statusBadge}>
+            <View style={localStyles.statusDot} />
+            <Text style={localStyles.statusBadgeText}>STAGING & READINESS MODE</Text>
+          </View>
+          <Text style={localStyles.dashboardTitle}>Regional Logistics{"\n"}& Staging Hub</Text>
+          <Text style={localStyles.dashboardSub}>
+            Monitoring regional readiness, resource pre-positioning, and personnel staging. Site is currently 88% ready.
+          </Text>
+        </View>
+        <TouchableOpacity style={localStyles.scoreCard} onPress={onBack}>
+          <Text style={localStyles.scoreValue}>88%</Text>
+          <Text style={localStyles.scoreLabel}>STAGING SCORE</Text>
+        </TouchableOpacity>
       </View>
 
-      <Screen>
-      <SectionCard style={siteManagerStyles.primaryHero}>
-        <Pill label="Phase 1" tone="warning" />
-        <Text style={siteManagerStyles.heroTitle}>Regional Preparedness Dashboard</Text>
-        <Text style={siteManagerStyles.heroText}>
-          Monitor shelter readiness, inventory, and intake scanner preparation.
-        </Text>
-        
-        {/* Metric Row */}
-        <View style={siteManagerStyles.metricRow}>
-          <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>88%</Text>
-            <Text style={siteManagerStyles.metricLabel}>Readiness</Text>
-          </View>
-          <View style={siteManagerStyles.metricCard}>
-            <Text style={siteManagerStyles.metricValue}>72h</Text>
-            <Text style={siteManagerStyles.metricLabel}>Window</Text>
-          </View>
-        </View>
-
-        <Button label="Open Active Response" tone="secondary" onPress={onOpenResponse} />
-      </SectionCard>
-
-      {/* Before Calamity Tasks */}
-      <SectionCard>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
-          <Text style={siteManagerStyles.sectionTitle}>Before Calamity</Text>
-          <Text style={{ fontWeight: "800", color: theme.textLight }}>{completedCount} / {checklist.length}</Text>
-        </View>
-        
-          <View style={{ height: 8, backgroundColor: theme.surfaceSoft, borderRadius: 4, marginBottom: 20, overflow: "hidden" }}>
-          <View style={{ height: "100%", width: `${progressPercent}%` as const, backgroundColor: theme.primary }} />
-          </View>
-
-        {checklist.map((item) => {
-          const isReady = item.status === "Ready";
-          return (
-            <Pressable 
-              key={item.id} 
-              style={[siteManagerStyles.checkRow, { opacity: isReady ? 0.6 : 1 }]}
-              onPress={() => toggleItem(item.id)}
-            >
-              <Ionicons 
-                name={isReady ? "checkmark-circle" : "ellipse-outline"} 
-                size={24} 
-                color={isReady ? theme.success : theme.textLight} 
-              />
-              <Text style={[siteManagerStyles.checkLabel, isReady && { textDecorationLine: "line-through", color: theme.textLight }]}>
-                {item.label}
-              </Text>
-              <Pill label={item.status} tone={isReady ? "success" : "default"} />
-            </Pressable>
-          );
-        })}
-      </SectionCard>
-
-      {/* Supply Inventory Grid */}
-      <SectionCard>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <Text style={siteManagerStyles.sectionTitle}>Supply Inventory</Text>
-          <Text style={{ fontSize: 12, color: theme.primary, fontWeight: "800" }}>VIEW ALL</Text>
-        </View>
-        
-        <View style={siteManagerStyles.inventoryGrid}>
-          {[
-            { icon: "water", name: "Potable Water", level: "92%", color: theme.primary },
-            { icon: "medical", name: "Medical Kits", level: "84%", color: theme.primary },
-            { icon: "leaf", name: "Dry Rations", level: "95%", color: theme.primary },
-            { icon: "bed", name: "Blankets", level: "61%", color: theme.warning },
-          ].map((item, idx) => (
-            <View key={idx} style={siteManagerStyles.inventoryItem}>
-              <View style={[siteManagerStyles.inventoryIcon, { backgroundColor: item.color + "15" }]}>
-                <Ionicons name={item.icon as any} size={18} color={item.color} />
-              </View>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: theme.text }}>{item.level}</Text>
-              <Text style={{ fontSize: 11, color: theme.textMuted }}>{item.name}</Text>
-            </View>
-          ))}
-        </View>
-      </SectionCard>
-
-      {/* Deployment Tracker */}
-      <SectionCard>
-        <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 16 }]}>Team Deployment</Text>
-        
-        {[
-          { label: "Medical Responders", current: 24, total: 30, percent: "80%" },
-          { label: "Logistics Personnel", current: 12, total: 12, percent: "100%" },
-          { label: "Community Volunteers", current: 145, total: 200, percent: "72%" },
-        ].map((item, idx) => (
-          <View key={idx} style={{ marginBottom: 16 }}>
-            <View style={siteManagerStyles.progRow}>
-              <Text style={siteManagerStyles.progLabel}>{item.label}</Text>
-              <Text style={{ fontSize: 12, color: theme.textMuted }}>{item.current} / {item.total}</Text>
-            </View>
-            <View style={{ height: 6, backgroundColor: theme.surfaceSoft, borderRadius: 3, overflow: "hidden" }}>
-              <View
-                style={{
-                  height: "100%",
-                  width: item.percent as `${number}%`,
-                  backgroundColor: item.percent === "100%" ? theme.success : theme.primary,
-                }}
-              />
-            </View>
-          </View>
-        ))}
-      </SectionCard>
-
-      {/* Timeline */}
-      <SectionCard>
-        <Text style={[siteManagerStyles.sectionTitle, { marginBottom: 20 }]}>Recent Activities</Text>
-        {[
-          { time: "08:45 AM", title: "Convoy Gamma Arrived", desc: "10 Responders safely staged at Sector 4." },
-          { time: "07:12 AM", title: "Sector 4 Comms Live", desc: "Satellite uplink established (92% signal)." },
-        ].map((item, idx, arr) => (
-          <View key={idx} style={siteManagerStyles.timelineItem}>
+      <View style={localStyles.mainSection}>
+        {/* Before Calamity Checklist */}
+        <View style={localStyles.checklistSection}>
+          <View style={localStyles.sectionHeaderRow}>
             <View>
-              <View style={siteManagerStyles.timelineDot} />
-              {idx < arr.length - 1 && <View style={siteManagerStyles.timelineLine} />}
+              <Text style={localStyles.sectionTitle}>Before Calamity Checklist</Text>
+              <Text style={localStyles.sectionSub}>Core readiness actions aligned to your swimlane before the response phase begins.</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: "800", color: theme.textLight }}>{item.time}</Text>
-              <Text style={{ fontSize: 15, fontWeight: "800", color: theme.text, marginTop: 2 }}>{item.title}</Text>
-              <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 4, lineHeight: 18 }}>{item.desc}</Text>
+            <View style={localStyles.priorityBadge}>
+               <Ionicons name="shield-checkmark" size={14} color={theme.primary} />
+               <Text style={localStyles.priorityText}>Priority Status</Text>
             </View>
           </View>
-        ))}
-      </SectionCard>
-    </Screen>
-    </View>
+
+          <View style={localStyles.checklistGrid}>
+            <View style={localStyles.readinessCheckCard}>
+               <View style={localStyles.checkIconWrap}>
+                  <Ionicons name="shield-checkmark" size={32} color={theme.primary} />
+               </View>
+               <Text style={localStyles.checkTitle}>Readiness Check</Text>
+               <Text style={localStyles.checkDesc}>Verify all staging protocols and personnel presence.</Text>
+               <TouchableOpacity style={localStyles.logStatusBtn} onPress={onOpenResponse}>
+                  <Text style={localStyles.logStatusText}>Activate Site Response</Text>
+               </TouchableOpacity>
+            </View>
+
+            <View style={localStyles.essentialTasksCard}>
+               <View style={localStyles.tasksHeader}>
+                  <Ionicons name="cube" size={20} color={theme.primary} />
+                  <Text style={localStyles.tasksTitle}>Staging Tracker</Text>
+               </View>
+               
+               <View style={{ marginBottom: 20 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                     <Text style={localStyles.taskLabel}>Resource Staging</Text>
+                     <Text style={[localStyles.taskLabel, { ...fonts.black }]}>42 / 48</Text>
+                  </View>
+                  <View style={{ height: 8, backgroundColor: theme.line, borderRadius: 4, overflow: 'hidden' }}>
+                     <View style={{ height: '100%', width: '87%', backgroundColor: '#81C784' }} />
+                  </View>
+               </View>
+
+               <View style={localStyles.taskRow}>
+                  <Text style={localStyles.taskLabel}>Comms Check</Text>
+                  <View style={[localStyles.taskPill, { backgroundColor: '#E8F5E9' }]}><Text style={[localStyles.taskPillText, { color: '#2E7D32' }]}>COMPLETE</Text></View>
+               </View>
+               <View style={localStyles.taskRow}>
+                  <Text style={localStyles.taskLabel}>Vehicle Staging</Text>
+                  <View style={[localStyles.taskPill, { backgroundColor: '#FFF3E0' }]}><Text style={[localStyles.taskPillText, { color: '#E65100' }]}>PENDING</Text></View>
+               </View>
+
+               <View style={localStyles.divider} />
+               <Text style={localStyles.protocolLabel}>PROTOCOL NOTE</Text>
+               <Text style={localStyles.protocolText}>"Ensure all regional relief kits are pre-sealed and assigned to a transport sector before the response window."</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Side Content */}
+        <View style={localStyles.sideContent}>
+           <View style={localStyles.liveActivityCard}>
+              <View style={localStyles.liveHeader}>
+                 <Ionicons name="stats-chart" size={18} color="#81C784" />
+                 <Text style={localStyles.liveTitle}>Live Activity</Text>
+              </View>
+              <View style={localStyles.activityItem}>
+                 <View style={localStyles.activityDot} />
+                 <View style={{ flex: 1 }}>
+                    <Text style={localStyles.activityTime}>08:45 AM</Text>
+                    <Text style={localStyles.activityDesc}>Convoy Gamma arrived at Northern Staging.</Text>
+                 </View>
+              </View>
+              <View style={localStyles.activityItem}>
+                 <View style={localStyles.activityDot} />
+                 <View style={{ flex: 1 }}>
+                    <Text style={localStyles.activityTime}>07:12 AM</Text>
+                    <Text style={localStyles.activityDesc}>Satellite uplink stabilized at Sector 4.</Text>
+                 </View>
+              </View>
+              <View style={localStyles.activityItem}>
+                 <View style={[localStyles.activityDot, { backgroundColor: '#7D867B' }]} />
+                 <View style={{ flex: 1 }}>
+                    <Text style={localStyles.activityTime}>YESTERDAY</Text>
+                    <Text style={localStyles.activityDesc}>Evacuation initiated for Cluster B.</Text>
+                 </View>
+              </View>
+           </View>
+
+           <View style={localStyles.siteMapCard}>
+              <View style={localStyles.siteMapContent}>
+                 <Text style={localStyles.siteMapTitle}>Interactive Site Map</Text>
+                 <Text style={localStyles.siteMapSub}>REAL-TIME ZONE ACTIVITY MONITOR</Text>
+              </View>
+              <Image 
+                source={{ uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuB3K_4K9H0L_9E_9N_K7L9B8v8V-p_H_p7h-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v-v8r-B7v" }} 
+                style={localStyles.siteMapImage} 
+                resizeMode="cover"
+              />
+           </View>
+        </View>
+      </View>
+
+      {/* Supply Checklist */}
+      <View style={localStyles.supplySection}>
+        <View style={localStyles.sectionHeaderRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={localStyles.sectionTitle}>Essential Supply Checklist</Text>
+            <Text style={localStyles.sectionSub}>Real-time inventory levels across regional staging areas.</Text>
+          </View>
+          <TouchableOpacity style={localStyles.updateInventoryBtn}>
+             <Text style={localStyles.updateInventoryText}>Update Inventory</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={localStyles.supplyScroll}>
+           {[
+             { label: "P", name: "Potable Water", status: "SECURE", val: "15,000 Liters", progress: 0.9, color: "#FFB300" },
+             { label: "M", name: "Medical Kits", status: "SECURE", val: "450 Units", progress: 0.8, color: "#81C784" },
+             { label: "B", name: "Blankets & Shelter", status: "LOW STOCK", val: "800 Kits", progress: 0.4, color: "#E65100" },
+             { label: "D", name: "Dry Rations", status: "SECURE", val: "2,500 Boxes", progress: 0.95, color: "#2E7D32" },
+           ].map((item, idx) => (
+             <View key={idx} style={localStyles.supplyCard}>
+                <View style={localStyles.supplyCardTop}>
+                   <View style={[localStyles.supplyLabelBox, { backgroundColor: item.color }]}>
+                      <Text style={localStyles.supplyLabelText}>{item.label}</Text>
+                   </View>
+                   <View style={[localStyles.supplyStatusBadge, { backgroundColor: item.status === "SECURE" ? "#E8F5E9" : "#FFF3E0" }]}>
+                      <Text style={[localStyles.supplyStatusText, { color: item.status === "SECURE" ? "#2E7D32" : "#E65100" }]}>{item.status}</Text>
+                   </View>
+                </View>
+                <Text style={localStyles.supplyCardName}>{item.name}</Text>
+                <Text style={localStyles.supplyCardVal}>{item.val}</Text>
+                <View style={localStyles.supplyProgressTrack}>
+                   <View style={[localStyles.supplyProgressFill, { width: `${item.progress * 100}%`, backgroundColor: item.color }]} />
+                </View>
+             </View>
+           ))}
+        </ScrollView>
+      </View>
+    </ScrollView>
   );
 }
+
+const getStyles = (theme: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.bg },
+  scrollContent: { padding: 24, paddingBottom: 160 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.primary },
+  statusBadgeText: { fontSize: 10, ...fonts.black, color: theme.textLight, letterSpacing: 1 },
+  dashboardTitle: { fontSize: 36, ...fonts.black, color: theme.text, letterSpacing: -1.5, lineHeight: 42 },
+  dashboardSub: { fontSize: 14, ...fonts.medium, color: theme.textMuted, marginTop: 8, lineHeight: 20 },
+  scoreCard: { backgroundColor: "#fff", padding: 16, borderRadius: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, width: 110 },
+  scoreValue: { fontSize: 28, ...fonts.black, color: theme.primary },
+  scoreLabel: { fontSize: 8, ...fonts.black, color: theme.textLight, letterSpacing: 1, textAlign: "center" },
+
+  mainSection: { gap: 24, marginBottom: 40 },
+  checklistSection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
+  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
+  sectionTitle: { fontSize: 22, ...fonts.black, color: theme.text },
+  sectionSub: { fontSize: 13, ...fonts.medium, color: theme.textMuted, marginTop: 4 },
+  priorityBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.surfaceAlt, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  priorityText: { fontSize: 10, ...fonts.black, color: theme.text, letterSpacing: 0.5 },
+
+  checklistGrid: { flexDirection: "column", gap: 16 },
+  readinessCheckCard: { backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, alignItems: "center", justifyContent: "center", gap: 12 },
+  checkIconWrap: { width: 64, height: 64, borderRadius: 24, backgroundColor: "rgba(46, 125, 50, 0.05)", alignItems: "center", justifyContent: "center" },
+  checkTitle: { fontSize: 18, ...fonts.black, color: theme.text },
+  checkDesc: { fontSize: 12, ...fonts.medium, color: theme.textMuted, textAlign: "center", lineHeight: 18 },
+  logStatusBtn: { backgroundColor: "#81C784", paddingHorizontal: 20, paddingVertical: 14, borderRadius: 16, width: "100%", alignItems: "center", marginTop: 12 },
+  logStatusText: { color: "#fff", ...fonts.black, fontSize: 12, letterSpacing: 0.5 },
+
+  essentialTasksCard: { backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, marginTop: 12 },
+  tasksHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 20 },
+  tasksTitle: { fontSize: 16, ...fonts.black, color: theme.text },
+  taskRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 12 },
+  taskLabel: { fontSize: 13, ...fonts.medium, color: theme.text, flex: 1 },
+  taskPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  taskPillText: { fontSize: 9, ...fonts.black },
+  divider: { height: 1, backgroundColor: theme.line, marginVertical: 16 },
+  protocolLabel: { fontSize: 10, ...fonts.black, color: theme.textLight, letterSpacing: 1, marginBottom: 8 },
+  protocolText: { fontSize: 11, ...fonts.medium, color: theme.textMuted, fontStyle: "italic", lineHeight: 16 },
+
+  sideContent: { gap: 24 },
+  liveActivityCard: { backgroundColor: "#1A1C1A", borderRadius: 40, padding: 32 },
+  liveHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 24 },
+  liveTitle: { fontSize: 18, ...fonts.black, color: "#fff" },
+  activityItem: { flexDirection: "row", gap: 16, marginBottom: 20 },
+  activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#81C784", marginTop: 6 },
+  activityTime: { fontSize: 12, ...fonts.black, color: "#fff" },
+  activityDesc: { fontSize: 13, color: "rgba(255,255,255,0.7)", ...fonts.medium, marginTop: 2 },
+
+  siteMapCard: { borderRadius: 40, overflow: "hidden", height: 200, backgroundColor: theme.surfaceAlt },
+  siteMapContent: { position: "absolute", zIndex: 1, top: 24, left: 24, backgroundColor: "rgba(255,255,255,0.9)", padding: 16, borderRadius: 16 },
+  siteMapTitle: { fontSize: 15, ...fonts.black, color: theme.text },
+  siteMapSub: { fontSize: 9, ...fonts.black, color: theme.textLight, letterSpacing: 1, marginTop: 4 },
+  siteMapImage: { width: "100%", height: "100%", opacity: 0.8 },
+
+  supplySection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
+  updateInventoryBtn: { backgroundColor: "#81C784", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  updateInventoryText: { color: "#fff", ...fonts.black, fontSize: 11 },
+  supplyScroll: { marginTop: 24, marginHorizontal: -12 },
+  supplyCard: { width: 220, backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, marginHorizontal: 12 },
+  supplyCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  supplyLabelBox: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  supplyLabelText: { color: "#fff", fontSize: 18, ...fonts.black },
+  supplyStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  supplyStatusText: { fontSize: 9, ...fonts.black },
+  supplyCardName: { fontSize: 15, ...fonts.black, color: theme.text, marginBottom: 4 },
+  supplyCardVal: { fontSize: 12, ...fonts.medium, color: theme.textMuted, marginBottom: 16 },
+  supplyProgressTrack: { height: 6, backgroundColor: theme.line, borderRadius: 3, overflow: "hidden" },
+  supplyProgressFill: { height: "100%", borderRadius: 3 },
+});

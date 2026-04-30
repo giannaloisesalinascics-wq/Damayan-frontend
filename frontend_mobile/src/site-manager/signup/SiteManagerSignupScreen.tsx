@@ -1,10 +1,10 @@
-import React, { useState, useRef } from "react";
-import { Text, View, Pressable } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { Text, View, Pressable, ScrollView, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { MobileHeader } from "../../components/MobileShell";
 import { Button, Input, Pill, Screen, SectionCard } from "../../components/UI";
 import { siteManagerStyles } from "../shared";
-import { theme } from "../../theme";
+import { theme, fonts } from "../../theme";
 
 export function SiteManagerSignupScreen({
   onBack,
@@ -45,33 +45,16 @@ export function SiteManagerSignupScreen({
     }
   }
 
-  // Improved for Web: Attach native event listeners to prevent browser defaults
-  React.useEffect(() => {
+  useEffect(() => {
     const el = uploadBoxRef.current as any;
     if (!el || typeof window === "undefined") return;
-
-    // React Native for Web refs usually point to the DOM node
     const node = el.getScrollableNode ? el.getScrollableNode() : el;
 
-    const onDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    };
-
-    const onDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-    };
-
+    const onDragOver = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
+    const onDragLeave = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };
     const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-      if (e.dataTransfer?.files) {
-        handleFileFromDrop(e.dataTransfer.files);
-      }
+      e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+      if (e.dataTransfer?.files) validateAndSetFile(e.dataTransfer.files[0]);
     };
 
     node.addEventListener("dragover", onDragOver);
@@ -87,113 +70,109 @@ export function SiteManagerSignupScreen({
     };
   }, []);
 
-  function handleFileFromDrop(files: FileList) {
-    if (files && files.length > 0) {
-      validateAndSetFile(files[0]);
-    }
-  }
-
   return (
-    <Screen>
-      <MobileHeader title="Site Manager Registration" subtitle="Create account" onBack={onBack} />
-      <SectionCard style={siteManagerStyles.primaryHero}>
-        <Pill label="Register" tone="secondary" />
-        <Text style={siteManagerStyles.heroTitle}>Create A Site Manager Account</Text>
-        <Text style={siteManagerStyles.heroText}>
-          Register to validate your credentials to access site operations, supplies tracking, and rescue logs.
-        </Text>
-      </SectionCard>
-      
-      <SectionCard>
-        <View style={{ gap: 20 }}>
-          <View style={{ gap: 16 }}>
-            <Input label="FULL NAME" placeholder="e.g. Juan De La Cruz" />
-            <Input label="CREATE USERNAME" placeholder="site.manager.01" />
-            <Input label="PASSWORD" placeholder="********" secureTextEntry />
-          </View>
+    <Screen style={{ backgroundColor: theme.bg }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }}>
+        <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 32 }}>
+          <TouchableOpacity onPress={onBack} style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, marginBottom: 24 }}>
+            <Ionicons name="arrow-back" size={24} color={theme.primary} />
+          </TouchableOpacity>
           
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: theme.textMuted, fontSize: 13, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" }}>
-              UPLOAD GOVERNMENT ID
-            </Text>
-            <View 
-              ref={uploadBoxRef}
-              style={[
-                {
-                  minHeight: 140,
-                  borderRadius: 16,
-                  borderWidth: 2,
-                  borderColor: theme.tertiary,
-                  borderStyle: "dashed",
-                  backgroundColor: theme.surfaceSoft,
-                  overflow: "hidden",
-                },
-                isDragging && {
-                  borderColor: theme.primary,
-                  backgroundColor: theme.primaryLight,
-                  borderWidth: 2.5,
-                }
-              ]}
-            >
-              <Pressable 
-                onPress={handlePickDocument} 
-                style={{ 
-                  flex: 1, 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  padding: 20,
-                  gap: 8,
-                }}
+          <View style={{ alignSelf: "flex-start", backgroundColor: theme.secondarySoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 12 }}>
+            <Text style={{ color: theme.secondaryDark, fontSize: 10, ...fonts.black, letterSpacing: 2 }}>OPERATIONS</Text>
+          </View>
+          <Text style={{ color: theme.text, fontSize: 42, ...fonts.black, letterSpacing: -2, lineHeight: 48 }}>Site Manager{"\n"}Registration</Text>
+          <Text style={{ color: theme.textMuted, fontSize: 16, ...fonts.medium, lineHeight: 26, marginTop: 12 }}>
+            Join our operational force to manage shelter logistics, coordinate field assets, and ensure resource integrity during critical events.
+          </Text>
+        </View>
+
+        <View style={{ paddingHorizontal: 24, gap: 24 }}>
+          <View style={{ gap: 20 }}>
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.textLight, fontSize: 11, ...fonts.bold, letterSpacing: 1.5, textTransform: "uppercase", paddingHorizontal: 4 }}>Full Legal Name</Text>
+              <Input placeholder="e.g. Maria Clara" />
+            </View>
+
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.textLight, fontSize: 11, ...fonts.bold, letterSpacing: 1.5, textTransform: "uppercase", paddingHorizontal: 4 }}>Staff ID / Username</Text>
+              <Input placeholder="sm.unique.id" />
+            </View>
+
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.textLight, fontSize: 11, ...fonts.bold, letterSpacing: 1.5, textTransform: "uppercase", paddingHorizontal: 4 }}>Access Password</Text>
+              <Input placeholder="••••••••••••" secureTextEntry />
+            </View>
+            
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.textLight, fontSize: 11, ...fonts.bold, letterSpacing: 1.5, textTransform: "uppercase", paddingHorizontal: 4 }}>Authorization Document</Text>
+              <View 
+                ref={uploadBoxRef}
+                style={[
+                  { 
+                    minHeight: 180, 
+                    borderRadius: 32, 
+                    backgroundColor: theme.surfaceAlt, 
+                    borderWidth: 2, 
+                    borderStyle: "dashed", 
+                    borderColor: theme.lineMedium, 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    padding: 24
+                  },
+                  isDragging && { borderColor: theme.primary, backgroundColor: theme.primarySoft, borderStyle: "solid" }
+                ]}
               >
-                <Text style={{ fontSize: 36, opacity: 0.8 }}>📄</Text>
-                <View style={{ alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <Text style={{ color: theme.primary, fontWeight: "900", fontSize: 16, letterSpacing: 0.5 }}>
-                    {selectedFileName ? "FILE SELECTED" : isDragging ? "DROP FILE HERE" : "UPLOAD FILE OR DRAG HERE"}
+                <TouchableOpacity onPress={handlePickDocument} style={{ alignItems: "center", width: "100%" }}>
+                  <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: theme.primarySoft, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+                    <Ionicons name={selectedFileName ? "shield-checkmark" : "document-text"} size={32} color={theme.primary} />
+                  </View>
+                  <Text style={{ color: theme.text, fontSize: 18, ...fonts.black, textAlign: "center" }}>
+                    {selectedFileName ? "DOC ATTACHED" : "UPLOAD CREDENTIALS"}
                   </Text>
-                  
-                  {!selectedFileName ? (
-                    <Text style={{ color: theme.textLight, fontSize: 12, fontWeight: "600", textTransform: "uppercase" }}>
-                      JPG OR PNG • MAX 5MB
-                    </Text>
-                  ) : (
-                    <View style={{ alignItems: "center", gap: 8 }}>
-                      <Text style={{ color: theme.textLight, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8 }}>
-                        {selectedFileName}
-                      </Text>
-                      <View style={{
-                        paddingHorizontal: 14,
-                        paddingVertical: 6,
-                        backgroundColor: "#ecfdf5",
-                        borderRadius: 12,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 6,
-                        borderWidth: 1,
-                        borderColor: "#d1fae5",
-                      }}>
-                        <Text style={{ color: "#059669", fontSize: 13, fontWeight: "800" }}>✓ Verified</Text>
-                      </View>
-                    </View>
+                  <Text style={{ color: theme.textMuted, fontSize: 13, ...fonts.medium, textAlign: "center", marginTop: 4 }}>
+                    {selectedFileName ? selectedFileName : "Drag and drop or tap to browse"}
+                  </Text>
+                  {!selectedFileName && (
+                     <View style={{ marginTop: 12, backgroundColor: theme.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: theme.line }}>
+                        <Text style={{ color: theme.textLight, fontSize: 10, ...fonts.bold, letterSpacing: 1 }}>JPG, PNG • PDF MAX 5MB</Text>
+                     </View>
                   )}
-                </View>
-              </Pressable>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
           
-          <Button label="Submit Registration" onPress={onSubmit} tone="primary" />
+          <TouchableOpacity 
+            onPress={onSubmit} 
+            style={{ 
+              height: 68, 
+              backgroundColor: theme.primary, 
+              borderRadius: 24, 
+              flexDirection: "row", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              gap: 12, 
+              shadowColor: theme.primary, 
+              shadowOpacity: 0.3, 
+              shadowRadius: 20, 
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 8,
+              marginTop: 12
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 18, ...fonts.black, letterSpacing: 1 }}>REQUEST AUTHORIZATION</Text>
+            <Ionicons name="arrow-forward" size={22} color="#fff" />
+          </TouchableOpacity>
 
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-            <Text style={{ color: theme.textMuted, fontSize: 14, fontWeight: "400" }}>
-              Already have an account?{" "}
-            </Text>
-            <Pressable onPress={onBack}>
-              <Text style={{ color: theme.primary, fontSize: 14, fontWeight: "800" }}>
-                Log in here.
-              </Text>
-            </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+            <Text style={{ color: theme.textMuted, fontSize: 15, ...fonts.medium }}>Already have an account? </Text>
+            <TouchableOpacity onPress={onBack}>
+              <Text style={{ color: theme.primary, fontSize: 15, ...fonts.black }}>Log in</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </SectionCard>
+      </ScrollView>
     </Screen>
   );
 }

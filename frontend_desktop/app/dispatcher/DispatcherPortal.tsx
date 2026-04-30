@@ -231,12 +231,12 @@ function DashboardPage({ incidents, units, onDispatch, onMarkInvalid }: {
   const deployed  = units.filter(u => u.status !== "Available" && u.status !== "Offline").length;
 
   const stats = [
-    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)" },
-    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)" },
-    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)" },
-    { label: "Critical / High",  value: critical.length,  color: "#c77700" },
-    { label: "Units Available",  value: avail,            color: "var(--d-blue)",    sub: `${deployed} deployed` },
-    { label: "Total Units",      value: units.length,     color: "var(--d-text)" },
+    { label: "New Incidents",    value: newInc.length,    color: "var(--d-red)",     icon: "N" },
+    { label: "Active Response",  value: activeInc.length, color: "var(--d-primary)", icon: "A" },
+    { label: "Resolved Today",   value: resolved.length,  color: "var(--d-green)",   icon: "R" },
+    { label: "Critical / High",  value: critical.length,  color: "#c77700",          icon: "!" },
+    { label: "Units Available",  value: avail,            color: "var(--d-blue)",    icon: "U", sub: `${deployed} deployed` },
+    { label: "Total Units",      value: units.length,     color: "var(--d-text)",    icon: "T" },
   ];
 
   const ACTIVITY = [
