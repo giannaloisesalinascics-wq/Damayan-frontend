@@ -27,6 +27,8 @@ export const lightTheme = {
   success: "#2E7D32",
 };
 
+export type AppTheme = typeof lightTheme;
+
 export const darkTheme = {
   bg: "#121412",
   surface: "#1A1C1A",

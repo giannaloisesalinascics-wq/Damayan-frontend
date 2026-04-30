@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, fonts, lightTheme, darkTheme } from "../../theme";
+import { theme, fonts, lightTheme, darkTheme, AppTheme } from "../../theme";
 
 export function SiteManagerAfterScreen({ 
   onBack,
@@ -210,8 +210,8 @@ export function SiteManagerAfterScreen({
                { icon: "medkit", name: "First Aid Refill-A", stock: "450 Units", progress: 0.15, incoming: "450 Units", eta: "02:30h", status: "IN TRANSIT", color: "#D32F2F" },
                { icon: "restaurant", name: "Self-Heating Meals", stock: "82%", progress: 0.82, incoming: "--", eta: "--", status: "STABLE", color: "#2E7D32" },
                { icon: "sunny", name: "Solar Lanterns", stock: "120 Units", progress: 0.45, incoming: "120 Units", eta: "Tomorrow", status: "SCHEDULED", color: "#FFB300" },
-            ].map((item, idx) => (
-              <View key={idx} style={localStyles.inventoryCard}>
+            ].map((item) => (
+              <View key={`inventory-${item.name.replace(/\s+/g, '-').toLowerCase()}`} style={localStyles.inventoryCard}>
                  <View style={localStyles.cardHeader}>
                     <View style={localStyles.categoryInfo}>
                        <View style={[localStyles.iconBox, { backgroundColor: item.color + '15' }]}>
@@ -255,7 +255,7 @@ export function SiteManagerAfterScreen({
   );
 }
 
-const getStyles = (theme: any) => StyleSheet.create({
+const getStyles = (theme: AppTheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.bg },
   scrollContent: { padding: 24, paddingBottom: 160 },
   headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 16, marginBottom: 32 },

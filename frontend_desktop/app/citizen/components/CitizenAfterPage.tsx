@@ -43,8 +43,10 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
                     <div className="w-52 h-52 bg-[#1A1C19] rounded-3xl p-5 flex items-center justify-center shadow-inner">
                       <div className="grid grid-cols-7 gap-1.5 w-full h-full">
                         {[...Array(49)].map((_, i) => {
-                          const fill = [0,1,2,3,4,5,6,7,13,14,20,21,27,28,35,42,43,44,45,46,47,48].includes(i) || (i * 9 + 5) % 7 === 0;
-                          return <div key={i} className={`${fill ? "bg-white dark:bg-[#232622]" : "bg-transparent"} rounded-[2px]`} />;
+                          const isBoundary = [0,1,2,3,4,5,6,7,13,14,20,21,27,28,35,42,43,44,45,46,47,48].includes(i);
+                          const isPattern = (i * 9 + 5) % 7 === 0;
+                          const shouldFill = isBoundary || isPattern;
+                          return <div key={`qr-dot-${i}`} className={`${shouldFill ? "bg-white dark:bg-[#232622]" : "bg-transparent"} rounded-[2px]`} />;
                         })}
                       </div>
                     </div>
