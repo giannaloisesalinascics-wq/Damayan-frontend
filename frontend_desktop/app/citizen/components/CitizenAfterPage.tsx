@@ -127,7 +127,7 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
                 <div className="flex-grow min-h-[300px] relative overflow-hidden bg-[#fafaf5]">
                   {/* Simulated Map */}
                   <div className="absolute inset-0 opacity-[0.03] grayscale pointer-events-none" 
-                    style={{ backgroundImage: "url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/121.05,14.58,15,0/800x800?access_token=pk.eyJ1IjoiZ3VpZG9waWNjYSIsImEiOiJjazlzZzZ0ZHowMGRzM2xwZzB4ZzB4ZzB4In0.z-Z-Z-Z-Z-Z-Z-Z-Z-Z-Zw')" }} />
+                    style={{ backgroundImage: `url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/121.05,14.58,15,0/800x800?access_token=${process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}')` }} />
                   <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(rgba(46,125,50,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(46,125,50,0.05) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
                   
                   <div className="absolute inset-0 flex items-center justify-center">
