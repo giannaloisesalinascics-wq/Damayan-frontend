@@ -528,3 +528,41 @@
     padding: 28px 20px;
   }
 }
+
+/* === Dark Mode === */
+.dark .auth-root {
+  --auth-surface: #232622;
+  --auth-neutral: #1a1c19;
+  --auth-ink: #e2e3dd;
+  --auth-muted: #c4c7c0;
+  --auth-line: rgba(196, 199, 192, 0.15);
+  background: var(--auth-neutral);
+}
+
+.dark .auth-panel {
+  background: var(--auth-surface);
+}
+
+.dark .auth-field input,
+.dark .auth-input-wrap input {
+  background: #2e312d;
+  border-color: rgba(196, 199, 192, 0.2);
+  color: #fff;
+}
+
+.dark .auth-field input:focus,
+.dark .auth-input-wrap input:focus {
+  background: #232622;
+  border-color: var(--auth-accent);
+}
+
+.dark .auth-switch-bar,
+.dark .auth-info-box {
+  background: #2e312d;
+  border-color: rgba(196, 199, 192, 0.2);
+}
+
+.dark .auth-form-title {
+  color: #fff;
+}
+

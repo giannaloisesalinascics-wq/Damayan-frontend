@@ -1271,3 +1271,51 @@
   border-color: var(--admin-accent-mid);
   background: var(--admin-blue-bg);
 }
+
+/* ── DARK MODE ── */
+.dark .admin-root {
+  --admin-bg: #1a1c19;
+  --admin-surface: #232622;
+  --admin-surface-low: #2e312d;
+  --admin-surface-muted: #3b3b3b;
+  --admin-outline: rgba(196, 199, 192, 0.15);
+  --admin-outline-strong: rgba(196, 199, 192, 0.3);
+
+  --admin-text: #e2e3dd;
+  --admin-text-muted: #c4c7c0;
+  --admin-text-soft: #a0a39f;
+
+  --admin-sidebar-bg: #121411;
+  
+  /* Status overrides for dark mode */
+  --admin-red-bg: rgba(220, 38, 38, 0.1);
+  --admin-orange-bg: rgba(234, 88, 12, 0.1);
+  --admin-amber-bg: rgba(217, 119, 6, 0.1);
+  --admin-green-bg: rgba(22, 163, 74, 0.1);
+  --admin-blue-bg: rgba(37, 99, 235, 0.1);
+  --admin-violet-bg: rgba(124, 58, 237, 0.1);
+
+  --admin-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --admin-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --admin-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.dark .admin-topbar {
+  background: rgba(26, 28, 25, 0.96);
+}
+
+.dark .admin-form-input,
+.dark .admin-form-select,
+.dark .admin-form-textarea {
+  background: #2e312d;
+  color: #fff;
+}
+
+.dark .admin-table tbody tr:hover td {
+  background: #2e312d;
+}
+
+.dark .admin-modal-backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+

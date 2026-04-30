@@ -76,7 +76,8 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
   const [err, setErr] = useState(false);
 
   return (
-    <div className="dp-page dp-login-page">
+  return (
+    <div className="dp-page dp-login-page" style={{ background: "var(--d-bg)" }}>
       <div className="dp-login-card">
         {/* Brand */}
         <div className="dp-login-brand">
@@ -1842,7 +1843,7 @@ function ProfilePage({ onLogout }: { onLogout: () => void }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN SHELL
 // ══════════════════════════════════════════════════════════════════════════════
-function Shell({ onLogout }: { onLogout: () => void }) {
+function Shell({ onLogout, toggleDarkMode, isDarkMode }: { onLogout: () => void; toggleDarkMode: () => void; isDarkMode: boolean }) {
   const [page, setPage] = useState<NavPage>("dashboard");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
@@ -1970,6 +1971,9 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           </div>
           <div className="dp-topbar-right">
             <span className="dp-clock">{clock}</span>
+            <button className="dp-topbar-icon-btn" onClick={toggleDarkMode} style={{ fontSize: "1.1rem" }}>
+              {isDarkMode ? "☀️" : "🌙"}
+            </button>
             <button className="dp-broadcast-btn" onClick={() => setBroadcastModal(true)}>⚠ Broadcast</button>
             <div ref={dropRef} style={{ position: "relative" }}>
               <div className="dp-avatar-btn" onClick={() => setDropdown(d => !d)}>DS</div>
@@ -2071,9 +2075,27 @@ type Stage = "login" | "awaiting" | "portal";
 
 export default function DispatcherPortal() {
   const [stage, setStage] = useState<Stage>("portal");
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (document.documentElement.classList.contains("dark")) {
+      setIsDarkMode(true);
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    if (document.documentElement.classList.contains("dark")) {
+      document.documentElement.classList.remove("dark");
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add("dark");
+      setIsDarkMode(true);
+    }
+  };
+
   return (
     stage === "login"    ? <LoginPage    onLogin={() => setStage("portal")} onRegister={() => setStage("awaiting")} /> :
     stage === "awaiting" ? <AwaitingPage onProceed={() => setStage("portal")} /> :
-    <Shell onLogout={() => { window.location.href = "/dispatcher/login"; }} />
+    <Shell onLogout={() => { window.location.href = "/dispatcher/login"; }} toggleDarkMode={toggleDarkMode} isDarkMode={isDarkMode} />
   );
 }

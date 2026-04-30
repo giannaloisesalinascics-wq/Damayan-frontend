@@ -42,3 +42,16 @@ body {
 .glass-nav {
   backdrop-filter: blur(12px);
 }
+
+.dark {
+  --bg: #1a1c19;
+  --surface: #232622;
+  --surface-low: #2e312d;
+  --surface-muted: #3b3b3b;
+  --text: #e2e3dd;
+  --text-muted: #c4c7c0;
+  --outline: rgba(196, 199, 192, 0.2);
+  --primary: #81c784;
+  --primary-deep: #4caf50;
+}
+

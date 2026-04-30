@@ -1627,3 +1627,41 @@
 .dp-risk-val   { color: var(--d-text-muted); font-size: 0.75rem; }
 .dp-rescue-detail-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.2rem; }
 .dp-rescue-detail-col  { display: flex; flex-direction: column; gap: 0; }
+
+/* ── DARK MODE ── */
+.dark {
+  --d-bg: #1a1c19;
+  --d-surface: #232622;
+  --d-surface-low: #2e312d;
+  --d-surface-mid: #3b3b3b;
+  --d-border: rgba(196, 199, 192, 0.15);
+  --d-border-strong: rgba(196, 199, 192, 0.3);
+  --d-text: #e2e3dd;
+  --d-text-muted: #c4c7c0;
+  --d-text-sub: #a0a39f;
+
+  --d-primary: #81c784;
+  --d-primary-deep: #4caf50;
+  --d-primary-light: rgba(129, 199, 132, 0.1);
+  --d-primary-glow: rgba(129, 199, 132, 0.18);
+
+  --d-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --d-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.dark .dp-login-page {
+  background:
+    radial-gradient(circle at top left, rgba(129, 199, 132, 0.1), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(129, 199, 132, 0.05), transparent 25%),
+    #121411;
+}
+
+.dark .dp-login-tab.active {
+  background: #3b3b3b;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.dark .dp-btn-ghost:hover {
+  background: #3b3b3b;
+}
+

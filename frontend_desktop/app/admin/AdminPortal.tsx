@@ -395,7 +395,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#0b0e1f", fontFamily: "Public Sans, sans-serif" }}>
+    <div className="admin-login-root" style={{ minHeight: "100vh", display: "flex", background: "var(--admin-bg)", fontFamily: "Public Sans, sans-serif" }}>
       {/* Left brand panel */}
       <div style={{
         width: "42%",
@@ -450,18 +450,18 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
       </div>
 
       {/* Right form panel */}
-      <div style={{ flex: 1, background: "#fff", padding: "3rem 3.5rem", display: "flex", flexDirection: "column", justifyContent: "center", overflowY: "auto" }}>
+      <div style={{ flex: 1, background: "var(--admin-surface)", padding: "3rem 3.5rem", display: "flex", flexDirection: "column", justifyContent: "center", overflowY: "auto", color: "var(--admin-text)" }}>
         <div style={{ maxWidth: "28rem", width: "100%" }}>
 
           {/* Waiting for verification */}
           {waitingVerification ? (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⏳</div>
-              <h2 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.6rem" }}>Awaiting Verification</h2>
-              <p style={{ color: "#6b7494", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.6rem", color: "var(--admin-text)" }}>Awaiting Verification</h2>
+              <p style={{ color: "var(--admin-text-soft)", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
                 Your Government ID has been submitted. An existing administrator will review and approve your account. You will be notified via email.
               </p>
-              <button onClick={() => { setWaitingVerification(false); setMode("login"); }} style={{ padding: "0.75rem 1.5rem", background: "#f5f6f8", border: "1.5px solid #e8eaed", borderRadius: "0.65rem", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "Public Sans, sans-serif" }}>
+              <button onClick={() => { setWaitingVerification(false); setMode("login"); }} style={{ padding: "0.75rem 1.5rem", background: "var(--admin-surface-low)", border: "1.5px solid var(--admin-outline)", borderRadius: "0.65rem", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "Public Sans, sans-serif", color: "var(--admin-text)" }}>
                 ← Back to Login
               </button>
             </div>
@@ -470,8 +470,8 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
             <div>
               <div style={{ marginBottom: "1.5rem" }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.75rem", borderRadius: "999px", background: "rgba(37,99,235,0.08)", color: "#1e40af", fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.85rem" }}>Reset Password</div>
-                <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.5rem" }}>Reset Your Password</h2>
-                <p style={{ color: "#6b7494", fontSize: "0.85rem", lineHeight: 1.65 }}>Enter your admin email to receive a one-time reset link via Email/SMS.</p>
+                <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.5rem", color: "var(--admin-text)" }}>Reset Your Password</h2>
+                <p style={{ color: "var(--admin-text-soft)", fontSize: "0.85rem", lineHeight: 1.65 }}>Enter your admin email to receive a one-time reset link via Email/SMS.</p>
               </div>
               <div className="admin-form-grid">
                 <div className="admin-form-group">
@@ -501,7 +501,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     </button>
                   </>
                 )}
-                <button onClick={() => { setForgotMode(false); setOtpSent(false); }} style={{ background: "none", border: "none", color: "#6b7494", fontSize: "0.82rem", cursor: "pointer", fontFamily: "Public Sans, sans-serif", padding: 0, fontWeight: 600, textAlign: "left" }}>
+                <button onClick={() => { setForgotMode(false); setOtpSent(false); }} style={{ background: "none", border: "none", color: "var(--admin-text-soft)", fontSize: "0.82rem", cursor: "pointer", fontFamily: "Public Sans, sans-serif", padding: 0, fontWeight: 600, textAlign: "left" }}>
                   ← Back to Login
                 </button>
               </div>
@@ -509,9 +509,9 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           ) : (
             <>
               {/* Tab switch */}
-              <div style={{ display: "flex", background: "#f5f6f8", borderRadius: "0.75rem", padding: "3px", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", background: "var(--admin-surface-low)", borderRadius: "0.75rem", padding: "3px", marginBottom: "1.5rem" }}>
                 {(["login", "register"] as const).map((m) => (
-                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "0.6rem", border: "none", borderRadius: "0.55rem", background: mode === m ? "#fff" : "transparent", fontWeight: mode === m ? 800 : 500, fontSize: "0.82rem", cursor: "pointer", color: mode === m ? "#1a1c2e" : "#6b7494", boxShadow: mode === m ? "0 2px 6px rgba(0,0,0,0.07)" : "none", fontFamily: "Public Sans, sans-serif", transition: "all 0.15s" }}>
+                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "0.6rem", border: "none", borderRadius: "0.55rem", background: mode === m ? "var(--admin-surface)" : "transparent", fontWeight: mode === m ? 800 : 500, fontSize: "0.82rem", cursor: "pointer", color: mode === m ? "var(--admin-text)" : "var(--admin-text-soft)", boxShadow: mode === m ? "0 2px 6px rgba(0,0,0,0.07)" : "none", fontFamily: "Public Sans, sans-serif", transition: "all 0.15s" }}>
                     {m === "login" ? "Login" : "Register"}
                   </button>
                 ))}
@@ -521,8 +521,8 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                 <>
                   <div style={{ marginBottom: "1.5rem" }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.75rem", borderRadius: "999px", background: "rgba(37,99,235,0.08)", color: "#1e40af", fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.85rem" }}>Admin Login</div>
-                    <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.4rem" }}>Admin Sign In</h2>
-                    <p style={{ color: "#6b7494", fontSize: "0.85rem" }}>Access the DAMAYAN administration console.</p>
+                    <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.4rem", color: "var(--admin-text)" }}>Admin Sign In</h2>
+                    <p style={{ color: "var(--admin-text-soft)", fontSize: "0.85rem" }}>Access the DAMAYAN administration console.</p>
                   </div>
 
                   {loginError && (
@@ -551,16 +551,16 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     </button>
                   </div>
 
-                  <div style={{ marginTop: "1.2rem", padding: "0.85rem 1rem", background: "#f5f6f8", borderRadius: "0.85rem", fontSize: "0.78rem", color: "#6b7494" }}>
-                    <strong style={{ color: "#1a1c2e" }}>Demo access:</strong> username <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin</code> · password <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin123</code>
+                  <div style={{ marginTop: "1.2rem", padding: "0.85rem 1rem", background: "var(--admin-surface-low)", borderRadius: "0.85rem", fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>
+                    <strong style={{ color: "var(--admin-text)" }}>Demo access:</strong> username <code style={{ background: "var(--admin-surface-muted)", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem", color: "var(--admin-text)" }}>admin</code> · password <code style={{ background: "var(--admin-surface-muted)", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem", color: "var(--admin-text)" }}>admin123</code>
                   </div>
                 </>
               ) : (
                 <>
                   <div style={{ marginBottom: "1.5rem" }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.75rem", borderRadius: "999px", background: "rgba(37,99,235,0.08)", color: "#1e40af", fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.85rem" }}>Register</div>
-                    <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.4rem" }}>Create Admin Account</h2>
-                    <p style={{ color: "#6b7494", fontSize: "0.85rem", lineHeight: 1.6 }}>Register with your credentials and government ID for admin verification.</p>
+                    <h2 style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.4rem", color: "var(--admin-text)" }}>Create Admin Account</h2>
+                    <p style={{ color: "var(--admin-text-soft)", fontSize: "0.85rem", lineHeight: 1.6 }}>Register with your credentials and government ID for admin verification.</p>
                   </div>
                   <div className="admin-form-grid">
                     <div className="admin-form-group">
@@ -2059,11 +2059,28 @@ export default function AdminPortal() {
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef(0);
+
+  useEffect(() => {
+    if (document.documentElement.classList.contains("dark")) {
+      setIsDarkMode(true);
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    if (document.documentElement.classList.contains("dark")) {
+      document.documentElement.classList.remove("dark");
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add("dark");
+      setIsDarkMode(true);
+    }
+  };
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
     const id = ++toastRef.current;
@@ -2187,6 +2204,10 @@ export default function AdminPortal() {
           <div className="admin-topbar-right">
             <button className="admin-btn admin-btn-broadcast admin-btn-sm" onClick={() => setBroadcastModal(true)}>
               📣 Broadcast Alert
+            </button>
+
+            <button className="admin-topbar-icon-btn" onClick={toggleDarkMode}>
+              {isDarkMode ? "☀️" : "🌙"}
             </button>
 
             {/* Notifications */}

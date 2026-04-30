@@ -31,10 +31,10 @@ export default function CitizenDuringPage({ onGoToAfter, initialStep = "decision
   return (
     <div className="space-y-10">
       {/* ─ Progress Tracker ─ */}
-      <div className="flex items-center gap-3 bg-white/50 backdrop-blur-sm p-4 rounded-3xl border border-[#dadad5] dark:border-[#3b3b3b] w-fit mx-auto shadow-sm">
+      <div className="flex items-center gap-3 bg-white/50 dark:bg-black/20 backdrop-blur-sm p-4 rounded-3xl border border-[#dadad5] dark:border-[#3b3b3b] w-fit mx-auto shadow-sm">
         {(["decision","report","delivered","waiting","arrive","checkin","logged_in"] as DStep[]).map((s, i) => (
           <div key={s} className={`h-2 rounded-full transition-all duration-500 ${step === s ? "w-10" : "w-3"}`}
-            style={{ background: step === s ? "#FFB300" : "#dadad5" }} />
+            style={{ background: step === s ? "#FFB300" : "var(--citizen-card-border)" }} />
         ))}
       </div>
 
@@ -103,7 +103,7 @@ export default function CitizenDuringPage({ onGoToAfter, initialStep = "decision
                 </div>
               </div>
               <button onClick={() => setStep("internet")}
-                className="w-full py-6 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-[#1A1C19] dark:text-white hover:scale-[1.01] active:scale-95 transition-all shadow-2xl"
+                className="w-full py-6 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-[#1A1C19] hover:scale-[1.01] active:scale-95 transition-all shadow-2xl"
                 style={{ background: "linear-gradient(135deg, #FFB300, #FFA000)" }}>
                 Submit Emergency Report
               </button>
@@ -145,7 +145,7 @@ export default function CitizenDuringPage({ onGoToAfter, initialStep = "decision
                   Copy Code
                 </button>
                 <button onClick={() => setStep("delivered")}
-                  className="py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] text-[#1A1C19] dark:text-white shadow-xl hover:scale-[1.01] active:scale-95 transition-all"
+                  className="py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] text-[#1A1C19] shadow-xl hover:scale-[1.01] active:scale-95 transition-all"
                   style={{ background: "#FFB300" }}>
                   I&apos;ve Sent SMS
                 </button>
@@ -179,7 +179,7 @@ export default function CitizenDuringPage({ onGoToAfter, initialStep = "decision
                   </div>
                 ))}
               </div>
-              <button onClick={() => setStep("waiting")} className="w-full py-6 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-[#1A1C19] dark:text-white shadow-2xl hover:scale-[1.01] transition-all" style={{ background: "linear-gradient(135deg, #FFB300, #FFA000)" }}>
+              <button onClick={() => setStep("waiting")} className="w-full py-6 rounded-2xl font-black text-sm uppercase tracking-[0.2em] text-[#1A1C19] shadow-2xl hover:scale-[1.01] transition-all" style={{ background: "linear-gradient(135deg, #FFB300, #FFA000)" }}>
                 Launch Live Tracker
               </button>
             </div>

@@ -41,18 +41,28 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
         iconUrl:"https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
         shadowUrl:"https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
+
+      const isDark = document.documentElement.classList.contains("dark");
+      const tileUrl = isDark 
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+      const attribution = isDark
+        ? "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; <a href=\"https://carto.com/attributions\">CARTO</a>"
+        : "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors";
+
       const map = L.map(ref.current!, { center: PH, zoom: 14 });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{ attribution:"© OpenStreetMap contributors", maxZoom:19 }).addTo(map);
+      L.tileLayer(tileUrl, { attribution, maxZoom: 19 }).addTo(map);
 
       // ── Search bar ──
       const wrap = L.DomUtil.create("div","");
-      wrap.style.cssText = "display:flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(191,182,162,0.6);border-radius:8px;padding:5px 10px;box-shadow:0 2px 10px rgba(28,22,17,0.1);font-family:'Public Sans',sans-serif";
+      wrap.style.cssText = `display:flex;align-items:center;gap:6px;background:${isDark ? "#232622" : "#fff"};border:1px solid ${isDark ? "#3b3b3b" : "rgba(191,182,162,0.6)"};border-radius:8px;padding:5px 10px;box-shadow:0 2px 10px rgba(0,0,0,0.2);font-family:'Public Sans',sans-serif`;
       const inp = document.createElement("input");
       inp.placeholder = "Search Philippines...";
-      inp.style.cssText = "border:none;outline:none;font:inherit;font-size:12px;color:#1c1a17;background:transparent;width:185px";
+      inp.style.cssText = `border:none;outline:none;font:inherit;font-size:12px;color:${isDark ? "#e2e3dd" : "#1c1a17"};background:transparent;width:185px`;
       const ico = document.createElement("span");
       ico.textContent="S"; ico.style.fontSize="11px"; ico.style.fontWeight="900"; ico.style.color="var(--d-text-sub)";
       wrap.appendChild(ico); wrap.appendChild(inp);
+
       L.DomEvent.disableClickPropagation(wrap);
       L.DomEvent.disableScrollPropagation(wrap);
       inp.addEventListener("keydown", async (e:any) => {
