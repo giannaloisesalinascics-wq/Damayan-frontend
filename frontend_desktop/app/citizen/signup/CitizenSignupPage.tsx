@@ -150,7 +150,7 @@ export default function CitizenSignupPage() {
                 transition: "all 0.2s ease"
               }}
             >
-              <span style={{ fontSize: "2rem", display: "block", marginBottom: "8px" }}>📄</span>
+              <span className="material-symbols-outlined" style={{ fontSize: "2rem", display: "block", marginBottom: "8px", color: "#2E7D32" }}>description</span>
               <strong style={{ display: "block", fontSize: "0.95rem", color: "var(--auth-accent)" }}>
                 {selectedIdName === "No file selected" ? "Click to upload ID photo" : "ID Uploaded"}
               </strong>

@@ -76,8 +76,7 @@ function LoginPage({ onLogin, onRegister }: { onLogin: () => void; onRegister: (
   const [err, setErr] = useState(false);
 
   return (
-  return (
-    <div className="dp-page dp-login-page" style={{ background: "var(--d-bg)" }}>
+    <div className="dp-page dp-login-page">
       <div className="dp-login-card">
         {/* Brand */}
         <div className="dp-login-brand">
@@ -776,6 +775,9 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
   const [escalateModal, setEscalateModal] = useState<Incident | null>(null);
   const [backupNote, setBackupNote] = useState("");
   const [mapKey, setMapKey] = useState(0);
+  const [afterCalamityInc, setAfterCalamityInc] = useState<Incident | null>(null);
+  const [afterStep, setAfterStep] = useState<"confirm" | "verify" | "close">("confirm");
+  const [safetyChecked, setSafetyChecked] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -793,10 +795,18 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
   };
 
   const handleResolve = (inc: Incident) => {
+    // Open after-calamity confirmation flow (After Calamity swimlane starts here)
+    setAfterCalamityInc(inc);
+    setAfterStep("confirm");
+    setSafetyChecked(false);
+  };
+
+  const finaliseResolution = (inc: Incident) => {
     onUpdate(inc.id, { status: "Resolved", resolvedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) });
-    toast.show(`${inc.id} marked as Resolved`);
+    setAfterCalamityInc(null);
     setSelInc(null);
     setMapKey(k => k + 1);
+    toast.show(`${inc.id} marked as Resolved / Closed`);
   };
 
   return (
@@ -949,6 +959,140 @@ function RescueMonitoringPage({ incidents, units, onUpdate }: {
               setEscalateModal(null); setMapKey(k => k + 1);
             }}>Confirm Escalation</button>
           </div>
+        </Modal>
+      )}
+
+
+      {/* ── After Calamity Modal (Receive Confirmation → Verify Safety → Mark Resolved) ── */}
+      {afterCalamityInc && (
+        <Modal
+          title={`After Calamity — ${afterCalamityInc.id}`}
+          onClose={() => setAfterCalamityInc(null)}
+          width={500}
+        >
+          {/* Step indicator */}
+          <div style={{ display: "flex", gap: "0.35rem", marginBottom: "1.25rem" }}>
+            {(["confirm", "verify", "close"] as const).map((s, i) => {
+              const labels = ["Receive Confirmation", "Verify Victim Safety", "Mark Resolved/Closed"];
+              const idx = ["confirm", "verify", "close"].indexOf(afterStep);
+              const done = idx > i;
+              const active = afterStep === s;
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.3rem", flex: 1 }}>
+                  <div style={{
+                    flex: 1,
+                    padding: "0.3rem 0.6rem",
+                    borderRadius: "999px",
+                    fontSize: "0.65rem",
+                    fontWeight: 800,
+                    textAlign: "center",
+                    background: done ? "var(--d-green)" : active ? "var(--d-primary)" : "var(--d-surface-low)",
+                    color: done || active ? "#fff" : "var(--d-text-sub)",
+                    border: done || active ? "none" : "1px solid var(--d-border)",
+                  }}>
+                    {i + 1}. {labels[i]}
+                  </div>
+                  {i < 2 && <span style={{ color: "var(--d-text-sub)", fontSize: "0.6rem" }}>›</span>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Step 1: Receive Rescue Complete Confirmation */}
+          {afterStep === "confirm" && (
+            <div>
+              <div className="dp-alert dp-alert-green" style={{ marginBottom: "1.25rem" }}>
+                <strong>Rescue Complete — Awaiting Confirmation</strong><br />
+                Field unit has signalled rescue operations are complete for {afterCalamityInc.id}.
+              </div>
+              <div style={{ padding: "0.85rem 1rem", background: "var(--d-surface-low)", borderRadius: "0.75rem", marginBottom: "1.25rem", fontSize: "0.82rem" }}>
+                <div style={{ fontWeight: 800, marginBottom: "0.4rem" }}>{afterCalamityInc.id} — {afterCalamityInc.type}</div>
+                <div style={{ color: "var(--d-text-sub)", marginBottom: "0.25rem" }}>{afterCalamityInc.address}</div>
+                <div>Units: <strong>{afterCalamityInc.assignedUnits.join(", ") || "N/A"}</strong></div>
+                <div style={{ marginTop: "0.4rem", color: "var(--d-text-sub)" }}>Confirmation received at: <strong style={{ color: "var(--d-text)" }}>
+                  {new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
+                </strong></div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  className="dp-btn dp-btn-primary"
+                  onClick={() => setAfterStep("verify")}
+                >
+                  ✓ Confirm Receipt → Verify Safety
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Verify Victim Safety */}
+          {afterStep === "verify" && (
+            <div>
+              <div className="dp-alert dp-alert-blue" style={{ marginBottom: "1.25rem" }}>
+                Confirm that all rescued persons are safe and handed off to appropriate care.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+                {[
+                  { label: "All persons accounted for", done: true },
+                  { label: "Transferred to medical care / family", done: true },
+                  { label: "Identity documented", done: true },
+                  { label: "Families notified", done: safetyChecked },
+                ].map((chk, i) => (
+                  <div
+                    key={i}
+                    onClick={() => i === 3 && setSafetyChecked(v => !v)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.6rem",
+                      padding: "0.7rem 0.9rem",
+                      background: chk.done ? "var(--d-green-bg)" : "var(--d-surface-low)",
+                      borderRadius: "0.65rem",
+                      cursor: i === 3 ? "pointer" : "default",
+                      border: i === 3 ? "1px dashed var(--d-border)" : "1px solid transparent",
+                    }}
+                  >
+                    <span style={{ color: chk.done ? "var(--d-green)" : "var(--d-text-sub)", fontWeight: 800 }}>
+                      {chk.done ? "✓" : "○"}
+                    </span>
+                    <span style={{ fontSize: "0.82rem" }}>{chk.label}</span>
+                    {i === 3 && <span style={{ marginLeft: "auto", fontSize: "0.7rem", color: "var(--d-text-sub)" }}>(tap to confirm)</span>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end" }}>
+                <button className="dp-btn dp-btn-ghost" onClick={() => setAfterStep("confirm")}>← Back</button>
+                <button
+                  className="dp-btn dp-btn-green"
+                  disabled={!safetyChecked}
+                  onClick={() => setAfterStep("close")}
+                >
+                  ✓ All Victims Safe → Close Ticket
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Mark as Resolved / Closed */}
+          {afterStep === "close" && (
+            <div>
+              <div className="dp-alert dp-alert-green" style={{ marginBottom: "1.25rem" }}>
+                <strong>Victim safety verified.</strong> Ready to mark {afterCalamityInc.id} as Resolved / Closed.
+              </div>
+              <div style={{ padding: "0.85rem 1rem", background: "var(--d-surface-low)", borderRadius: "0.75rem", marginBottom: "1.25rem", fontSize: "0.82rem" }}>
+                <div style={{ fontWeight: 800, marginBottom: "0.35rem" }}>Incident Summary</div>
+                <div style={{ color: "var(--d-text-sub)", marginBottom: "0.2rem" }}>{afterCalamityInc.id} · {afterCalamityInc.type}</div>
+                <div style={{ color: "var(--d-text-sub)", marginBottom: "0.2rem" }}>{afterCalamityInc.address}</div>
+                <div style={{ color: "var(--d-text-sub)" }}>Units: {afterCalamityInc.assignedUnits.join(", ") || "N/A"}</div>
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem", justifyContent: "flex-end" }}>
+                <button className="dp-btn dp-btn-ghost" onClick={() => setAfterStep("verify")}>← Back</button>
+                <button
+                  className="dp-btn dp-btn-green"
+                  onClick={() => finaliseResolution(afterCalamityInc)}
+                >
+                  ✓ Mark as Resolved / Closed
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -1843,7 +1987,7 @@ function ProfilePage({ onLogout }: { onLogout: () => void }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // MAIN SHELL
 // ══════════════════════════════════════════════════════════════════════════════
-function Shell({ onLogout, toggleDarkMode, isDarkMode }: { onLogout: () => void; toggleDarkMode: () => void; isDarkMode: boolean }) {
+function Shell({ onLogout }: { onLogout: () => void }) {
   const [page, setPage] = useState<NavPage>("dashboard");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [incidents, setIncidents] = useState<Incident[]>(MOCK_INCIDENTS);
@@ -1971,9 +2115,6 @@ function Shell({ onLogout, toggleDarkMode, isDarkMode }: { onLogout: () => void;
           </div>
           <div className="dp-topbar-right">
             <span className="dp-clock">{clock}</span>
-            <button className="dp-topbar-icon-btn" onClick={toggleDarkMode} style={{ fontSize: "1.1rem" }}>
-              {isDarkMode ? "☀️" : "🌙"}
-            </button>
             <button className="dp-broadcast-btn" onClick={() => setBroadcastModal(true)}>⚠ Broadcast</button>
             <div ref={dropRef} style={{ position: "relative" }}>
               <div className="dp-avatar-btn" onClick={() => setDropdown(d => !d)}>DS</div>
@@ -2029,7 +2170,7 @@ function Shell({ onLogout, toggleDarkMode, isDarkMode }: { onLogout: () => void;
           {page === "resources" && (
             <ResourcesPage units={units} setUnits={setUnits} />
           )}
-          {page === "profile" && (
+{page === "profile" && (
             <ProfilePage onLogout={onLogout} />
           )}
         </div>
@@ -2075,27 +2216,9 @@ type Stage = "login" | "awaiting" | "portal";
 
 export default function DispatcherPortal() {
   const [stage, setStage] = useState<Stage>("portal");
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    if (document.documentElement.classList.contains("dark")) {
-      setIsDarkMode(true);
-    }
-  }, []);
-
-  const toggleDarkMode = () => {
-    if (document.documentElement.classList.contains("dark")) {
-      document.documentElement.classList.remove("dark");
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add("dark");
-      setIsDarkMode(true);
-    }
-  };
-
   return (
     stage === "login"    ? <LoginPage    onLogin={() => setStage("portal")} onRegister={() => setStage("awaiting")} /> :
     stage === "awaiting" ? <AwaitingPage onProceed={() => setStage("portal")} /> :
-    <Shell onLogout={() => { window.location.href = "/dispatcher/login"; }} toggleDarkMode={toggleDarkMode} isDarkMode={isDarkMode} />
+    <Shell onLogout={() => { window.location.href = "/dispatcher/login"; }} />
   );
 }

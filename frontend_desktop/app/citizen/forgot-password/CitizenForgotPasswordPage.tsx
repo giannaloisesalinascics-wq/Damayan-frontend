@@ -49,7 +49,7 @@ export default function CitizenForgotPasswordPage() {
             </div>
 
             <div className="auth-info-box">
-              💡 We'll send a reset link to your registered email address or an
+              <span className="material-symbols-outlined" style={{fontSize:"1rem",verticalAlign:"middle",marginRight:"0.35rem"}}>tips_and_updates</span> We'll send a reset link to your registered email address or an
               SMS to your phone number — whichever you used when you signed up.
             </div>
 
@@ -68,7 +68,7 @@ export default function CitizenForgotPasswordPage() {
     if (step === "sent") {
       return (
         <div style={{ textAlign: "center" }}>
-          <div className="auth-success-icon">📨</div>
+          <div className="auth-success-icon"><span className="material-symbols-outlined" style={{fontSize:"2.5rem",color:"var(--citizen-primary,#2E7D32)"}}>mark_email_read</span></div>
           <header className="auth-form-head" style={{ textAlign: "center" }}>
             <span className="auth-badge">Link Sent</span>
             <h2 className="auth-form-title">Check your<br />inbox</h2>
@@ -79,7 +79,7 @@ export default function CitizenForgotPasswordPage() {
           </header>
 
           <div className="auth-info-box">
-            📱 The link expires in <strong>15 minutes</strong>. If you don't see it,
+            <span className="material-symbols-outlined" style={{fontSize:"1rem",verticalAlign:"middle",marginRight:"0.35rem"}}>smartphone</span> The link expires in <strong>15 minutes</strong>. If you don't see it,
             check your spam folder or request a new link below.
           </div>
 

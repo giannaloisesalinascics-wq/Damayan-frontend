@@ -14,7 +14,6 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
     if (initialStep) setStep(initialStep);
   }, [initialStep]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showStayModal, setShowStayModal] = useState(false);
 
   return (
     <div className="space-y-10">
@@ -179,7 +178,7 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
               <h1 className="text-[8rem] lg:text-[12rem] font-black tracking-tighter leading-[0.75] italic select-none" style={{ color: "#2E7D32" }}>
                 ALL<br />CLEAR
               </h1>
-              <p className="text-[#1a1c19] dark:text-[#e2e3dd] text-2xl lg:text-3xl font-medium max-w-2xl leading-tight tracking-tight">
+              <p className="text-[#1a1c19] text-2xl lg:text-3xl font-medium max-w-2xl leading-tight tracking-tight">
                 Transit corridors are now fully open. Infrastructure has been successfully restored. You may now <span className="font-black border-b-4 border-[#FFB300] pb-1">safely return home.</span>
               </p>
             </div>
@@ -220,15 +219,15 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
                     <span className="material-symbols-outlined text-base group-hover:translate-x-2 transition-transform">arrow_forward</span>
                   </div>
                 </button>
-                <button onClick={() => setShowStayModal(true)} className="group p-12 rounded-[2.5rem] text-left border-2 border-white/5 hover:border-[#FFB300] hover:bg-white/5 transition-all duration-500 hover:scale-[1.02]">
+                <button className="group p-12 rounded-[2.5rem] text-left border-2 border-white/5 hover:border-[#FFB300] hover:bg-white/5 transition-all duration-500 hover:scale-[1.02]">
                   <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-10 group-hover:bg-[#FFB300] group-hover:text-[#1A1C19] dark:text-white transition-all duration-500">
                     <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>night_shelter</span>
                   </div>
                   <h3 className="text-3xl font-black text-white mb-4 tracking-tight">I need more time</h3>
                   <p className="text-white/40 text-lg font-medium leading-relaxed mb-10">Stay registered until your residential corridor is fully inspected and cleared.</p>
-                  <div className="flex items-center gap-3 font-black text-sm uppercase tracking-[0.25em] text-[#FFB300]">
+                  <div className="flex items-center gap-3 font-black text-sm uppercase tracking-[0.25em] text-white/30">
                     <span>Stay Registered</span>
-                    <span className="material-symbols-outlined text-base group-hover:translate-x-2 transition-transform">arrow_forward</span>
+                    <span className="material-symbols-outlined text-base">more_horiz</span>
                   </div>
                 </button>
               </div>
@@ -260,25 +259,6 @@ export default function CitizenAfterPage({ initialStep = "relief_claim" }: Props
             </div>
             <button onClick={() => setShowCheckout(false)} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] text-white shadow-xl hover:shadow-2xl hover:translate-y-[-2px] active:translate-y-[0px] transition-all" style={{ background: "#1A1C19" }}>
               Close Identity
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Stay Modal */}
-      {showStayModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-[#1A1C19]/60 backdrop-blur-xl animate-in fade-in duration-500" onClick={() => setShowStayModal(false)} />
-          <div className="bg-white dark:bg-[#232622] rounded-[3.5rem] p-12 max-w-lg w-full z-10 shadow-2xl text-center space-y-8 animate-in fade-in zoom-in slide-in-from-bottom-8 duration-500">
-            <div className="w-20 h-20 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-xl shadow-[#FFF3E0]" style={{ background: "#FFF3E0" }}>
-              <span className="material-symbols-outlined text-4xl" style={{ color: "#FFB300", fontVariationSettings: "'FILL' 1" }}>night_shelter</span>
-            </div>
-            <div className="space-y-3">
-              <h3 className="text-4xl font-black text-[#1A1C19] dark:text-white tracking-tight">Stay Confirmed</h3>
-              <p className="text-[#707a6c] dark:text-[#a0a39f] text-base font-medium leading-relaxed max-w-xs mx-auto">Your registration at Station 04 remains active. You will be notified once your sector is cleared.</p>
-            </div>
-            <button onClick={() => { setShowStayModal(false); setStep("relief_claim"); }} className="w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] text-white shadow-xl hover:shadow-2xl hover:translate-y-[-2px] active:translate-y-[0px] transition-all" style={{ background: "#FFB300" }}>
-              Return to Dashboard
             </button>
           </div>
         </div>

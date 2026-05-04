@@ -156,7 +156,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               placeholder="Search logistics..."
               type="text"
             />
-            <span className="material-symbols-outlined absolute right-3 top-2 text-[#444743] dark:text-[#a0a39f]">search</span>
+            <span className="material-symbols-outlined absolute right-3 top-2 text-[#444743]">search</span>
           </div>
           <div className="relative" ref={menuRef}>
             <button 
@@ -237,7 +237,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
              <p className="font-black text-2xl tracking-tight">Damayan</p>
           </div>
           <div className="inline-block px-3 py-1 rounded-full bg-[#f4f4ef] dark:bg-[#232622] border border-[#dadad5] dark:border-[#3b3b3b]">
-            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#707a6c] dark:text-[#a0a39f]">{phaseConfig.label}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#707a6c]">{phaseConfig.label}</p>
           </div>
         </div>
 
@@ -255,7 +255,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group relative overflow-hidden ${
                   isActive 
                     ? 'text-white shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] scale-[1.02]' 
-                    : 'text-[#707a6c] dark:text-[#c4c7c0] hover:bg-[#f4f4ef] dark:hover:bg-white/5'
+                    : 'text-[#707a6c] hover:bg-[#f4f4ef] dark:hover:bg-white/5'
                 }`}
                 style={isActive ? { background: phaseConfig.primaryColor } : {}}
               >
@@ -336,7 +336,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-2xl font-bold">{phaseConfig.checklistTitle}</h3>
-                <p className="text-[#444743] dark:text-[#c4c7c0] text-sm">{phaseConfig.checklistDesc}</p>
+                <p className="text-[#444743] text-sm">{phaseConfig.checklistDesc}</p>
               </div>
               <div className="bg-[#f4f4ef] dark:bg-[#232622] px-4 py-2 rounded-xl flex items-center gap-3">
                 <span className="material-symbols-outlined" style={{ color: phaseConfig.primaryColor }}>verified</span>
@@ -353,7 +353,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <h4 className="font-bold text-lg mb-2">
                   {phase === 'before' ? 'Readiness Check' : phase === 'during' ? 'Identity Verification' : 'Final Aid Dispensing'}
                 </h4>
-                <p className="text-sm text-[#444743] dark:text-[#c4c7c0] mb-6">
+                <p className="text-sm text-[#444743] mb-6">
                   {phase === 'before' ? 'Verify all staging protocols and personnel presence.' : phase === 'during' ? 'Active intake: scan QR codes for rapid shelter entry.' : 'Verify citizen relief ID for recovery kit distribution.'}
                 </p>
                 {phase === 'during' && (
@@ -361,11 +361,11 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     <div className="flex gap-2 bg-[#dadad5] p-1 rounded-lg">
                       <button 
                         onClick={() => setCheckInMode("scan")}
-                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${checkInMode === "scan" ? "bg-white shadow-sm" : "text-[#444743] dark:text-[#c4c7c0]"}`}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${checkInMode === "scan" ? "bg-white shadow-sm" : "text-[#444743]"}`}
                       >Scan QR</button>
                       <button 
                         onClick={() => setCheckInMode("manual")}
-                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${checkInMode === "manual" ? "bg-white shadow-sm" : "text-[#444743] dark:text-[#c4c7c0]"}`}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${checkInMode === "manual" ? "bg-white shadow-sm" : "text-[#444743]"}`}
                       >Manual ID</button>
                     </div>
                     
@@ -411,8 +411,8 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                   </ul>
                 </div>
                 <div className="mt-6 pt-4 border-t border-[#dadad5]">
-                  <p className="text-[10px] font-bold text-[#444743] dark:text-[#a0a39f] uppercase tracking-widest mb-2">Protocol Note</p>
-                  <p className="text-xs italic text-[#444743] dark:text-[#c4c7c0]">"All resource reallocations must be synced to the central hub within 5 minutes of physical movement."</p>
+                  <p className="text-[10px] font-bold text-[#444743] uppercase tracking-widest mb-2">Protocol Note</p>
+                  <p className="text-xs italic text-[#444743]">"All resource reallocations must be synced to the central hub within 5 minutes of physical movement."</p>
                 </div>
               </div>
             </div>
@@ -423,13 +423,13 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-xl font-bold">Report Site Incident</h3>
-                    <p className="text-[#444743] dark:text-[#c4c7c0] text-sm">Log critical events or medical emergencies immediately.</p>
+                    <p className="text-[#444743] text-sm">Log critical events or medical emergencies immediately.</p>
                   </div>
                   <span className="bg-orange-100 text-[#FFB300] px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">3 active alerts</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-[#444743] dark:text-[#a0a39f] ml-1">Incident Type</label>
+                    <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Incident Type</label>
                     <select className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none">
                       <option>Medical Emergency</option>
                       <option>Supply Shortage</option>
@@ -438,7 +438,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-[#444743] dark:text-[#a0a39f] ml-1">Severity</label>
+                    <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Severity</label>
                     <div className="flex gap-2">
                       <button className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: '#ba1a1a' }}>Critical</button>
                       <button className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: '#FFB300' }}>High</button>
@@ -446,7 +446,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     </div>
                   </div>
                   <div className="md:col-span-2 space-y-1">
-                    <label className="text-[10px] font-black uppercase text-[#444743] dark:text-[#a0a39f] ml-1">Detailed Description</label>
+                    <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Detailed Description</label>
                     <textarea className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm min-h-[100px]" placeholder="Describe the situation..."></textarea>
                   </div>
                 </div>
@@ -486,7 +486,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               <div className="relative z-10 flex flex-col justify-end h-full">
                 <div className="bg-white/90 p-4 rounded-2xl shadow-lg">
                   <h4 className="font-bold text-sm">Interactive Site Map</h4>
-                  <p className="text-[10px] text-[#444743] dark:text-[#a0a39f] uppercase tracking-widest">Real-time zone activity monitor</p>
+                  <p className="text-[10px] text-[#444743] uppercase tracking-widest">Real-time zone activity monitor</p>
                 </div>
               </div>
             </div>
@@ -529,7 +529,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                   <h3 className="text-2xl font-bold">Inventory Recovery & Intake</h3>
-                  <p className="text-[#444743] dark:text-[#c4c7c0] text-sm">Managing physical relief goods arriving from regional terminals.</p>
+                  <p className="text-[#444743] text-sm">Managing physical relief goods arriving from regional terminals.</p>
                 </div>
                 <div className="flex gap-2">
                   <button 
@@ -543,7 +543,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-[#f4f4ef] dark:bg-[#1a1c19] text-[#444743] dark:text-[#a0a39f] text-[10px] uppercase font-black tracking-widest">
+                  <thead className="bg-[#f4f4ef] dark:bg-[#1a1c19] text-[#444743] text-[10px] uppercase font-black tracking-widest">
                     <tr>
                       <th className="px-6 py-4">Resource Category</th>
                       <th className="px-6 py-4">Stock Level</th>
@@ -568,8 +568,8 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                             <span className="text-xs font-bold" style={{ color: row.tone === 'error' ? '#ba1a1a' : row.tone === 'warning' ? '#FFB300' : 'inherit' }}>{row.stock}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-xs font-medium text-[#444743] dark:text-[#c4c7c0]">{row.incoming}</td>
-                        <td className="px-6 py-5 text-xs font-medium text-[#444743] dark:text-[#c4c7c0]">{row.eta}</td>
+                        <td className="px-6 py-5 text-xs font-medium text-[#444743]">{row.incoming}</td>
+                        <td className="px-6 py-5 text-xs font-medium text-[#444743]">{row.eta}</td>
                         <td className="px-6 py-5">
                           <span className="px-2 py-1 rounded text-[10px] font-black uppercase" style={{ backgroundColor: row.tone === 'error' ? '#ffdad6' : row.tone === 'warning' ? '#fff3e0' : '#dadad5', color: row.tone === 'error' ? '#ba1a1a' : row.tone === 'warning' ? '#FFB300' : '#444743' }}>
                             {row.status}
@@ -581,7 +581,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                               setSelectedItem(row);
                               setIsActionPanelOpen(true);
                             }}
-                            className="material-symbols-outlined text-[#444743] dark:text-[#a0a39f] hover:text-[#0d631b] dark:hover:text-[#81c784] p-2 hover:bg-[#f4f4ef] dark:hover:bg-white/5 rounded-full transition-all active:scale-90"
+                            className="material-symbols-outlined text-[#444743] hover:text-[#0d631b] p-2 hover:bg-[#f4f4ef] rounded-full transition-all active:scale-90"
                           >
                             edit_note
                           </button>
@@ -597,7 +597,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-2xl font-bold">Essential Supply Checklist</h3>
-                <p className="text-[#444743] dark:text-[#c4c7c0] text-sm">Real-time inventory levels across regional staging areas.</p>
+                <p className="text-[#444743] text-sm">Real-time inventory levels across regional staging areas.</p>
               </div>
               <button className="text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:opacity-90 transition-opacity" style={{ background: phaseConfig.primaryColor }}>
                 Update Site Inventory
@@ -616,7 +616,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     </span>
                   </div>
                   <h4 className="font-bold text-sm mb-1">{item.name}</h4>
-                  <p className="text-xs text-[#444743] dark:text-[#c4c7c0] mb-4">{item.detail}</p>
+                  <p className="text-xs text-[#444743] mb-4">{item.detail}</p>
                   <div className="w-full h-1.5 bg-[#dadad5] rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-1000" style={{ width: item.percent, background: item.tone === 'error' ? '#b91c1c' : phaseConfig.primaryColor }}></div>
                   </div>
@@ -637,7 +637,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 { label: "In Transit", value: "1.2k", trend: "0", color: "#FFB300" }
               ].map((stat, i) => (
                 <div key={i} className="bg-white dark:bg-[#232622] p-6 rounded-3xl border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#444743] dark:text-[#a0a39f] mb-1">{stat.label}</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#444743] mb-1">{stat.label}</p>
                   <div className="flex items-end justify-between">
                     <h4 className="text-3xl font-black">{stat.value}</h4>
                     <span className="text-xs font-bold" style={{ color: stat.trend.startsWith('+') ? '#2E7D32' : stat.trend.startsWith('-') ? '#ba1a1a' : '#444743' }}>{stat.trend}</span>
@@ -671,7 +671,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                       </div>
                       <div>
                         <p className="font-bold text-sm">{item.name}</p>
-                        <p className="text-[10px] text-[#444743] dark:text-[#a0a39f] uppercase tracking-widest">{item.qty}</p>
+                        <p className="text-[10px] text-[#444743] uppercase tracking-widest">{item.qty}</p>
                       </div>
                     </div>
                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider" style={{ background: item.color + '15', color: item.color }}>{item.status}</span>
@@ -696,11 +696,11 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                   <h4 className="text-xs font-black uppercase tracking-widest mb-3">Live Telemetry</h4>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-8">
-                      <span className="text-[10px] font-bold text-[#444743] dark:text-[#a0a39f]">Active Shelters</span>
+                      <span className="text-[10px] font-bold text-[#444743]">Active Shelters</span>
                       <span className="text-xs font-black" style={{ color: phaseConfig.primaryColor }}>14 Locations</span>
                     </div>
                     <div className="flex items-center justify-between gap-8">
-                      <span className="text-[10px] font-bold text-[#444743] dark:text-[#a0a39f]">Total Pop.</span>
+                      <span className="text-[10px] font-bold text-[#444743]">Total Pop.</span>
                       <span className="text-xs font-black">2,842 pax</span>
                     </div>
                   </div>
@@ -720,7 +720,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                  </div>
                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-[#1a1c19]/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-white/20">
                    <p className="text-[10px] font-black uppercase">Main Evac Center</p>
-                   <p className="text-[8px] font-bold text-[#444743] dark:text-[#a0a39f]">842 pax | 92% Capacity</p>
+                   <p className="text-[8px] font-bold text-[#444743]">842 pax | 92% Capacity</p>
                  </div>
               </div>
             </div>
@@ -752,7 +752,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               <div>
                 <div className="flex items-center gap-2 mb-2">
                    <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: phaseConfig.primaryColor }}></span>
-                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#707a6c] dark:text-[#a0a39f]">Internal Registry</span>
+                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#707a6c]">Internal Registry</span>
                 </div>
                 <h3 className="text-4xl font-black tracking-tight">Stock Adjustment</h3>
               </div>
@@ -774,7 +774,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <div>
                   <p className="text-2xl font-black">{selectedItem.category}</p>
                   <div className="flex gap-2 mt-1">
-                    <span className="px-2 py-0.5 rounded-md bg-white border border-[#dadad5] text-[9px] font-black uppercase tracking-widest text-[#444743] dark:text-[#a0a39f]">ID: {selectedItem.category.slice(0,3).toUpperCase()}-2026</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-[#dadad5] text-[9px] font-black uppercase tracking-widest text-[#444743]">ID: {selectedItem.category.slice(0,3).toUpperCase()}-2026</span>
                     <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest" style={{ background: selectedItem.tone === 'error' ? '#ffdad6' : '#e8f5e9', color: selectedItem.tone === 'error' ? '#ba1a1a' : '#2E7D32' }}>{selectedItem.status}</span>
                   </div>
                 </div>
@@ -782,17 +782,17 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
 
               <div className="grid grid-cols-2 gap-4 relative z-10">
                 <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-white">
-                   <p className="text-[10px] font-black text-[#707a6c] dark:text-[#a0a39f] uppercase tracking-widest mb-1">Live Quantity</p>
+                   <p className="text-[10px] font-black text-[#707a6c] uppercase tracking-widest mb-1">Live Quantity</p>
                    <div className="flex items-baseline gap-1">
                      <span className="text-3xl font-black">{selectedItem.stock}</span>
-                     <span className="text-xs font-bold text-[#707a6c] dark:text-[#c4c7c0]">Available</span>
+                     <span className="text-xs font-bold text-[#707a6c]">Available</span>
                    </div>
                 </div>
                 <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-white">
-                   <p className="text-[10px] font-black text-[#707a6c] dark:text-[#a0a39f] uppercase tracking-widest mb-1">Impact Radius</p>
+                   <p className="text-[10px] font-black text-[#707a6c] uppercase tracking-widest mb-1">Impact Radius</p>
                    <div className="flex items-baseline gap-1">
                      <span className="text-3xl font-black text-orange-600">High</span>
-                     <span className="text-xs font-bold text-[#707a6c] dark:text-[#c4c7c0]">Zone A</span>
+                     <span className="text-xs font-bold text-[#707a6c]">Zone A</span>
                    </div>
                 </div>
               </div>
@@ -801,7 +801,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             {/* Input Controls */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                <div className="space-y-3">
-                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#a0a39f] ml-1">Manual Override</label>
+                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] ml-1">Manual Override</label>
                  <div className="flex items-center gap-3 bg-[#f4f4ef] p-2 rounded-2xl border border-[#dadad5] shadow-inner">
                    <button className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all">-</button>
                    <div className="flex-grow flex flex-col items-center">
@@ -809,14 +809,14 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                        className="w-full bg-transparent border-none text-center font-black text-2xl focus:ring-0 p-0" 
                        defaultValue={parseInt(selectedItem.stock)} 
                      />
-                     <span className="text-[9px] font-black text-[#707a6c] dark:text-[#a0a39f] uppercase tracking-tighter">Units</span>
+                     <span className="text-[9px] font-black text-[#707a6c] uppercase tracking-tighter">Units</span>
                    </div>
                    <button className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all">+</button>
                  </div>
                </div>
 
                <div className="space-y-3">
-                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#a0a39f] ml-1">Change Reason</label>
+                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] ml-1">Change Reason</label>
                  <div className="relative group">
                    <select className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-2xl h-16 px-6 font-bold appearance-none cursor-pointer focus:ring-2 focus:ring-offset-2 transition-all" style={{ outlineColor: phaseConfig.primaryColor } as any}>
                      <option>Distribution Update</option>
@@ -824,12 +824,12 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                      <option>Correction/Audit</option>
                      <option>Expiry Removal</option>
                    </select>
-                   <span className="material-symbols-outlined absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-[#707a6c] dark:text-[#a0a39f] group-hover:translate-y-[-40%] transition-transform">unfold_more</span>
+                   <span className="material-symbols-outlined absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-[#707a6c] group-hover:translate-y-[-40%] transition-transform">unfold_more</span>
                  </div>
                </div>
 
                <div className="md:col-span-2 space-y-3">
-                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#a0a39f] ml-1">Adjustment Notes</label>
+                 <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] ml-1">Adjustment Notes</label>
                  <textarea 
                     className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-2xl p-5 text-sm font-medium focus:ring-2 min-h-[100px] transition-all" 
                     placeholder="Provide context for this registry update..."
@@ -842,7 +842,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             <div className="flex gap-4 mt-auto">
               <button 
                 onClick={() => setIsActionPanelOpen(false)} 
-                className="flex-1 bg-[#f4f4ef] text-[#444743] dark:text-[#c4c7c0] py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-[#eeeeea] active:scale-95 transition-all"
+                className="flex-1 bg-[#f4f4ef] text-[#444743] py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-[#eeeeea] active:scale-95 transition-all"
               >
                 Cancel
               </button>
@@ -865,7 +865,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             <div className="flex justify-between items-start mb-8">
               <div>
                 <h3 className="text-3xl font-black mb-2">New Shipment Intake</h3>
-                <p className="text-[#444743] dark:text-[#c4c7c0] text-sm font-medium">Scan or manually enter physical relief goods being received at this site.</p>
+                <p className="text-[#444743] text-sm font-medium">Scan or manually enter physical relief goods being received at this site.</p>
               </div>
               <button onClick={() => setIsReceiveModalOpen(false)} className="material-symbols-outlined p-2 hover:bg-[#f4f4ef] rounded-full">close</button>
             </div>
@@ -879,19 +879,19 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
 
                <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] dark:text-[#a0a39f] ml-1">Arrival Terminal</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Arrival Terminal</label>
                     <input className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" placeholder="e.g. North Dock 4" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] dark:text-[#a0a39f] ml-1">Waybill Number</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Waybill Number</label>
                     <input className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" placeholder="WB-9982-X" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] dark:text-[#a0a39f] ml-1">Condition</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Condition</label>
                     <div className="grid grid-cols-3 gap-2">
                       <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-green-100 text-green-700 border-2 border-green-500">Intact</button>
-                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743] dark:text-[#c4c7c0]">Minor</button>
-                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743] dark:text-[#c4c7c0]">Damaged</button>
+                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743]">Minor</button>
+                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743]">Damaged</button>
                     </div>
                   </div>
                </div>
