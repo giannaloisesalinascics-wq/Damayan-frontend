@@ -23,7 +23,8 @@ import "./AdminPortal.css";
 type AdminPage =
   | "overview"
   | "approvals"
-  | "qr_management"
+  | "people_records"
+  | "after_calamity"
   | "disaster_monitoring"
   | "early_warning"
   | "system_health"
@@ -48,6 +49,13 @@ type WarningStep =
 type CalamityState = "none" | "before" | "during" | "after";
 type ServiceStatus = "OPERATIONAL" | "DEGRADED" | "DOWN";
 
+interface FamilyMember {
+  name: string;
+  relation: string;
+  age: number;
+  gender: "M" | "F";
+}
+
 interface PendingAccount {
   id: string;
   name: string;
@@ -61,6 +69,7 @@ interface PendingAccount {
   qrGenerated?: boolean;
   familyQrRequested?: boolean;
   familyQrGenerated?: boolean;
+  familyMembers?: FamilyMember[];
 }
 
 interface QRRecord {
@@ -130,37 +139,87 @@ interface Notification {
   read: boolean;
 }
 
-function toRelativeTime(value?: string) {
-  if (!value) return "Just now";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Just now";
-  const diffMins = Math.max(1, Math.floor((Date.now() - date.getTime()) / 60000));
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const hours = Math.floor(diffMins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+// ─── Initial Data ─────────────────────────────────────────────────────────────
+const INITIAL_ACCOUNTS: PendingAccount[] = [
+  {
+    id: "ACC-1041",
+    name: "Ana Torres",
+    role: "Dispatcher",
+    area: "Metro Cluster 5",
+    email: "a.torres@ndrrmc.gov.ph",
+    submitted: "2h ago",
+    docs: [
+      { name: "Government-Issued ID", type: "UMID", status: "VERIFIED" },
+      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
+    ],
+    status: "PENDING",
+  },
+  {
+    id: "ACC-1042",
+    name: "Renz Villanueva",
+    role: "Dispatcher",
+    area: "Metro Cluster 3",
+    email: "r.villanueva@ndrrmc.gov.ph",
+    submitted: "4h ago",
+    docs: [
+      { name: "Government-Issued ID", type: "Passport", status: "VERIFIED" },
+      { name: "Barangay Clearance", type: "PDF", status: "PENDING" },
+    ],
+    status: "PENDING",
+  },
+  {
+    id: "ACC-1043",
+    name: "Liza Ramos",
+    role: "Site Manager",
+    area: "Zone B-3",
+    email: "l.ramos@dswd.gov.ph",
+    submitted: "1d ago",
+    docs: [
+      { name: "Government-Issued ID", type: "Driver's License", status: "VERIFIED" },
+      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
+      { name: "Authorization Letter", type: "PDF", status: "PENDING" },
+    ],
+    status: "PENDING",
+  },
+  {
+    id: "ACC-1044",
+    name: "Carlos Mendez",
+    role: "Site Manager",
+    area: "District 4",
+    email: "c.mendez@lgu-qc.gov.ph",
+    submitted: "2d ago",
+    docs: [
+      { name: "Government-Issued ID", type: "PhilSys ID", status: "VERIFIED" },
+      { name: "Appointment Order", type: "PDF", status: "VERIFIED" },
+    ],
+    status: "APPROVED",
+    qrGenerated: true,
+  },
+  {
+    id: "ACC-1045",
+    name: "Patricia Gomez",
+    role: "Dispatcher",
+    area: "Metro Cluster 7",
+    email: "p.gomez@ndrrmc.gov.ph",
+    submitted: "3d ago",
+    docs: [{ name: "Government-Issued ID", type: "UMID", status: "FAILED" }],
+    status: "REJECTED",
+    rejectReason: "Submitted ID is expired. Please resubmit with a valid document.",
+  },
+];
 
-function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
-  const firstName = record.firstName ?? record.first_name ?? "";
-  const lastName = record.lastName ?? record.last_name ?? "";
-  const statusRaw = (record.status ?? "pending").toLowerCase();
-  const status: AccountStatus =
-    statusRaw === "active" ? "APPROVED" : statusRaw === "rejected" ? "REJECTED" : "PENDING";
+const INITIAL_QR: QRRecord[] = [
+  { id: "QR-5001", name: "Carlos Mendez", type: "individual", area: "District 4", issuedAt: "Today 10:00", linkedAccountId: "ACC-1044" },
+  { id: "QR-5002", name: "Santos Family", type: "family", area: "Zone A-4", issuedAt: "Today 09:30", familySize: 5 },
+  { id: "QR-5003", name: "Maria Reyes", type: "individual", area: "North District", issuedAt: "Today 09:00" },
+  { id: "QR-5004", name: "Dela Rosa Family", type: "family", area: "Sector 12", issuedAt: "Yesterday", familySize: 3 },
+];
 
-  return {
-    id: record.id,
-    name: `${firstName} ${lastName}`.trim() || "Unnamed User",
-    role: (record.role ?? "staff").replace("_", " "),
-    area: "Area not set",
-    email: record.email ?? "No email",
-    submitted: toRelativeTime(record.createdAt ?? record.created_at),
-    docs: [{ name: "Submitted Credentials", type: "System Record", status: "PENDING" }],
-    status,
-    rejectReason: record.rejectReason ?? record.reject_reason ?? undefined,
-  };
-}
+const INITIAL_DISASTERS: DisasterEvent[] = [
+  { id: "DIS-001", name: "Typhoon Kristine", type: "Typhoon", severity: "CAT 3", phase: "DURING", areas: "Metro Manila, Rizal, Laguna", affected: 18432, tickets: 142, dispatchers: 4, riskLevel: "CRITICAL" },
+  { id: "DIS-002", name: "Flooding — Laguna Basin", type: "Flood", severity: "WATCH", phase: "BEFORE", areas: "Laguna, Cavite", affected: 3200, tickets: 12, dispatchers: 1, riskLevel: "HIGH" },
+  { id: "DIS-003", name: "Landslide — Rizal Province", type: "Landslide", severity: "RESOLVED", phase: "AFTER", areas: "Antipolo, Montalban", affected: 780, tickets: 87, dispatchers: 0, riskLevel: "LOW" },
+];
 
 const FORECAST_DATA = [
   { area: "Metro Manila", risk: "CRITICAL" as RiskLevel, rainfall: "Heavy (120mm+)", wind: "140 km/h", action: "Immediate evacuation recommended" },
@@ -177,6 +236,17 @@ const LIVE_FEEDS = [
   { src: "River Level Monitor", data: "Marikina River: 18.6m — Alert Level 2 (threshold: 20m)", status: "LIVE" },
 ];
 
+const SYSTEM_SERVICES: ServiceHealth[] = [
+  { name: "API Gateway", status: "OPERATIONAL", latency: "11ms", uptime: "99.98%" },
+  { name: "Auth Service", status: "OPERATIONAL", latency: "8ms", uptime: "99.99%" },
+  { name: "Notification Service", status: "DEGRADED", latency: "340ms", uptime: "98.1%", note: "SMS provider rate limiting — ETA fix 15min" },
+  { name: "GIS / Mapping API", status: "OPERATIONAL", latency: "24ms", uptime: "99.95%" },
+  { name: "Screening API", status: "OPERATIONAL", latency: "58ms", uptime: "99.91%" },
+  { name: "QR Code Service", status: "OPERATIONAL", latency: "15ms", uptime: "99.97%" },
+  { name: "Database (Supabase)", status: "OPERATIONAL", latency: "18ms", uptime: "99.99%" },
+  { name: "File Storage", status: "OPERATIONAL", latency: "22ms", uptime: "99.93%" },
+];
+
 const ADMIN_PROFILE: AdminProfile = {
   name: "Juan C. dela Cruz",
   initials: "JD",
@@ -186,6 +256,13 @@ const ADMIN_PROFILE: AdminProfile = {
   phone: "09XX-801-0012",
   role: "System Administrator",
 };
+
+const INITIAL_NOTIFICATIONS: Notification[] = [
+  { id: 1, title: "3 Pending Approvals", sub: "ACC-1041, ACC-1042, ACC-1043 awaiting review", time: "Just now", type: "red", read: false },
+  { id: 2, title: "Notification Service Degraded", sub: "SMS latency 340ms — engineering notified", time: "5 min ago", type: "amber", read: false },
+  { id: 3, title: "DIS-001 Status Update", sub: "Typhoon Kristine — risk level remains CRITICAL", time: "12 min ago", type: "red", read: false },
+  { id: 4, title: "QR-5001 Issued", sub: "Carlos Mendez individual QR generated", time: "2h ago", type: "green", read: true },
+];
 
 // ─── Color maps ───────────────────────────────────────────────────────────────
 const RISK_CLASS: Record<RiskLevel, string> = {
@@ -336,7 +413,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const features = [
     { icon: "✅", label: "Account Approvals", desc: "Review and validate role applications" },
-    { icon: "📱", label: "QR Management", desc: "Issue individual and family QR codes" },
+    { icon: "👨‍👩‍👧", label: "Family Records", desc: "View and manage registered family groups" },
     { icon: "🌀", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
     { icon: "📡", label: "Early Warning", desc: "Configure and broadcast alerts" },
     { icon: "💻", label: "System Health", desc: "Monitor all platform services" },
@@ -564,14 +641,12 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function OverviewPage({
   accounts,
-  qrRecords,
   disasters,
   activityLog,
   setPage,
   overview,
 }: {
   accounts: PendingAccount[];
-  qrRecords: QRRecord[];
   disasters: DisasterEvent[];
   activityLog: { time: string; type: string; msg: string; col: string }[];
   setPage: (p: AdminPage) => void;
@@ -604,9 +679,9 @@ function OverviewPage({
           <div className="admin-stat-note">Awaiting review</div>
         </div>
         <div className="admin-stat blue">
-          <div className="admin-stat-label">Evacuee Check-ins</div>
-          <div className="admin-stat-value">{overview?.checkIns?.total ?? qrRecords.length}</div>
-          <div className="admin-stat-note">Total check-ins</div>
+          <div className="admin-stat-label">QR Codes Issued</div>
+          <div className="admin-stat-value">{qrRecords.length}</div>
+          <div className="admin-stat-note">Total issued</div>
         </div>
         <div className="admin-stat green">
           <div className="admin-stat-label">Inventory Items</div>
@@ -691,11 +766,12 @@ function OverviewPage({
             <div className="admin-card-header"><div className="admin-card-title">⚡ Quick Actions</div></div>
             <div className="admin-card-body">
               {[
-                { label: "Review Account Approvals", icon: "✅", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
-                { label: "Generate QR Codes", icon: "📱", count: null, color: "var(--admin-blue)", page: "qr_management" as AdminPage },
-                { label: "Monitor Disasters", icon: "🌀", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
-                { label: "Configure Early Warning", icon: "📡", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
-                { label: "System Health", icon: "💻", count: null, color: "var(--admin-green)", page: "system_health" as AdminPage },
+                { label: "Review Account Approvals", icon: "how_to_reg", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
+                { label: "People & Records", icon: "people", count: null, color: "var(--admin-blue)", page: "people_records" as AdminPage },
+                { label: "After Calamity", icon: "📋", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
+                { label: "Monitor Disasters", icon: "crisis_alert", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
+                { label: "Configure Early Warning", icon: "broadcast_on_home", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
+                { label: "System Health", icon: "monitor_heart", count: null, color: "var(--admin-green)", page: "system_health" as AdminPage },
               ].map((qa) => (
                 <div
                   key={qa.label}
@@ -749,7 +825,7 @@ function OverviewPage({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  APPROVALS PAGE (Swimlane: Review Docs → Is Document Valid? → Approve/Reject → Generate QR)
+//  APPROVALS PAGE (Swimlane: Review Docs → Is Document Valid? → Approve/Reject)
 // ═══════════════════════════════════════════════════════════════════════════════
 function ApprovalsPage({
   accounts,
@@ -824,8 +900,7 @@ function ApprovalsPage({
           )}
           {a.qrGenerated && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--admin-green)", fontWeight: 700 }}>
-              ✅ Individual QR generated
-              {a.familyQrGenerated && " · 👨‍👩‍👧 Family QR generated"}
+              ✅ Account approved
             </div>
           )}
         </div>
@@ -833,7 +908,7 @@ function ApprovalsPage({
         {showActions && (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
             <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setDocsTarget(a)}>View Docs</button>
-            <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => onApprove(a.id)}>✓ Approve</button>
+            <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => onApprove(a.id)}>Approve</button>
             <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => setRejectTarget(a)}>✕ Reject</button>
           </div>
         )}
@@ -865,7 +940,7 @@ function ApprovalsPage({
       <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
         <span className="admin-alert-icon">ℹ️</span>
         <div>
-          <strong>Approval Workflow:</strong> Review documents for approval → Validate document authenticity → Approve or Reject account → Auto-generate Individual QR → Check for Family QR requests
+          <strong>Approval Workflow:</strong> Review documents for approval → Validate document authenticity → Approve or Reject account
         </div>
       </div>
 
@@ -903,7 +978,7 @@ function ApprovalsPage({
               <button className="admin-btn admin-btn-ghost" onClick={() => setDocsTarget(null)}>Close</button>
               {docsTarget.status === "PENDING" && (
                 <button className="admin-btn admin-btn-success" onClick={() => { onApprove(docsTarget.id); setDocsTarget(null); }}>
-                  ✓ Approve Account
+                  Approve Account
                 </button>
               )}
             </>
@@ -972,170 +1047,802 @@ function ApprovalsPage({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  QR MANAGEMENT (Swimlane: Generate Individual QR → Check Family QR → Generate Family QR)
+//  PEOPLE & RECORDS PAGE — Individual + Family tabs
 // ═══════════════════════════════════════════════════════════════════════════════
-function QRManagementPage({
-  qrRecords,
-  onAddQR,
-  accounts,
-  showToast,
-  addLog,
-}: {
-  qrRecords: QRRecord[];
-  onAddQR: (qr: QRRecord) => void;
-  accounts: PendingAccount[];
-  showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
-  addLog: (type: string, msg: string, col: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [area, setArea] = useState("");
-  const [type, setType] = useState<"individual" | "family">("individual");
-  const [familySize, setFamilySize] = useState(3);
-  const [generated, setGenerated] = useState<QRRecord | null>(null);
-  const [showFamilyRequest, setShowFamilyRequest] = useState(false);
-  const [familyName, setFamilyName] = useState("");
-  const [familyArea, setFamilyArea] = useState("");
-  const [familyCount, setFamilyCount] = useState(3);
+function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
+  const [tab, setTab] = useState<"individual" | "family">("individual");
   const [search, setSearch] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState<PendingAccount | null>(null);
 
-  const handleGenerate = () => {
-    if (!name || !area) return;
-    const qr: QRRecord = {
-      id: `QR-${5000 + qrRecords.length + 1}`,
-      name,
-      type,
-      area,
-      issuedAt: "Just now",
-      familySize: type === "family" ? familySize : undefined,
-    };
-    onAddQR(qr);
-    setGenerated(qr);
-    addLog("QR", `${type === "family" ? "Family" : "Individual"} QR issued for ${name}`, "var(--admin-blue)");
-    showToast("success", "QR Code Generated", `${qr.id} — ${name}`);
-    setName(""); setArea("");
-  };
-
-  const handleFamilyQR = () => {
-    if (!familyName || !familyArea) return;
-    const qr: QRRecord = {
-      id: `QR-${5000 + qrRecords.length + 2}`,
-      name: familyName,
-      type: "family",
-      area: familyArea,
-      issuedAt: "Just now",
-      familySize: familyCount,
-    };
-    onAddQR(qr);
-    showToast("success", "Family QR Generated", `${qr.id} — ${familyName} (${familyCount} members)`);
-    addLog("QR", `Family QR issued for ${familyName} — ${familyCount} members`, "var(--admin-blue)");
-    setShowFamilyRequest(false);
-    setFamilyName(""); setFamilyArea("");
-  };
-
-  const filtered = qrRecords.filter(
-    (q) => !search || q.name.toLowerCase().includes(search.toLowerCase()) || q.id.toLowerCase().includes(search.toLowerCase()) || q.area.toLowerCase().includes(search.toLowerCase())
+  const allApproved = accounts.filter((a) => a.status === "APPROVED");
+  const familyAccounts = accounts.filter(
+    (a) => a.status === "APPROVED" && a.familyMembers && a.familyMembers.length > 0
   );
 
-  const approvedNoQR = accounts.filter((a) => a.status === "APPROVED" && !a.qrGenerated);
-  const familyQRs = qrRecords.filter((q) => q.type === "family");
+  const filteredIndividual = allApproved.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.area.toLowerCase().includes(search.toLowerCase()) ||
+      a.role.toLowerCase().includes(search.toLowerCase()) ||
+      a.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredFamily = familyAccounts.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.area.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const roleColor: Record<string, string> = {
+    Dispatcher: "blue",
+    "Site Manager": "green",
+    Citizen: "violet",
+  };
 
   return (
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
-          <h2>QR Code Management</h2>
-          <p>Generate individual and family QR codes for verified citizens and accounts</p>
+          <h2>People &amp; Records</h2>
+          <p>Individual person records and family household records for all approved accounts</p>
         </div>
         <div className="admin-head-actions">
-          <button className="admin-btn admin-btn-accent" onClick={() => setShowFamilyRequest(true)}>👨‍👩‍👧 Process Family QR Request</button>
+          <span className="admin-badge blue">{allApproved.length} Individuals</span>
+          <span className="admin-badge green">{familyAccounts.length} Families</span>
         </div>
       </div>
 
-      {approvedNoQR.length > 0 && (
-        <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon">📱</span>
-          <div><strong>{approvedNoQR.length} approved account(s)</strong> are awaiting QR code generation: {approvedNoQR.map((a) => a.name).join(", ")}</div>
-        </div>
-      )}
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1.25rem", background: "var(--admin-surface)", border: "1px solid var(--admin-outline)", borderRadius: "0.65rem", padding: "0.3rem", width: "fit-content" }}>
+        {([
+          { id: "individual", icon: "person", label: "Individual Records" },
+          { id: "family",     icon: "family_restroom", label: "Family Records" },
+        ] as { id: "individual" | "family"; icon: string; label: string }[]).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => { setTab(t.id); setSearch(""); }}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.45rem",
+              padding: "0.5rem 1.1rem",
+              border: "none", borderRadius: "0.45rem", cursor: "pointer",
+              fontSize: "0.82rem", fontWeight: 800,
+              fontFamily: "Public Sans, sans-serif",
+              background: tab === t.id ? "var(--admin-accent)" : "transparent",
+              color: tab === t.id ? "#fff" : "var(--admin-text-soft)",
+              transition: "all 0.15s",
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <div className="admin-grid-2" style={{ marginBottom: "1rem" }}>
-        {/* Generate form */}
-        <div className="admin-card">
-          <div className="admin-card-header"><div className="admin-card-title">📱 Generate QR Code</div></div>
-          <div className="admin-card-body">
-            <div className="admin-form-grid">
-              <div className="admin-form-group">
-                <label className="admin-form-label">Citizen / Account Name</label>
-                <input className="admin-form-input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-              <div className="admin-form-group">
-                <label className="admin-form-label">Area / Barangay</label>
-                <input className="admin-form-input" placeholder="e.g. Brgy. 102, District 4" value={area} onChange={(e) => setArea(e.target.value)} />
-              </div>
-              <div className="admin-form-group">
-                <label className="admin-form-label">QR Type</label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  {(["individual", "family"] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setType(t)}
-                      style={{ flex: 1, padding: "0.65rem", border: `1.5px solid ${type === t ? "var(--admin-accent-mid)" : "var(--admin-outline)"}`, borderRadius: "0.65rem", background: type === t ? "var(--admin-blue-bg)" : "var(--admin-surface)", color: type === t ? "var(--admin-blue)" : "var(--admin-text-soft)", fontWeight: type === t ? 800 : 600, fontSize: "0.8rem", cursor: "pointer", fontFamily: "Public Sans, sans-serif", transition: "all 0.15s" }}
-                    >
-                      {t === "individual" ? "👤 Individual" : "👨‍👩‍👧‍👦 Family"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {type === "family" && (
-                <div className="admin-form-group">
-                  <label className="admin-form-label">Family Size (members)</label>
-                  <input className="admin-form-input" type="number" min={2} max={20} value={familySize} onChange={(e) => setFamilySize(Number(e.target.value))} />
-                </div>
-              )}
-              <button
-                className="admin-btn admin-btn-accent"
-                style={{ width: "100%", justifyContent: "center", padding: "0.8rem" }}
-                onClick={handleGenerate}
-                disabled={!name || !area}
-              >
-                📱 Generate QR Code
-              </button>
-            </div>
+      {/* Search */}
+      <div style={{ position: "relative", marginBottom: "1.25rem", maxWidth: "380px" }}>
+        <span className="material-symbols-outlined" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", color: "var(--admin-text-soft)" }}>search</span>
+        <input
+          className="admin-form-input"
+          placeholder={tab === "individual" ? "Search by name, role, area, or ID…" : "Search by name or area…"}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ paddingLeft: "2.25rem" }}
+        />
+      </div>
 
-            {generated && (
-              <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--admin-blue-bg)", border: "1px solid var(--admin-blue-border)", borderRadius: "0.75rem", textAlign: "center" }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>📱</div>
-                <div style={{ fontWeight: 800, color: "var(--admin-blue)", marginBottom: "0.2rem" }}>{generated.id} — Generated ✅</div>
-                <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>{generated.name} · {generated.area}</div>
-                <div style={{ marginTop: "0.75rem", display: "inline-block", background: "var(--admin-surface)", borderRadius: "0.5rem", padding: "0.75rem 1.5rem", border: "1px solid var(--admin-outline)" }}>
-                  <div style={{ fontSize: "0.65rem", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>QR Preview</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "2px" }}>
-                    {Array(25).fill(0).map((_, i) => (
-                      <div key={i} style={{ width: "8px", height: "8px", background: Math.random() > 0.5 ? "var(--admin-text)" : "transparent", borderRadius: "1px" }} />
+      {/* ── Individual Records Tab ── */}
+      {tab === "individual" && (
+        filteredIndividual.length === 0 ? (
+          <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: "2.5rem", display: "block", marginBottom: "0.75rem" }}>person_search</span>
+            <div style={{ fontWeight: 700 }}>No records found.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {filteredIndividual.map((a) => (
+              <div key={a.id} className="admin-card" style={{ padding: "1.1rem 1.4rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  {/* Avatar */}
+                  <div style={{
+                    width: "2.8rem", height: "2.8rem", borderRadius: "0.75rem",
+                    background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent-deep))",
+                    display: "grid", placeItems: "center",
+                    fontSize: "1.05rem", fontWeight: 900, color: "#fff", flexShrink: 0,
+                  }}>
+                    {a.name[0]}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginBottom: "0.2rem", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 800, fontSize: "0.93rem" }}>{a.name}</span>
+                      <span className={`admin-badge ${roleColor[a.role] || "blue"}`}>{a.role}</span>
+                      <span className="admin-mono" style={{ fontSize: "0.68rem", color: "var(--admin-text-soft)" }}>{a.id}</span>
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>location_on</span>
+                        {a.area}
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>mail</span>
+                        {a.email}
+                      </span>
+                      {a.familyMembers && a.familyMembers.length > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--admin-accent)" }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>family_restroom</span>
+                          {a.familyMembers.length + 1} household members
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Docs summary */}
+                  <div style={{ display: "flex", gap: "0.35rem", alignItems: "center", flexShrink: 0 }}>
+                    {a.docs.map((d, i) => (
+                      <span
+                        key={i}
+                        className={`admin-badge ${d.status === "VERIFIED" ? "green" : d.status === "FAILED" ? "red" : "amber"}`}
+                        style={{ fontSize: "0.62rem" }}
+                        title={d.name}
+                      >
+                        {d.type}
+                      </span>
                     ))}
                   </div>
+
+                  <button
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    onClick={() => setSelectedAccount(a)}
+                    style={{ flexShrink: 0 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>open_in_new</span>
+                    View
+                  </button>
                 </div>
-                <button className="admin-btn admin-btn-ghost admin-btn-sm" style={{ marginTop: "0.75rem" }} onClick={() => setGenerated(null)}>Dismiss</button>
               </div>
-            )}
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── Family Records Tab ── */}
+      {tab === "family" && (
+        filteredFamily.length === 0 ? (
+          <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: "2.5rem", display: "block", marginBottom: "0.75rem" }}>family_restroom</span>
+            <div style={{ fontWeight: 700 }}>No family records found.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {filteredFamily.map((a) => (
+              <div key={a.id} className="admin-card" style={{ padding: "1.1rem 1.4rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                  <div style={{
+                    width: "2.8rem", height: "2.8rem", borderRadius: "0.75rem",
+                    background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent-deep))",
+                    display: "grid", placeItems: "center",
+                    fontSize: "1.05rem", fontWeight: 900, color: "#fff", flexShrink: 0,
+                  }}>
+                    {a.name[0]}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginBottom: "0.2rem" }}>
+                      <span style={{ fontWeight: 800, fontSize: "0.93rem" }}>{a.name}</span>
+                      <span className="admin-badge green">Head of Household</span>
+                      <span className="admin-mono" style={{ fontSize: "0.68rem", color: "var(--admin-text-soft)" }}>{a.id}</span>
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>
+                      {a.area} · {a.email} ·{" "}
+                      <strong style={{ color: "var(--admin-text)" }}>
+                        {(a.familyMembers?.length || 0) + 1} members
+                      </strong>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-end", flexShrink: 0 }}>
+                    <div style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)" }}>
+                      {a.familyMembers?.map((m) => m.name).join(", ")}
+                    </div>
+                  </div>
+                  <button
+                    className="admin-btn admin-btn-ghost admin-btn-sm"
+                    onClick={() => setSelectedAccount(a)}
+                    style={{ flexShrink: 0 }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>group</span>
+                    View Family
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* ── Detail Modal ── */}
+      {selectedAccount && (
+        <Modal
+          title={tab === "family" ? `Family Record — ${selectedAccount.name}` : `Person Record — ${selectedAccount.name}`}
+          onClose={() => setSelectedAccount(null)}
+          footer={<button className="admin-btn admin-btn-ghost" onClick={() => setSelectedAccount(null)}>Close</button>}
+        >
+          {/* Person info card */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.9rem 1rem", background: "var(--admin-surface-low)", borderRadius: "0.75rem", marginBottom: "1.25rem" }}>
+            <div style={{
+              width: "3rem", height: "3rem", borderRadius: "0.75rem",
+              background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent-deep))",
+              display: "grid", placeItems: "center",
+              fontSize: "1.15rem", fontWeight: 900, color: "#fff", flexShrink: 0,
+            }}>
+              {selectedAccount.name[0]}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 900, fontSize: "1rem", marginBottom: "0.2rem" }}>{selectedAccount.name}</div>
+              <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>
+                {selectedAccount.role} · {selectedAccount.area}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginTop: "0.15rem" }}>
+                {selectedAccount.email} · <span className="admin-mono">{selectedAccount.id}</span>
+              </div>
+            </div>
+            <span className={`admin-badge ${roleColor[selectedAccount.role] || "blue"}`}>{selectedAccount.role}</span>
+          </div>
+
+          {/* Documents */}
+          <div style={{ marginBottom: "0.65rem", fontWeight: 700, fontSize: "0.78rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <span className="material-symbols-outlined" style={{ fontSize: "0.9rem" }}>folder</span>
+            Submitted Documents ({selectedAccount.docs.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.25rem" }}>
+            {selectedAccount.docs.map((d, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.7rem 0.9rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "0.55rem" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "1rem", color: d.status === "VERIFIED" ? "var(--admin-green)" : d.status === "FAILED" ? "var(--admin-red)" : "var(--admin-amber)" }}>
+                  {d.status === "VERIFIED" ? "verified" : d.status === "FAILED" ? "cancel" : "pending"}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{d.name}</div>
+                  <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{d.type}</div>
+                </div>
+                <span className={`admin-badge ${d.status === "VERIFIED" ? "green" : d.status === "FAILED" ? "red" : "amber"}`}>
+                  {d.status}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Family Members (if any) */}
+          {selectedAccount.familyMembers && selectedAccount.familyMembers.length > 0 && (
+            <>
+              <div style={{ marginBottom: "0.65rem", fontWeight: 700, fontSize: "0.78rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "0.9rem" }}>family_restroom</span>
+                Household Members ({selectedAccount.familyMembers.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {selectedAccount.familyMembers.map((m, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.7rem 0.9rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "0.55rem" }}>
+                    <div style={{
+                      width: "2rem", height: "2rem", borderRadius: "50%",
+                      background: m.gender === "F" ? "var(--admin-violet)" : "var(--admin-blue)",
+                      display: "grid", placeItems: "center",
+                      fontSize: "0.7rem", fontWeight: 900, color: "#fff",
+                    }}>
+                      {m.name[0]}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: "0.85rem" }}>{m.name}</div>
+                      <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>
+                        {m.relation} · Age {m.age} · {m.gender === "F" ? "Female" : "Male"}
+                      </div>
+                    </div>
+                    <span className="admin-badge" style={{
+                      background: m.gender === "F" ? "rgba(124,58,237,0.1)" : "rgba(37,99,235,0.1)",
+                      color: m.gender === "F" ? "var(--admin-violet)" : "var(--admin-blue)",
+                    }}>
+                      {m.relation}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  AFTER CALAMITY (Admin Swimlane — starts at Analyze Evacuation Occupancy Data)
+// ═══════════════════════════════════════════════════════════════════════════════
+function AfterCalamityPage({
+  showToast,
+  addLog,
+}: {
+  showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  addLog: (type: string, msg: string, col: string) => void;
+}) {
+  type AfterStep =
+    | "analyze_occupancy"
+    | "calculate_relief"
+    | "approve_deployment"
+    | "broadcast_safe"
+    | "archive_event"
+    | "review_statistics"
+    | "create_report"
+    | "done";
+
+  const [step, setStep] = useState<AfterStep>("analyze_occupancy");
+  const [reportGenerated, setReportGenerated] = useState(false);
+  const resetCycle = () => { setStep("analyze_occupancy"); setReportGenerated(false); };
+
+  const STEPS: AfterStep[] = [
+    "analyze_occupancy",
+    "calculate_relief",
+    "approve_deployment",
+    "broadcast_safe",
+    "archive_event",
+    "review_statistics",
+    "create_report",
+  ];
+
+  const STEP_LABELS: Record<AfterStep, string> = {
+    analyze_occupancy:  "Analyze Occupancy Data",
+    calculate_relief:   "Calculate Relief Requirements",
+    approve_deployment: "Approve & Route Deployment",
+    broadcast_safe:     "Broadcast Safe to Return",
+    archive_event:      "Archive Event",
+    review_statistics:  "Review Incident Statistics",
+    create_report:      "Create Report",
+    done:               "Complete",
+  };
+
+  const currentIdx = STEPS.indexOf(step);
+
+  return (
+    <div className="admin-page">
+      <div className="admin-page-head">
+        <div>
+          <h2>After Calamity Workflow</h2>
+          <p>
+            Continues from Early Warning — post-disaster relief deployment,
+            archiving, and incident reporting
+          </p>
+        </div>
+        <div className="admin-head-actions">
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={resetCycle}>
+            Reset Cycle
+          </button>
+        </div>
+      </div>
+
+      {/* Progress tracker */}
+      <div className="admin-card" style={{ marginBottom: "1.25rem" }}>
+        <div className="admin-card-header">
+          <div className="admin-card-title">Workflow Progress</div>
+        </div>
+        <div className="admin-card-body">
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center" }}>
+            {STEPS.map((s, i) => {
+              const done = currentIdx > i;
+              const active = step === s;
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                  <div
+                    style={{
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "999px",
+                      fontSize: "0.68rem",
+                      fontWeight: 800,
+                      background: done
+                        ? "var(--admin-green)"
+                        : active
+                        ? "var(--admin-accent)"
+                        : "var(--admin-surface-low)",
+                      color: done || active ? "#fff" : "var(--admin-text-soft)",
+                      border:
+                        done || active
+                          ? "none"
+                          : "1px solid var(--admin-outline)",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {i + 1}. {STEP_LABELS[s]}
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.65rem" }}>›</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
+      </div>
 
-        {/* Family QR requests */}
-        <div className="admin-card">
-          <div className="admin-card-header">
-            <div className="admin-card-title">👨‍👩‍👧‍👦 Family QR Records</div>
-            <span className="admin-badge blue">{familyQRs.length} records</span>
-          </div>
-          <div className="admin-card-body">
-            {familyQRs.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "2rem", color: "var(--admin-text-soft)" }}>
-                <div style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>✅</div>
-                No family QR requests pending
+      <div className="admin-card">
+        <div className="admin-card-header">
+          <div className="admin-card-title">{STEP_LABELS[step]}</div>
+          {step !== "done" && (
+            <div className="admin-mono" style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)" }}>
+              Step {currentIdx + 1} of {STEPS.length}
+            </div>
+          )}
+        </div>
+        <div className="admin-card-body">
+
+          {/* ── Step 1: Analyze Evacuation Occupancy ── */}
+          {step === "analyze_occupancy" && (
+            <div>
+              <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
+                <span className="admin-alert-icon material-symbols-outlined">bar_chart</span>
+                <div>
+                  Review current shelter occupancy data to determine the scale
+                  of relief operations required.
+                </div>
+              </div>
+              <div
+                className="admin-stats-row admin-stats-3"
+                style={{ marginBottom: "1.25rem" }}
+              >
+                <div className="admin-stat blue">
+                  <div className="admin-stat-label">Total Evacuees</div>
+                  <div className="admin-stat-value">18,432</div>
+                </div>
+                <div className="admin-stat green">
+                  <div className="admin-stat-label">Shelters Active</div>
+                  <div className="admin-stat-value">14</div>
+                </div>
+                <div className="admin-stat orange">
+                  <div className="admin-stat-label">Families Registered</div>
+                  <div className="admin-stat-value">4,210</div>
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                  marginBottom: "1.25rem",
+                }}
+              >
+                {[
+                  {
+                    site: "Evacuation Center A",
+                    evacuees: "3,240",
+                    capacity: "90%",
+                    status: "Near Full",
+                    cls: "amber",
+                  },
+                  {
+                    site: "Barangay Gym B4",
+                    evacuees: "1,800",
+                    capacity: "72%",
+                    status: "Stable",
+                    cls: "blue",
+                  },
+                  {
+                    site: "Community Hall C7",
+                    evacuees: "920",
+                    capacity: "46%",
+                    status: "Available",
+                    cls: "green",
+                  },
+                  {
+                    site: "Covered Court D2",
+                    evacuees: "2,110",
+                    capacity: "83%",
+                    status: "Near Full",
+                    cls: "amber",
+                  },
+                ].map((s) => (
+                  <div
+                    key={s.site}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "0.75rem 1rem",
+                      background: "var(--admin-surface-low)",
+                      borderRadius: "0.65rem",
+                      border: "1px solid var(--admin-outline)",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>
+                      {s.site}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.78rem",
+                        color: "var(--admin-text-soft)",
+                      }}
+                    >
+                      {s.evacuees} evacuees · {s.capacity} capacity
+                    </span>
+                    <span className={`admin-badge ${s.cls}`}>{s.status}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                className="admin-btn admin-btn-accent"
+                onClick={() => {
+                  setStep("calculate_relief");
+                  showToast(
+                    "info",
+                    "Occupancy Analyzed",
+                    "Proceeding to relief calculation"
+                  );
+                  addLog(
+                    "APPROVED",
+                    "Evacuation occupancy data analyzed",
+                    "var(--admin-blue)"
+                  );
+                }}
+              >
+                → Calculate Relief Requirements
+              </button>
+            </div>
+          )}
+
+          {/* ── Step 2: Calculate Relief ── */}
+          {step === "calculate_relief" && (
+            <div>
+              <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
+                <span className="admin-alert-icon material-symbols-outlined">calculate</span>
+                <div>
+                  Determine the volume of relief goods needed based on evacuee
+                  count and shelter data.
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                  marginBottom: "1.25rem",
+                }}
+              >
+                {[
+                  {
+                    item: "Food Packs",
+                    required: "18,432 units",
+                    available: "16,000 units",
+                    status: "Shortage",
+                    cls: "amber",
+                  },
+                  {
+                    item: "Drinking Water",
+                    required: "55,296 L",
+                    available: "60,000 L",
+                    status: "Sufficient",
+                    cls: "green",
+                  },
+                  {
+                    item: "Medical Kits",
+                    required: "1,200 kits",
+                    available: "980 kits",
+                    status: "Shortage",
+                    cls: "amber",
+                  },
+                  {
+                    item: "Hygiene Kits",
+                    required: "4,210 kits",
+                    available: "5,000 kits",
+                    status: "Sufficient",
+                    cls: "green",
+                  },
+                  {
+                    item: "Blankets & Mats",
+                    required: "4,210 sets",
+                    available: "3,800 sets",
+                    status: "Shortage",
+                    cls: "amber",
+                  },
+                ].map((r) => (
+                  <div
+                    key={r.item}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "0.75rem 1rem",
+                      background: "var(--admin-surface-low)",
+                      borderRadius: "0.65rem",
+                      border: "1px solid var(--admin-outline)",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>
+                      {r.item}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--admin-text-soft)",
+                      }}
+                    >
+                      Need: {r.required} · Have: {r.available}
+                    </span>
+                    <span className={`admin-badge ${r.cls}`}>{r.status}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem" }}>
+                <button
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => setStep("analyze_occupancy")}
+                >
+                  ← Back
+                </button>
+                <button
+                  className="admin-btn admin-btn-accent"
+                  onClick={() => {
+                    setStep("approve_deployment");
+                    showToast(
+                      "info",
+                      "Requirements Calculated",
+                      "Ready for deployment approval"
+                    );
+                    addLog(
+                      "APPROVED",
+                      "Relief requirements calculated",
+                      "var(--admin-blue)"
+                    );
+                  }}
+                >
+                  → Approve & Route Deployment
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: Approve & Route Deployment ── */}
+          {step === "approve_deployment" && (
+            <div>
+              <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
+                <span className="admin-alert-icon material-symbols-outlined">cell_tower</span>
+                <div>
+                  <strong>Connected to Teresa Logistics System</strong> —
+                  Deployment order will be routed automatically upon approval.
+                </div>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                  marginBottom: "1.25rem",
+                }}
+              >
+                {[
+                  {
+                    route: "Route Alpha → Evacuation Center A",
+                    items: "2,432 food packs · 220 medical kits",
+                    eta: "45 min",
+                    vehicle: "3 trucks",
+                  },
+                  {
+                    route: "Route Bravo → Barangay Gym B4",
+                    items: "1,800 food packs · 180 hygiene kits",
+                    eta: "30 min",
+                    vehicle: "2 trucks",
+                  },
+                  {
+                    route: "Route Charlie → Community Hall C7",
+                    items: "920 food packs · 90 kits",
+                    eta: "60 min",
+                    vehicle: "1 truck",
+                  },
+                  {
+                    route: "Route Delta → Covered Court D2",
+                    items: "2,110 food packs · 200 blankets",
+                    eta: "50 min",
+                    vehicle: "2 trucks",
+                  },
+                ].map((r) => (
+                  <div
+                    key={r.route}
+                    style={{
+                      padding: "0.85rem 1rem",
+                      background: "var(--admin-surface-low)",
+                      borderRadius: "0.65rem",
+                      border: "1px solid var(--admin-outline)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: "0.88rem",
+                        marginBottom: "0.3rem",
+                      }}
+                    >
+                      {r.route}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--admin-text-soft)",
+                      }}
+                    >
+                      {r.items} · ETA: {r.eta} · {r.vehicle}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "0.6rem" }}>
+                <button
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => setStep("calculate_relief")}
+                >
+                  ← Back
+                </button>
+                <button
+                  className="admin-btn admin-btn-success"
+                  style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
+                  onClick={() => {
+                    setStep("broadcast_safe");
+                    showToast(
+                      "success",
+                      "Deployment Approved",
+                      "Routes dispatched via Teresa Logistics"
+                    );
+                    addLog(
+                      "APPROVED",
+                      "Relief deployment order approved and routed via Teresa Logistics",
+                      "var(--admin-green)"
+                    );
+                  }}
+                >
+                  Approve & Route Deployment Order
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Broadcast Safe to Return ── */}
+          {step === "broadcast_safe" && (
+            <div>
+              <div className="admin-alert success" style={{ marginBottom: "1.25rem" }}>
+                <span className="admin-alert-icon material-symbols-outlined">check_circle</span>
+                <div>
+                  Relief deployment approved. Broadcast to citizens that the
+                  calamity has ended and it is safe to return home.
+                </div>
+              </div>
+              <div
+                style={{
+                  background: "var(--admin-green-bg)",
+                  border: "1px solid var(--admin-green)",
+                  borderRadius: "0.85rem",
+                  padding: "1.1rem 1.25rem",
+                  marginBottom: "1.25rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: "0.9rem",
+                    color: "var(--admin-green)",
+                    marginBottom: "0.6rem",
+                  }}
+                >
+                  All-Clear Broadcast Message Preview
+                </div>
+                <p
+                  style={{
+                    fontSize: "0.83rem",
+                    color: "var(--admin-text-muted)",
+                    fontStyle: "italic",
+                    lineHeight: 1.7,
+                    margin: 0,
+                  }}
+                >
+                  "The calamity event has ended and it is now safe to return to
+                  your homes. Evacuation corridors are open. Relief distribution
+                  is ongoing at designated centers. Please proceed in an orderly
+                  manner and follow guidance from local authorities."
+                </p>
               </div>
             ) : (
-              familyQRs.map((q, idx) => (
-                <div key={`${q.type}-${q.id}-${q.linkedAccountId ?? q.name}-${idx}`} style={{ display: "flex", gap: "0.75rem", alignItems: "center", padding: "0.75rem 0.85rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", border: "1px solid var(--admin-outline)" }}>
+              familyQRs.map((q) => (
+                <div key={q.id} style={{ display: "flex", gap: "0.75rem", alignItems: "center", padding: "0.75rem 0.85rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", border: "1px solid var(--admin-outline)" }}>
                   <span style={{ fontSize: "1.4rem" }}>👨‍👩‍👧‍👦</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{q.name}</div>
@@ -1172,8 +1879,8 @@ function QRManagementPage({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((q, idx) => (
-                <tr key={`${q.type}-${q.id}-${q.linkedAccountId ?? q.name}-${idx}`}>
+              {filtered.map((q) => (
+                <tr key={q.id}>
                   <td><span className="admin-mono" style={{ color: "var(--admin-blue)" }}>{q.id}</span></td>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: "0.82rem" }}>{q.name}</div>
@@ -1388,14 +2095,16 @@ function DisasterMonitoringPage({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  EARLY WARNING (Swimlane: Monitor → Forecast → Identify → Validate → Configure → Broadcast → Monitor Response → Calamity Ended? → Risk Increased? → Escalate/DeEscalate/Notify Passed)
+//  EARLY WARNING SYSTEM — BEFORE CALAMITY (redesigned)
 // ═══════════════════════════════════════════════════════════════════════════════
 function EarlyWarningPage({
   showToast,
   addLog,
+  setPage,
 }: {
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
   addLog: (type: string, msg: string, col: string) => void;
+  setPage: (p: AdminPage) => void;
 }) {
   const [step, setStep] = useState<WarningStep>("monitor");
   const [warningRequired, setWarningRequired] = useState<boolean | null>(null);
@@ -1405,13 +2114,13 @@ function EarlyWarningPage({
   const [riskIncreased, setRiskIncreased] = useState<boolean | null>(null);
 
   const STEPS = [
-    { id: "monitor", label: "Monitor Data" },
-    { id: "forecast", label: "Forecasts" },
-    { id: "identify", label: "High Risk Areas" },
-    { id: "validate", label: "Validate Alert" },
-    { id: "configure", label: "Configure Warning" },
-    { id: "broadcast", label: "Broadcast" },
-    { id: "monitor_response", label: "Monitor Response" },
+    { id: "monitor",          label: "Monitor Data",       icon: "sensors" },
+    { id: "forecast",         label: "Forecasts",          icon: "thunderstorm" },
+    { id: "identify",         label: "Risk Areas",         icon: "location_on" },
+    { id: "validate",         label: "Validate Alert",     icon: "fact_check" },
+    { id: "configure",        label: "Configure Warning",  icon: "tune" },
+    { id: "broadcast",        label: "Broadcast",          icon: "campaign" },
+    { id: "monitor_response", label: "Monitor Response",   icon: "monitoring" },
   ];
 
   const resetCycle = () => {
@@ -1430,51 +2139,138 @@ function EarlyWarningPage({
   };
 
   const allAreas = ["Metro Manila", "Laguna Basin", "Rizal Province", "Cavite Lowlands", "Bulacan North", "Metro Cluster 3", "Metro Cluster 5"];
+  const currentIdx = STEPS.findIndex((s) => s.id === step);
+  const currentStep = STEPS[Math.max(0, currentIdx)];
 
   return (
     <div className="admin-page">
+      {/* ── Page Header ── */}
       <div className="admin-page-head">
-        <div>
-          <h2>Early Warning System</h2>
-          <p>Follow the decision process to configure and broadcast calamity warnings</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <div style={{
+            width: "3.25rem", height: "3.25rem", borderRadius: "1rem",
+            background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent-deep))",
+            display: "grid", placeItems: "center", flexShrink: 0,
+          }}>
+            <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: "1.5rem" }}>broadcast_on_home</span>
+          </div>
+          <div>
+            <h2 style={{ marginBottom: "0.2rem" }}>Early Warning System</h2>
+            <p>Before Calamity — Monitor, configure and broadcast warnings to at-risk communities</p>
+          </div>
         </div>
         {broadcastSent && (
-          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={resetCycle}>🔄 New Warning Cycle</button>
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={resetCycle}>
+            <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.3rem", verticalAlign: "middle" }}>refresh</span>
+            New Warning Cycle
+          </button>
         )}
       </div>
 
-      {/* Stepper */}
-      <div className="admin-card" style={{ marginBottom: "1rem" }}>
-        <div className="admin-card-body">
-          <Stepper steps={STEPS} current={step} />
+      {/* ── Horizontal Step Rail ── */}
+      <div className="admin-card" style={{ marginBottom: "1.5rem", overflow: "visible" }}>
+        <div style={{ padding: "1.25rem 1.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+            {STEPS.map((s, i) => {
+              const done = currentIdx > i;
+              const active = step === s.id;
+              const last = i === STEPS.length - 1;
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", flex: last ? "0 0 auto" : 1 }}>
+                  {/* Step node */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.45rem", minWidth: "4.5rem" }}>
+                    <div style={{
+                      width: "2.5rem", height: "2.5rem", borderRadius: "50%",
+                      display: "grid", placeItems: "center",
+                      background: done ? "var(--admin-accent)" : active ? "var(--admin-accent)" : "var(--admin-surface-low)",
+                      border: done || active ? "none" : "2px solid var(--admin-outline)",
+                      transition: "all 0.2s",
+                      boxShadow: active ? "0 0 0 4px var(--admin-accent-light)" : "none",
+                    }}>
+                      {done ? (
+                        <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: "1rem" }}>check</span>
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ color: active ? "#fff" : "var(--admin-text-soft)", fontSize: "1rem" }}>{s.icon}</span>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: "0.62rem", fontWeight: 800, textAlign: "center",
+                      color: active ? "var(--admin-accent)" : done ? "var(--admin-text)" : "var(--admin-text-soft)",
+                      lineHeight: 1.3, maxWidth: "4.5rem",
+                    }}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {/* Connector line */}
+                  {!last && (
+                    <div style={{
+                      flex: 1, height: "2px", margin: "0 0.25rem",
+                      marginBottom: "1.4rem",
+                      background: done ? "var(--admin-accent)" : "var(--admin-outline)",
+                      transition: "background 0.3s",
+                    }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Step content */}
+      {/* ── Step Content ── */}
       <div className="admin-card">
+        {/* Step header strip */}
+        <div style={{
+          padding: "1rem 1.5rem",
+          borderBottom: "1px solid var(--admin-outline)",
+          background: "var(--admin-surface-low)",
+          display: "flex", alignItems: "center", gap: "0.75rem",
+        }}>
+          <div style={{
+            width: "2rem", height: "2rem", borderRadius: "0.5rem",
+            background: "var(--admin-accent)", display: "grid", placeItems: "center",
+          }}>
+            <span className="material-symbols-outlined" style={{ color: "#fff", fontSize: "1rem" }}>
+              {currentStep?.icon || "info"}
+            </span>
+          </div>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: "0.95rem" }}>
+              Step {Math.max(1, currentIdx + 1)} of {STEPS.length} — {currentStep?.label}
+            </div>
+          </div>
+        </div>
+
         <div className="admin-card-body">
 
           {/* ── Step 1: Monitor ── */}
           {step === "monitor" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 1 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Monitor Incoming Disaster Data</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Review real-time feeds from PAGASA, NDRRMC, rainfall sensors, and river level monitors.</p>
-              </div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Monitor Incoming Disaster Data</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Review real-time feeds from PAGASA, NDRRMC, rainfall sensors, and river level monitors.</p>
               <div className="admin-grid-2" style={{ marginBottom: "1.25rem" }}>
                 {LIVE_FEEDS.map((f) => (
-                  <div key={f.src} style={{ padding: "0.85rem 1rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "0.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                      <span style={{ fontWeight: 800, fontSize: "0.8rem" }}>{f.src}</span>
-                      <span className="admin-badge green">● LIVE</span>
+                  <div key={f.src} style={{
+                    padding: "1rem 1.1rem",
+                    background: "var(--admin-surface-low)",
+                    border: "1px solid var(--admin-outline)",
+                    borderRadius: "0.85rem",
+                    borderLeft: "3px solid var(--admin-accent)",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src}</span>
+                      <span className="admin-badge green" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--admin-green)", display: "inline-block" }} />
+                        LIVE
+                      </span>
                     </div>
-                    <div style={{ fontSize: "0.78rem", lineHeight: 1.5 }}>{f.data}</div>
+                    <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>{f.data}</div>
                   </div>
                 ))}
               </div>
               <button className="admin-btn admin-btn-accent" onClick={() => setStep("forecast")}>
-                → Proceed to Forecast Analysis
+                <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.35rem" }}>arrow_forward</span>
+                Proceed to Forecast Analysis
               </button>
             </div>
           )}
@@ -1482,25 +2278,41 @@ function EarlyWarningPage({
           {/* ── Step 2: Forecast ── */}
           {step === "forecast" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 2 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Review Forecasts & Predictive Analysis</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Analyze forecast models and predicted impact zones.</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Review Forecasts &amp; Predictive Analysis</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Analyze forecast models and predicted impact zones.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.25rem" }}>
                 {FORECAST_DATA.map((f) => (
-                  <div key={f.area} className="admin-forecast-row" style={{ borderLeftColor: RISK_COLOR[f.risk], background: RISK_COLOR[f.risk] + "08" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.2rem" }}>
-                      <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>{f.area}</span>
-                      <span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span>
+                  <div key={f.area} style={{
+                    padding: "1rem 1.1rem",
+                    background: RISK_COLOR[f.risk] + "0d",
+                    border: `1px solid ${RISK_COLOR[f.risk]}30`,
+                    borderLeft: `3px solid ${RISK_COLOR[f.risk]}`,
+                    borderRadius: "0.85rem",
+                    display: "flex", alignItems: "center", gap: "1rem",
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "1.3rem", color: RISK_COLOR[f.risk], flexShrink: 0 }}>
+                      {f.risk === "CRITICAL" ? "emergency" : f.risk === "HIGH" ? "warning" : "info"}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.2rem" }}>
+                        <span style={{ fontWeight: 800, fontSize: "0.88rem" }}>{f.area}</span>
+                        <span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span>
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>
+                        Rainfall: {f.rainfall} · Wind: {f.wind}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--admin-text-muted)", marginTop: "0.15rem", fontStyle: "italic" }}>{f.action}</div>
                     </div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>Rainfall: {f.rainfall} · Wind: {f.wind} · {f.action}</div>
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor")}>← Back</button>
-                <button className="admin-btn admin-btn-accent" onClick={() => setStep("identify")}>→ Identify High Risk Areas</button>
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+                </button>
+                <button className="admin-btn admin-btn-accent" onClick={() => setStep("identify")}>
+                  Identify High Risk Areas<span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginLeft: "0.35rem" }}>arrow_forward</span>
+                </button>
               </div>
             </div>
           )}
@@ -1508,17 +2320,28 @@ function EarlyWarningPage({
           {/* ── Step 3: Identify ── */}
           {step === "identify" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 3 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Identify High Risk Areas</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Areas classified as HIGH or CRITICAL based on forecast analysis.</p>
-              </div>
-              <div style={{ marginBottom: "1.25rem" }}>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Identify High Risk Areas</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Areas classified as HIGH or CRITICAL based on forecast analysis.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginBottom: "1.25rem" }}>
                 {FORECAST_DATA.filter((f) => f.risk === "CRITICAL" || f.risk === "HIGH").map((f) => (
-                  <div key={f.area} style={{ display: "flex", alignItems: "center", gap: "0.85rem", padding: "0.85rem 1rem", background: RISK_COLOR[f.risk] + "0d", border: `1px solid ${RISK_COLOR[f.risk]}30`, borderRadius: "0.75rem", marginBottom: "0.5rem" }}>
-                    <span style={{ fontSize: "1.2rem" }}>{f.risk === "CRITICAL" ? "🔴" : "🟠"}</span>
+                  <div key={f.area} style={{
+                    display: "flex", alignItems: "center", gap: "0.85rem",
+                    padding: "1rem 1.1rem",
+                    background: RISK_COLOR[f.risk] + "0d",
+                    border: `1px solid ${RISK_COLOR[f.risk]}30`,
+                    borderRadius: "0.85rem",
+                  }}>
+                    <div style={{
+                      width: "2.5rem", height: "2.5rem", borderRadius: "0.6rem",
+                      background: RISK_COLOR[f.risk] + "20",
+                      display: "grid", placeItems: "center", flexShrink: 0,
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", color: RISK_COLOR[f.risk] }}>
+                        {f.risk === "CRITICAL" ? "emergency" : "warning"}
+                      </span>
+                    </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, fontSize: "0.85rem" }}>{f.area}</div>
+                      <div style={{ fontWeight: 800, fontSize: "0.88rem", marginBottom: "0.2rem" }}>{f.area}</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>{f.action}</div>
                     </div>
                     <span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span>
@@ -1526,8 +2349,12 @@ function EarlyWarningPage({
                 ))}
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("forecast")}>← Back</button>
-                <button className="admin-btn admin-btn-accent" onClick={() => setStep("validate")}>→ Validate Alert Necessity</button>
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("forecast")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+                </button>
+                <button className="admin-btn admin-btn-accent" onClick={() => setStep("validate")}>
+                  Validate Alert Necessity<span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginLeft: "0.35rem" }}>arrow_forward</span>
+                </button>
               </div>
             </div>
           )}
@@ -1535,56 +2362,78 @@ function EarlyWarningPage({
           {/* ── Step 4: Validate ── */}
           {step === "validate" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 4 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Validate Alert Necessity</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Based on all data — is a warning broadcast required at this time?</p>
-              </div>
-              <div style={{ background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "0.75rem", padding: "1.1rem", marginBottom: "1.25rem" }}>
-                <div style={{ fontWeight: 800, fontSize: "0.88rem", marginBottom: "0.6rem" }}>Assessment Summary</div>
-                <div style={{ fontSize: "0.8rem", color: "var(--admin-text-muted)", lineHeight: 1.75 }}>
-                  • 2 CRITICAL risk areas identified: Metro Manila, Laguna Basin<br />
-                  • Typhoon Kristine landfall expected within 5 hours<br />
-                  • Marikina River at Alert Level 2 — 18.6m (threshold: 20m)<br />
-                  • Early warning system threshold: <strong style={{ color: "var(--admin-red)" }}>EXCEEDED</strong>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Validate Alert Necessity</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Based on all data — is a warning broadcast required at this time?</p>
+              <div style={{
+                background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)",
+                borderRadius: "0.85rem", padding: "1.1rem 1.2rem", marginBottom: "1.25rem",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.75rem" }}>
+                  <span className="material-symbols-outlined" style={{ color: "var(--admin-accent)", fontSize: "1.1rem" }}>summarize</span>
+                  <span style={{ fontWeight: 900, fontSize: "0.9rem" }}>Assessment Summary</span>
+                </div>
+                {[
+                  "2 CRITICAL risk areas identified: Metro Manila, Laguna Basin",
+                  "Typhoon Kristine landfall expected within 5 hours",
+                  "Marikina River at Alert Level 2 — 18.6m (threshold: 20m)",
+                ].map((item, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.8rem", color: "var(--admin-text-muted)", marginBottom: "0.35rem" }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", color: "var(--admin-amber)", marginTop: "0.05rem", flexShrink: 0 }}>chevron_right</span>
+                    {item}
+                  </div>
+                ))}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", marginTop: "0.35rem" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", color: "var(--admin-red)", flexShrink: 0 }}>emergency</span>
+                  Early warning threshold: <strong style={{ color: "var(--admin-red)", marginLeft: "0.25rem" }}>EXCEEDED</strong>
                 </div>
               </div>
-
               <div style={{ fontWeight: 800, fontSize: "0.9rem", marginBottom: "0.85rem" }}>Is a warning broadcast required?</div>
               <div className="admin-grid-2" style={{ gap: "0.65rem", marginBottom: "1rem" }}>
                 <button
-                  className="admin-calamity-decision-btn"
-                  style={{ background: "var(--admin-red-bg)", borderColor: "var(--admin-red-border)", color: "var(--admin-red)" }}
                   onClick={() => { setWarningRequired(true); setStep("configure"); }}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.6rem",
+                    padding: "1.25rem", border: "1.5px solid var(--admin-red-border)",
+                    borderRadius: "0.85rem", cursor: "pointer", background: "var(--admin-red-bg)",
+                    color: "var(--admin-red)", fontFamily: "Public Sans, sans-serif",
+                    fontWeight: 800, fontSize: "0.88rem", transition: "all 0.15s",
+                  }}
                 >
-                  <span style={{ fontSize: "1.5rem" }}>🚨</span>
-                  <span>Yes — Configure & Broadcast Warning</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: "2rem" }}>emergency</span>
+                  Yes — Configure &amp; Broadcast Warning
                 </button>
                 <button
-                  className="admin-calamity-decision-btn"
-                  style={{ background: "var(--admin-green-bg)", borderColor: "var(--admin-green-border)", color: "var(--admin-green)" }}
                   onClick={() => { setWarningRequired(false); showToast("info", "Monitoring Continues", "No warning broadcast at this time"); setStep("monitor"); }}
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.6rem",
+                    padding: "1.25rem", border: "1.5px solid var(--admin-green-border)",
+                    borderRadius: "0.85rem", cursor: "pointer", background: "var(--admin-green-bg)",
+                    color: "var(--admin-green)", fontFamily: "Public Sans, sans-serif",
+                    fontWeight: 800, fontSize: "0.88rem", transition: "all 0.15s",
+                  }}
                 >
-                  <span style={{ fontSize: "1.5rem" }}>✅</span>
-                  <span>No — Continue Monitoring Only</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: "2rem" }}>check_circle</span>
+                  No — Continue Monitoring Only
                 </button>
               </div>
-              <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setStep("identify")}>← Back</button>
+              <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setStep("identify")}>
+                <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+              </button>
             </div>
           )}
 
           {/* ── Step 5: Configure ── */}
           {step === "configure" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 5 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Configure Warning Parameters</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Set all parameters before sending the early warning broadcast.</p>
-              </div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Configure Warning Parameters</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Set all parameters before sending the early warning broadcast.</p>
               <div className="admin-form-grid">
                 <div className="admin-form-grid admin-form-grid-2">
                   <div className="admin-form-group">
-                    <label className="admin-form-label">Warning Type</label>
+                    <label className="admin-form-label">
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", verticalAlign: "middle", marginRight: "0.25rem" }}>storm</span>
+                      Warning Type
+                    </label>
                     <select className="admin-form-select" value={config.type} onChange={(e) => setConfig((p) => ({ ...p, type: e.target.value }))}>
                       <option>Typhoon</option>
                       <option>Flood</option>
@@ -1595,7 +2444,10 @@ function EarlyWarningPage({
                     </select>
                   </div>
                   <div className="admin-form-group">
-                    <label className="admin-form-label">Severity Level</label>
+                    <label className="admin-form-label">
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", verticalAlign: "middle", marginRight: "0.25rem" }}>signal_cellular_alt</span>
+                      Severity Level
+                    </label>
                     <select className="admin-form-select" value={config.severity} onChange={(e) => setConfig((p) => ({ ...p, severity: e.target.value }))}>
                       <option>LOW</option>
                       <option>MEDIUM</option>
@@ -1605,7 +2457,10 @@ function EarlyWarningPage({
                   </div>
                 </div>
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Target Areas (select all that apply)</label>
+                  <label className="admin-form-label">
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", verticalAlign: "middle", marginRight: "0.25rem" }}>location_on</span>
+                    Target Areas
+                  </label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                     {allAreas.map((area) => {
                       const sel = config.areas.includes(area);
@@ -1613,16 +2468,30 @@ function EarlyWarningPage({
                         <button
                           key={area}
                           onClick={() => setConfig((p) => ({ ...p, areas: sel ? p.areas.filter((a) => a !== area) : [...p.areas, area] }))}
-                          style={{ padding: "0.4rem 0.85rem", border: `1.5px solid ${sel ? "var(--admin-accent-mid)" : "var(--admin-outline)"}`, borderRadius: "999px", background: sel ? "var(--admin-blue-bg)" : "var(--admin-surface)", color: sel ? "var(--admin-blue)" : "var(--admin-text-soft)", fontSize: "0.75rem", fontWeight: sel ? 800 : 600, cursor: "pointer", fontFamily: "Public Sans, sans-serif", transition: "all 0.15s" }}
+                          style={{
+                            padding: "0.4rem 0.85rem",
+                            border: `1.5px solid ${sel ? "var(--admin-accent)" : "var(--admin-outline)"}`,
+                            borderRadius: "999px",
+                            background: sel ? "var(--admin-accent-light)" : "var(--admin-surface)",
+                            color: sel ? "var(--admin-accent)" : "var(--admin-text-soft)",
+                            fontSize: "0.75rem", fontWeight: sel ? 800 : 600,
+                            cursor: "pointer", fontFamily: "Public Sans, sans-serif",
+                            transition: "all 0.15s",
+                            display: "flex", alignItems: "center", gap: "0.3rem",
+                          }}
                         >
-                          {sel ? "✓ " : ""}{area}
+                          {sel && <span className="material-symbols-outlined" style={{ fontSize: "0.8rem" }}>check</span>}
+                          {area}
                         </button>
                       );
                     })}
                   </div>
                 </div>
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Warning Message</label>
+                  <label className="admin-form-label">
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", verticalAlign: "middle", marginRight: "0.25rem" }}>edit_note</span>
+                    Warning Message
+                  </label>
                   <textarea
                     className="admin-form-textarea"
                     rows={4}
@@ -1632,25 +2501,40 @@ function EarlyWarningPage({
                   />
                 </div>
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Broadcast Channels</label>
+                  <label className="admin-form-label">
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", verticalAlign: "middle", marginRight: "0.25rem" }}>send</span>
+                    Broadcast Channels
+                  </label>
                   <div style={{ display: "flex", gap: "1rem" }}>
-                    {[{ id: "useSMS", label: "📱 SMS Broadcast" }, { id: "usePush", label: "🔔 Push Notification" }].map((c) => (
+                    {[
+                      { id: "useSMS", icon: "sms", label: "SMS Broadcast" },
+                      { id: "usePush", icon: "notifications", label: "Push Notification" },
+                    ].map((c) => (
                       <label key={c.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}>
-                        <input type="checkbox" checked={config[c.id as "useSMS" | "usePush"]} onChange={(e) => setConfig((p) => ({ ...p, [c.id]: e.target.checked }))} style={{ accentColor: "var(--admin-accent-mid)", width: "1rem", height: "1rem" }} />
+                        <input
+                          type="checkbox"
+                          checked={config[c.id as "useSMS" | "usePush"]}
+                          onChange={(e) => setConfig((p) => ({ ...p, [c.id]: e.target.checked }))}
+                          style={{ accentColor: "var(--admin-accent)", width: "1rem", height: "1rem" }}
+                        />
+                        <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", color: "var(--admin-accent)" }}>{c.icon}</span>
                         {c.label}
                       </label>
                     ))}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.6rem" }}>
-                  <button className="admin-btn admin-btn-ghost" onClick={() => setStep("validate")}>← Back</button>
+                  <button className="admin-btn admin-btn-ghost" onClick={() => setStep("validate")}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+                  </button>
                   <button
                     className="admin-btn admin-btn-broadcast"
                     style={{ flex: 1, justifyContent: "center" }}
                     disabled={!config.message || config.areas.length === 0}
                     onClick={() => setStep("broadcast")}
                   >
-                    → Review & Broadcast
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.95rem", marginRight: "0.35rem" }}>preview</span>
+                    Review &amp; Broadcast
                   </button>
                 </div>
               </div>
@@ -1660,46 +2544,73 @@ function EarlyWarningPage({
           {/* ── Step 6: Broadcast ── */}
           {step === "broadcast" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 6 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Broadcast Early Warning</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Review the warning summary and confirm broadcast to all target recipients.</p>
-              </div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Broadcast Early Warning</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Review the warning summary and confirm broadcast to all target recipients.</p>
 
               {!broadcastSent ? (
                 <>
-                  <div style={{ background: "var(--admin-red-bg)", border: "1px solid var(--admin-red-border)", borderRadius: "0.85rem", padding: "1.1rem 1.2rem", marginBottom: "1.25rem" }}>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--admin-red)", marginBottom: "0.75rem" }}>⚠️ Warning Broadcast Summary</div>
-                    <div style={{ display: "grid", gap: "0.35rem", fontSize: "0.82rem" }}>
-                      <div><strong>Type:</strong> {config.type}</div>
-                      <div><strong>Severity:</strong> {config.severity}</div>
-                      <div><strong>Target Areas:</strong> {config.areas.join(", ") || "None selected"}</div>
-                      <div><strong>Channels:</strong> {[config.useSMS ? "SMS" : "", config.usePush ? "Push Notification" : ""].filter(Boolean).join(", ")}</div>
+                  <div style={{
+                    background: "var(--admin-red-bg)", border: "1px solid var(--admin-red-border)",
+                    borderRadius: "0.85rem", padding: "1.25rem", marginBottom: "1.25rem",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.85rem" }}>
+                      <span className="material-symbols-outlined" style={{ color: "var(--admin-red)", fontSize: "1.25rem" }}>emergency</span>
+                      <span style={{ fontWeight: 900, fontSize: "0.95rem", color: "var(--admin-red)" }}>Warning Broadcast Summary</span>
                     </div>
-                    <div style={{ marginTop: "0.75rem", padding: "0.75rem 0.9rem", background: "rgba(255,255,255,0.6)", borderRadius: "0.55rem", fontSize: "0.8rem", fontStyle: "italic", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem 1.5rem", fontSize: "0.82rem", marginBottom: "0.85rem" }}>
+                      {[
+                        { label: "Type", val: config.type },
+                        { label: "Severity", val: config.severity },
+                        { label: "Target Areas", val: config.areas.join(", ") || "None selected" },
+                        { label: "Channels", val: [config.useSMS ? "SMS" : "", config.usePush ? "Push" : ""].filter(Boolean).join(", ") },
+                      ].map((item) => (
+                        <div key={item.label}>
+                          <span style={{ color: "var(--admin-text-soft)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{item.label}</span>
+                          <div style={{ fontWeight: 800, marginTop: "0.1rem" }}>{item.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{
+                      padding: "0.85rem 1rem",
+                      background: "rgba(255,255,255,0.65)",
+                      borderRadius: "0.6rem",
+                      fontSize: "0.8rem", fontStyle: "italic",
+                      lineHeight: 1.7, color: "var(--admin-text-muted)",
+                    }}>
                       "{config.message}"
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: "0.6rem" }}>
-                    <button className="admin-btn admin-btn-ghost" onClick={() => setStep("configure")}>← Back to Configure</button>
-                    <button className="admin-btn admin-btn-broadcast" style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }} onClick={sendBroadcast}>
-                      📡 Send Early Warning Broadcast Now
+                    <button className="admin-btn admin-btn-ghost" onClick={() => setStep("configure")}>
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back to Configure
+                    </button>
+                    <button
+                      className="admin-btn admin-btn-broadcast"
+                      style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
+                      onClick={sendBroadcast}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "1rem", marginRight: "0.4rem" }}>cell_tower</span>
+                      Send Early Warning Broadcast Now
                     </button>
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="admin-alert success" style={{ marginBottom: "1.25rem" }}>
-                    <span className="admin-alert-icon">📡</span>
-                    <div>
-                      <strong>Early Warning Broadcast Sent Successfully!</strong><br />
-                      All registered citizens and response units in target areas have been notified.
-                    </div>
+                <div style={{ textAlign: "center", padding: "1.5rem 1rem" }}>
+                  <div style={{
+                    width: "4.5rem", height: "4.5rem", borderRadius: "50%",
+                    background: "var(--admin-green-bg)", border: "2px solid var(--admin-green)",
+                    display: "grid", placeItems: "center", margin: "0 auto 1rem",
+                  }}>
+                    <span className="material-symbols-outlined" style={{ color: "var(--admin-green)", fontSize: "2rem" }}>cell_tower</span>
                   </div>
+                  <h3 style={{ fontWeight: 900, fontSize: "1.2rem", marginBottom: "0.5rem" }}>Early Warning Broadcast Sent!</h3>
+                  <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>
+                    All registered citizens and response units in target areas have been notified.
+                  </p>
                   <button className="admin-btn admin-btn-accent" onClick={() => setStep("monitor_response")}>
-                    → Monitor System Response
+                    Monitor System Response<span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginLeft: "0.35rem" }}>arrow_forward</span>
                   </button>
-                </>
+                </div>
               )}
             </div>
           )}
@@ -1707,44 +2618,47 @@ function EarlyWarningPage({
           {/* ── Step 7: Monitor Response ── */}
           {step === "monitor_response" && (
             <div>
-              <div style={{ marginBottom: "1rem" }}>
-                <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--admin-text-soft)", marginBottom: "0.35rem" }}>Step 7 of 7</div>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.35rem" }}>Monitor System Response</h3>
-                <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>Track broadcast delivery, notify response units, then assess calamity state.</p>
-              </div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Monitor System Response</h3>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Track broadcast delivery, notify response units, then assess calamity state.</p>
 
               <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "1.25rem" }}>
                 {[
-                  { label: "Notifications Sent", val: "18,432", icon: "📲", col: "blue" as const },
-                  { label: "Delivery Rate", val: "98.7%", icon: "✅", col: "green" as const },
-                  { label: "Response Units Notified", val: "14", icon: "🚨", col: "orange" as const },
+                  { label: "Notifications Sent", val: "18,432", icon: "smartphone", col: "blue" as const },
+                  { label: "Delivery Rate",      val: "98.7%",  icon: "check_circle", col: "green" as const },
+                  { label: "Units Notified",     val: "14",     icon: "emergency_home", col: "orange" as const },
                 ].map((m) => (
                   <div key={m.label} className={`admin-stat ${m.col}`}>
-                    <div style={{ fontSize: "1.2rem", marginBottom: "0.35rem" }}>{m.icon}</div>
+                    <span className="material-symbols-outlined" style={{ fontSize: "1.3rem", marginBottom: "0.35rem", display: "block" }}>{m.icon}</span>
                     <div className="admin-stat-label">{m.label}</div>
                     <div className="admin-stat-value">{m.val}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="admin-alert success" style={{ marginBottom: "1.25rem" }}>
-                <span className="admin-alert-icon">✅</span>
+              <div className="admin-alert success" style={{ marginBottom: "1.5rem" }}>
+                <span className="admin-alert-icon material-symbols-outlined">check_circle</span>
                 <div>All dispatchers, site managers, and field response units have been alerted. Teams are mobilizing.</div>
               </div>
 
-              <div style={{ fontWeight: 800, fontSize: "0.9rem", marginBottom: "0.85rem" }}>Calamity Status Assessment:</div>
+              <div style={{ fontWeight: 800, fontSize: "0.9rem", marginBottom: "0.85rem" }}>Calamity Status Assessment</div>
 
-              <div className="admin-grid-2" style={{ gap: "0.65rem" }}>
-                {/* Has calamity ended? */}
-                <div style={{ padding: "1.1rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "var(--admin-r)" }}>
-                  <div style={{ fontWeight: 800, fontSize: "0.85rem", marginBottom: "0.75rem" }}>Has the calamity ended?</div>
+              <div className="admin-grid-2" style={{ gap: "0.85rem" }}>
+                <div style={{
+                  padding: "1.25rem", background: "var(--admin-surface-low)",
+                  border: "1px solid var(--admin-outline)", borderRadius: "0.85rem",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.85rem" }}>
+                    <span className="material-symbols-outlined" style={{ color: "var(--admin-green)", fontSize: "1.1rem" }}>check_circle</span>
+                    <span style={{ fontWeight: 800, fontSize: "0.88rem" }}>Has the calamity ended?</span>
+                  </div>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
                       className="admin-btn admin-btn-success"
                       style={{ flex: 1, justifyContent: "center" }}
                       onClick={() => { setCalamityEnded(true); setStep("notify_passed"); showToast("success", "All-Clear Initiated", "Calamity end notification in progress"); addLog("BROADCAST", "Calamity ended — All-clear notification sent", "var(--admin-green)"); }}
                     >
-                      ✅ Yes — Send All-Clear
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>check</span>
+                      Yes — All-Clear
                     </button>
                     <button
                       className="admin-btn admin-btn-ghost"
@@ -1755,23 +2669,30 @@ function EarlyWarningPage({
                     </button>
                   </div>
                 </div>
-                {/* Has risk increased? */}
-                <div style={{ padding: "1.1rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "var(--admin-r)" }}>
-                  <div style={{ fontWeight: 800, fontSize: "0.85rem", marginBottom: "0.75rem" }}>Has risk level increased?</div>
+                <div style={{
+                  padding: "1.25rem", background: "var(--admin-surface-low)",
+                  border: "1px solid var(--admin-outline)", borderRadius: "0.85rem",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.85rem" }}>
+                    <span className="material-symbols-outlined" style={{ color: "var(--admin-red)", fontSize: "1.1rem" }}>trending_up</span>
+                    <span style={{ fontWeight: 800, fontSize: "0.88rem" }}>Has risk level increased?</span>
+                  </div>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
                       className="admin-btn admin-btn-danger"
                       style={{ flex: 1, justifyContent: "center" }}
                       onClick={() => { setRiskIncreased(true); setStep("escalate"); showToast("error", "Warnings Escalated", "Risk level has increased"); addLog("BROADCAST", "Warnings escalated — risk level increased", "var(--admin-red)"); }}
                     >
-                      ↑ Yes — Escalate
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>trending_up</span>
+                      Escalate
                     </button>
                     <button
                       className="admin-btn admin-btn-ghost"
                       style={{ flex: 1, justifyContent: "center" }}
                       onClick={() => { setRiskIncreased(false); setStep("deescalate"); showToast("info", "Warnings De-escalated", "Situation stabilizing"); addLog("BROADCAST", "Warnings de-escalated / maintained", "var(--admin-blue)"); }}
                     >
-                      ↓ No — De-Escalate
+                      <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>trending_down</span>
+                      De-Escalate
                     </button>
                   </div>
                 </div>
@@ -1783,17 +2704,27 @@ function EarlyWarningPage({
           {step === "escalate" && (
             <div>
               <div className="admin-alert critical" style={{ marginBottom: "1.25rem" }}>
-                <span className="admin-alert-icon">🚨</span>
+                <span className="admin-alert-icon material-symbols-outlined">emergency</span>
                 <div><strong>Warnings Escalated</strong> — Risk level has increased. Enhanced response protocols are now active. All units and dispatchers have been re-notified.</div>
               </div>
               <div className="admin-stats-row admin-stats-2" style={{ marginBottom: "1.25rem" }}>
-                <div className="admin-stat red"><div className="admin-stat-label">Warning Level</div><div className="admin-stat-value">CRITICAL</div></div>
-                <div className="admin-stat orange"><div className="admin-stat-label">Units on Alert</div><div className="admin-stat-value">22</div></div>
+                <div className="admin-stat red">
+                  <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", display: "block", marginBottom: "0.35rem" }}>emergency</span>
+                  <div className="admin-stat-label">Warning Level</div>
+                  <div className="admin-stat-value">CRITICAL</div>
+                </div>
+                <div className="admin-stat orange">
+                  <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", display: "block", marginBottom: "0.35rem" }}>emergency_home</span>
+                  <div className="admin-stat-label">Units on Alert</div>
+                  <div className="admin-stat-value">22</div>
+                </div>
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>← Back to Monitor</button>
-                <button className="admin-btn admin-btn-accent" onClick={() => setStep("notify_passed")}>→ Mark Calamity Ended</button>
-                <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>🔄 Start New Cycle</button>
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+                </button>
+                <button className="admin-btn admin-btn-accent" onClick={() => setStep("notify_passed")}>Mark Calamity Ended</button>
+                <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>New Cycle</button>
               </div>
             </div>
           )}
@@ -1802,31 +2733,63 @@ function EarlyWarningPage({
           {step === "deescalate" && (
             <div>
               <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
-                <span className="admin-alert-icon">↓</span>
+                <span className="admin-alert-icon material-symbols-outlined">trending_down</span>
                 <div><strong>Warnings De-escalated / Maintained</strong> — Situation is stabilizing. Monitoring continues. Response units remain on standby.</div>
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>← Back to Monitor</button>
-                <button className="admin-btn admin-btn-success" onClick={() => setStep("notify_passed")}>→ Calamity Has Ended</button>
-                <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>🔄 Start New Cycle</button>
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back
+                </button>
+                <button className="admin-btn admin-btn-success" onClick={() => setStep("notify_passed")}>Calamity Has Ended</button>
+                <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>New Cycle</button>
               </div>
             </div>
           )}
 
           {/* ── Notify Passed ── */}
           {step === "notify_passed" && (
-            <div style={{ textAlign: "center", padding: "1.5rem 1rem" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>✅</div>
-              <h3 style={{ fontSize: "1.3rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.5rem" }}>Calamity Has Passed</h3>
+            <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
+              <div style={{
+                width: "5rem", height: "5rem", borderRadius: "50%",
+                background: "var(--admin-green-bg)",
+                border: "3px solid var(--admin-green)",
+                display: "grid", placeItems: "center",
+                margin: "0 auto 1.25rem",
+                boxShadow: "0 0 0 8px var(--admin-accent-light)",
+              }}>
+                <span className="material-symbols-outlined" style={{ color: "var(--admin-green)", fontSize: "2.25rem" }}>check_circle</span>
+              </div>
+              <h3 style={{ fontSize: "1.4rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.5rem" }}>Calamity Has Passed</h3>
               <p style={{ fontSize: "0.85rem", color: "var(--admin-text-soft)", lineHeight: 1.7, marginBottom: "1.5rem", maxWidth: "28rem", margin: "0 auto 1.5rem" }}>
                 An all-clear notification has been sent to all registered citizens and response units. The calamity event has been marked as resolved.
               </p>
               <div className="admin-stats-row admin-stats-3" style={{ textAlign: "left", marginBottom: "1.5rem" }}>
-                <div className="admin-stat green"><div className="admin-stat-label">All-Clear Sent</div><div className="admin-stat-value">✅</div></div>
-                <div className="admin-stat blue"><div className="admin-stat-label">Citizens Notified</div><div className="admin-stat-value">18K+</div></div>
-                <div className="admin-stat green"><div className="admin-stat-label">Status</div><div className="admin-stat-value" style={{ fontSize: "1.1rem" }}>Resolved</div></div>
+                <div className="admin-stat green">
+                  <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", display: "block", marginBottom: "0.3rem" }}>check_circle</span>
+                  <div className="admin-stat-label">All-Clear Sent</div>
+                  <div className="admin-stat-value" style={{ fontSize: "1.3rem" }}>Yes</div>
+                </div>
+                <div className="admin-stat blue">
+                  <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", display: "block", marginBottom: "0.3rem" }}>people</span>
+                  <div className="admin-stat-label">Citizens Notified</div>
+                  <div className="admin-stat-value" style={{ fontSize: "1.3rem" }}>18K+</div>
+                </div>
+                <div className="admin-stat green">
+                  <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", display: "block", marginBottom: "0.3rem" }}>task_alt</span>
+                  <div className="admin-stat-label">Status</div>
+                  <div className="admin-stat-value" style={{ fontSize: "1.1rem" }}>Resolved</div>
+                </div>
               </div>
-              <button className="admin-btn admin-btn-accent" onClick={resetCycle}>🔄 Start New Warning Cycle</button>
+              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+                <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>refresh</span>
+                  New Warning Cycle
+                </button>
+                <button className="admin-btn admin-btn-accent" onClick={() => setPage("after_calamity")}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>arrow_forward</span>
+                  Proceed to After Calamity Workflow
+                </button>
+              </div>
             </div>
           )}
 
@@ -2081,9 +3044,9 @@ function mapSystemHealthRecord(svc: AdminSystemHealthRecord): ServiceHealth {
 export default function AdminPortal() {
   const router = useRouter();
   const [page, setPage] = useState<AdminPage>("overview");
-  const [accounts, setAccounts] = useState<PendingAccount[]>([]);
-  const [qrRecords, setQRRecords] = useState<QRRecord[]>([]);
-  const [disasters, setDisasters] = useState<DisasterEvent[]>([]);
+  const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
+  const [qrRecords, setQRRecords] = useState<QRRecord[]>(INITIAL_QR);
+  const [disasters, setDisasters] = useState<DisasterEvent[]>(INITIAL_DISASTERS);
   const [profile, setProfile] = useState<AdminProfile>(ADMIN_PROFILE);
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
@@ -2230,25 +3193,11 @@ export default function AdminPortal() {
   const handleApprove = useCallback((id: string) => {
     const acc = accounts.find((a) => a.id === id);
     if (!acc) return;
-    const applyLocalApproval = () => {
-      setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
-      const qr: QRRecord = { id: `QR-${5000 + qrRecords.length + 1}`, name: acc.name, type: "individual", area: acc.area, issuedAt: "Just now", linkedAccountId: id };
-      setQRRecords((p) => [...p, qr]);
-      addLog("APPROVED", `${acc.name} approved as ${acc.role} · ${qr.id} auto-generated`, "var(--admin-green)");
-      showToast("success", "Account Approved", `${acc.name} · Individual QR ${qr.id} generated`);
-    };
-
-    const stored = loadSession();
-    if (!stored?.accessToken) {
-      applyLocalApproval();
-      return;
-    }
-
-    void approvePendingUser(stored.accessToken, id)
-      .then(() => applyLocalApproval())
-      .catch(() => {
-        showToast("error", "Approval Failed", "Could not approve user. Please try again.");
-      });
+    setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
+    const qr: QRRecord = { id: `QR-${5000 + qrRecords.length + 1}`, name: acc.name, type: "individual", area: acc.area, issuedAt: "Just now", linkedAccountId: id };
+    setQRRecords((p) => [...p, qr]);
+    addLog("APPROVED", `${acc.name} approved as ${acc.role} · ${qr.id} auto-generated`, "var(--admin-green)");
+    showToast("success", "Account Approved", `${acc.name} · Individual QR ${qr.id} generated`);
   }, [accounts, qrRecords, addLog, showToast]);
 
   const handleReject = useCallback((id: string, reason: string) => {
@@ -2296,7 +3245,8 @@ export default function AdminPortal() {
   const PAGE_TITLES: Record<AdminPage, { title: string; sub: string }> = {
     overview: { title: "Overview", sub: "System-wide status and key metrics" },
     approvals: { title: "Account Approvals", sub: "Review documents and manage role applications" },
-    qr_management: { title: "QR Management", sub: "Generate individual and family QR codes" },
+    people_records: { title: "People & Records", sub: "Individual and family records for all registered accounts" },
+    after_calamity: { title: "After Calamity", sub: "Post-disaster response, relief deployment and reporting" },
     disaster_monitoring: { title: "Disaster Monitoring", sub: "Live feeds, event tracking, forecast analysis" },
     early_warning: { title: "Early Warning System", sub: "Configure and broadcast calamity warnings" },
     system_health: { title: "System Health", sub: "Platform service status and uptime" },
@@ -2320,19 +3270,20 @@ export default function AdminPortal() {
         <div className="admin-sb-section">Navigation</div>
         <nav className="admin-sb-nav">
           {([
-            { id: "overview", icon: "⊞", label: "Overview" },
-            { id: "approvals", icon: "✅", label: "Approvals", badge: pending },
-            { id: "qr_management", icon: "📱", label: "QR Management" },
-            { id: "disaster_monitoring", icon: "🌀", label: "Disaster Monitor" },
-            { id: "early_warning", icon: "📡", label: "Early Warning" },
-            { id: "system_health", icon: "💻", label: "System Health" },
+            { id: "overview", icon: "grid_view", label: "Overview" },
+            { id: "approvals", icon: "how_to_reg", label: "Approvals", badge: pending },
+            { id: "people_records", icon: "people", label: "People & Records" },
+            { id: "after_calamity", icon: "assignment_turned_in", label: "After Calamity" },
+            { id: "disaster_monitoring", icon: "crisis_alert", label: "Disaster Monitor" },
+            { id: "early_warning", icon: "broadcast_on_home", label: "Early Warning" },
+            { id: "system_health", icon: "monitor_heart", label: "System Health" },
           ] as { id: AdminPage; icon: string; label: string; badge?: number }[]).map((item) => (
             <button
               key={item.id}
               className={`admin-nav-item ${page === item.id ? "active" : ""}`}
               onClick={() => setPage(item.id)}
             >
-              <span className="admin-nav-icon">{item.icon}</span>
+              <span className="admin-nav-icon material-symbols-outlined" style={{ fontSize: "1.2rem" }}>{item.icon}</span>
               {item.label}
               {item.badge != null && item.badge > 0 && (
                 <span className="admin-nav-badge">{item.badge}</span>
@@ -2420,19 +3371,22 @@ export default function AdminPortal() {
         {/* Content */}
         <div className="admin-content">
           {page === "overview" && (
-            <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} overview={overview} />
+            <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} />
           )}
           {page === "approvals" && (
             <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} dataStatus={approvalsDataStatus} />
           )}
-          {page === "qr_management" && (
-            <QRManagementPage qrRecords={qrRecords} onAddQR={(qr) => setQRRecords((p) => [...p, qr])} accounts={accounts} showToast={showToast} addLog={addLog} />
+          {page === "people_records" && (
+            <PeopleRecordsPage accounts={accounts} />
+          )}
+          {page === "after_calamity" && (
+            <AfterCalamityPage showToast={showToast} addLog={addLog} />
           )}
           {page === "disaster_monitoring" && (
             <DisasterMonitoringPage disasters={disasters} setDisasters={setDisasters} showToast={showToast} />
           )}
           {page === "early_warning" && (
-            <EarlyWarningPage showToast={showToast} addLog={addLog} />
+            <EarlyWarningPage showToast={showToast} addLog={addLog} setPage={setPage} />
           )}
           {page === "system_health" && (
             <SystemHealthPage

@@ -51,6 +51,7 @@ function avatarInitials(session: AuthSession | null): string {
   const l = session.user.lastName?.[0] ?? "";
   return (f + l).toUpperCase() || "SM";
 }
+import SiteManagerDashboard from "../components/SiteManagerDashboard";
 
 export default function BeforeCalamityPage() {
   const router = useRouter();
@@ -476,4 +477,5 @@ export default function BeforeCalamityPage() {
       </main>
     </div>
   );
+  return <SiteManagerDashboard phase="before" />;
 }

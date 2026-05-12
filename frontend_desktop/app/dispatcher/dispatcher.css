@@ -1627,3 +1627,11 @@
 .dp-risk-val   { color: var(--d-text-muted); font-size: 0.75rem; }
 .dp-rescue-detail-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.2rem; }
 .dp-rescue-detail-col  { display: flex; flex-direction: column; gap: 0; }
+
+/* ─── After Calamity Page ───────────────────────────────────────────────────── */
+.dp-page-inner { padding: 1.5rem; }
+.dp-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.dp-section-title { font-size: 1.35rem; font-weight: 900; letter-spacing: -0.04em; color: var(--d-text); margin: 0 0 0.2rem; }
+.dp-section-sub { font-size: 0.82rem; color: var(--d-text-sub); margin: 0; }
+.dp-grid-cols { display: grid; }
+.dp-alert-blue { background: var(--d-blue-bg); color: var(--d-blue); border-color: rgba(21,101,192,0.2); }

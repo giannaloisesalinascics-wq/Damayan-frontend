@@ -1,247 +1,328 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, Platform } from "react-native";
 import { theme, fonts } from "../theme";
 
 export const siteManagerStyles = StyleSheet.create({
+  // ─── Shell ───────────────────────────────────────────────────────────────
+  shell: {
+    flex: 1,
+    backgroundColor: theme.bg,
+  },
+  scrollContent: {
+    paddingBottom: 140,
+  },
+
+  // ─── Heroes ──────────────────────────────────────────────────────────────
   primaryHero: {
     backgroundColor: theme.primary,
-    gap: 12,
+    borderRadius: 40,
+    padding: 32,
+    gap: 16,
+    marginHorizontal: 24,
+    marginTop: 10,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    shadowOffset: { width: 0, height: 15 },
+    elevation: 10,
+    position: "relative",
+    overflow: "hidden",
+  },
+  heroGradient: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    opacity: 0.1,
   },
   heroTitle: {
     color: "#ffffff",
-    fontSize: 30,
-    lineHeight: 32,
+    fontSize: 34,
     ...fonts.black,
+    letterSpacing: -1.5,
+    lineHeight: 40,
   },
   heroText: {
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 22,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 15,
+    lineHeight: 24,
+    ...fonts.medium,
   },
+
+  // ─── Section Headers ─────────────────────────────────────────────────────
   sectionTitle: {
     fontSize: 22,
     ...fonts.black,
     color: theme.text,
-    marginBottom: 12,
+    letterSpacing: -0.5,
   },
-  rowCopy: {
-    color: theme.textMuted,
-    lineHeight: 20,
-    fontSize: 14,
-    ...fonts.regular,
+  sectionSub: {
+    fontSize: 13,
+    color: theme.textLight,
+    ...fonts.bold,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginTop: 4,
   },
-  checkRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
-    gap: 10,
-  },
-  checkLabel: {
-    flex: 1,
-    ...fonts.extrabold,
-    color: theme.text,
-  },
-  scannerBox: {
-    height: 180,
-    borderRadius: 22,
-    backgroundColor: theme.primaryDeep,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  scannerText: {
-    color: theme.primaryLight,
-    ...fonts.extrabold,
-  },
-  modeRow: {
-    gap: 10,
-  },
-  manualWrap: {
-    marginTop: 14,
-    gap: 12,
-  },
-  helperText: {
-    marginTop: 12,
-    color: theme.textMuted,
-    lineHeight: 20,
-  },
-  
-  // Operational Dashboard Extras
+
+  // ─── Metric Cards ────────────────────────────────────────────────────────
   metricRow: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   metricCard: {
     flex: 1,
-    backgroundColor: theme.surface,
+    backgroundColor: "rgba(255,255,255,0.12)",
     padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.line,
+    borderRadius: 24,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   metricValue: {
-    fontSize: 24,
+    fontSize: 26,
     ...fonts.black,
-    color: theme.primary,
+    color: "#fff",
   },
   metricLabel: {
-    fontSize: 11,
-    ...fonts.extrabold,
-    color: theme.textMuted,
+    fontSize: 10,
+    ...fonts.bold,
+    color: "rgba(255,255,255,0.7)",
     textTransform: "uppercase",
-    marginTop: 4,
+    letterSpacing: 1,
+    marginTop: 2,
   },
-  inventoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 12,
-  },
-  inventoryItem: {
-    width: "48%",
-    backgroundColor: theme.surface,
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.line,
-  },
-  inventoryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: theme.primaryLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  progRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  progLabel: {
-    fontSize: 13,
-    color: theme.text,
-    ...fonts.semibold,
-  },
-  timelineItem: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.primary,
-    marginTop: 6,
-  },
-  timelineLine: {
-    position: "absolute",
-    left: 4.5,
-    top: 16,
-    bottom: -20,
-    width: 1,
-    backgroundColor: theme.line,
-  },
+
+  // ─── Operational Swimlane ────────────────────────────────────────────────
   swimlane: {
-    paddingBottom: 16,
-    paddingTop: 4,
     backgroundColor: theme.surface,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderColor: theme.line,
+    borderBottomColor: theme.line,
   },
   swimScroll: {
-    paddingHorizontal: 20,
-    gap: 20,
-    flexDirection: "row",
-    alignItems: "center",
+    paddingHorizontal: 24,
+    gap: 24,
   },
   swimItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+  },
+  swimDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.success,
   },
   swimLabel: {
     fontSize: 10,
-    ...fonts.extrabold,
-    color: theme.textMuted,
+    ...fonts.black,
+    color: theme.textLight,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   swimValue: {
-    fontSize: 13,
+    fontSize: 14,
     ...fonts.bold,
     color: theme.text,
   },
-  swimDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.success,
+
+  // ─── Checklist ───────────────────────────────────────────────────────────
+  checkCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1.5,
+    borderColor: theme.line,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 8 },
   },
-  
-  // Site Operations Extras
-  gaugeContainer: {
-    height: 12,
-    backgroundColor: theme.surfaceAlt,
-    borderRadius: 6,
-    overflow: "hidden",
-    marginVertical: 12,
-  },
-  gaugeFill: {
-    height: "100%",
-    backgroundColor: theme.primary,
-  },
-  stepperRow: {
+  checkRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.surfaceSoft,
-    padding: 12,
+    gap: 16,
+    paddingVertical: 14,
+  },
+  checkIconWrap: {
+    width: 44,
+    height: 44,
     borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.surfaceAlt,
     borderWidth: 1,
     borderColor: theme.line,
   },
-  stepperBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: theme.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: theme.line,
-  },
-  stepperValue: {
-    fontSize: 20,
+  checkLabel: {
+    flex: 1,
+    fontSize: 16,
     ...fonts.bold,
     color: theme.text,
   },
-  distroGrid: {
+
+  // ─── Inventory ───────────────────────────────────────────────────────────
+  inventoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginTop: 16,
   },
-  distroCard: {
+  inventoryCard: {
     width: "48%",
-    backgroundColor: theme.surface,
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: theme.surfaceAlt,
+    borderRadius: 24,
+    padding: 20,
+    gap: 12,
     borderWidth: 1,
     borderColor: theme.line,
-    gap: 12,
   },
-  distroIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: theme.primaryLight,
+  inventoryIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  inventoryLevel: {
+    fontSize: 22,
+    ...fonts.black,
+    color: theme.text,
+  },
+  inventoryName: {
+    fontSize: 13,
+    color: theme.textMuted,
+    ...fonts.bold,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // ─── Activity Log ────────────────────────────────────────────────────────
+  activityItem: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 24,
+  },
+  activityTime: {
+    width: 60,
+    fontSize: 12,
+    ...fonts.black,
+    color: theme.textLight,
+    paddingTop: 4,
+  },
+  activityIndicator: {
+    alignItems: "center",
+    width: 20,
+  },
+  activityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.primary,
+    borderWidth: 2,
+    borderColor: "#fff",
+    zIndex: 2,
+  },
+  activityLine: {
+    position: "absolute",
+    top: 12,
+    bottom: -24,
+    width: 2,
+    backgroundColor: theme.line,
+  },
+  activityContent: {
+    flex: 1,
+    backgroundColor: theme.surfaceAlt,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  activityTitle: {
+    fontSize: 15,
+    ...fonts.black,
+    color: theme.text,
+  },
+  activityDesc: {
+    fontSize: 13,
+    color: theme.textMuted,
+    marginTop: 4,
+    lineHeight: 18,
+    ...fonts.medium,
+  },
+
+  // ─── Scanner (Operations) ────────────────────────────────────────────────
+  scannerHero: {
+    height: 240,
+    borderRadius: 40,
+    backgroundColor: theme.text,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+  scannerOverlay: {
+    position: "absolute",
+    top: 40, bottom: 40, left: 40, right: 40,
+    borderWidth: 2,
+    borderColor: theme.primary,
+    borderRadius: 20,
+    borderStyle: "dashed",
+    opacity: 0.5,
+  },
+  scannerBeam: {
+    position: "absolute",
+    height: 2,
+    left: 40, right: 40,
+    backgroundColor: theme.primary,
+    shadowColor: theme.primary,
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  
+  // ─── Distribution Grid ──────────────────────────────────────────────────
+  distroCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 28,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: theme.line,
+  },
+  distroIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  distroInfo: {
+    flex: 1,
+  },
+  distroLabel: {
+    fontSize: 11,
+    ...fonts.black,
+    color: theme.textLight,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  distroTitle: {
+    fontSize: 18,
+    ...fonts.black,
+    color: theme.text,
+    marginTop: 2,
+  },
+  distroStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  distroCount: {
+    fontSize: 13,
+    ...fonts.bold,
+    color: theme.textMuted,
   },
 });

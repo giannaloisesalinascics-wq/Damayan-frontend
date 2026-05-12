@@ -1,54 +1,76 @@
-export const theme = {
-  // Backgrounds
-  bg: "#f5f7f5",
-  surface: "#ffffff",
-  surfaceSoft: "#f5f7f5",
-  surfaceAlt: "#eef1ed",
-  sidebar: "#f5f7f5",
-  
-  // Text
-  text: "#1a1c19",
-  textMuted: "#40493d",
-  textLight: "#707a6c",
-  
-  // Borders & dividers
-  line: "rgba(112, 122, 108, 0.15)",
-  
-  // Brand colors
-  primary: "#2e7d32",
-  primaryDeep: "#1b5e20",
-  primaryLight: "#e8f5e9",
-  tertiary: "#81c784",
-  
-  secondary: "#ffb300",
-  secondaryLight: "#fff8e1",
-  
-  danger: "#ba1a1a",
-  dangerLight: "#ffdad6",
-  
-  warning: "#f59e0b",
-  warningLight: "#fef3c7",
-  
-  info: "#0061a4",
-  infoLight: "#d1e4ff",
-  
-  success: "#2e7d32",
-  successLight: "#e8f5e9",
-  successSoft: "#e8f5e9",
+export const lightTheme = {
+  bg: "#F5F7F5",
+  surface: "#FFFFFF",
+  surfaceSoft: "#F0F3F0",
+  surfaceAlt: "#E8EBE8",
+  neutral: "#7D867B",
+  text: "#0F1A11",
+  textMuted: "#4B564C",
+  textLight: "#7D867B",
+  line: "rgba(125, 134, 123, 0.12)",
+  lineMedium: "rgba(125, 134, 123, 0.25)",
+  primary: "#2E7D32",
+  primaryDark: "#1B5E20",
+  primaryLight: "#E8F5E9",
+  primarySoft: "rgba(46, 125, 50, 0.1)",
+  secondary: "#FFB300",
+  secondaryDark: "#F57F17",
+  secondaryLight: "#FFF8E1",
+  secondarySoft: "rgba(255, 179, 0, 0.12)",
+  tertiary: "#81C784",
+  tertiaryLight: "#E8F5E9",
+  tertiarySoft: "rgba(129, 199, 132, 0.15)",
+  danger: "#D32F2F",
+  dangerLight: "#FFEBEE",
+  warning: "#FFB300",
+  info: "#1976D2",
+  success: "#2E7D32",
 };
 
+export type AppTheme = typeof lightTheme;
+
+export const darkTheme = {
+  bg: "#121412",
+  surface: "#1A1C1A",
+  surfaceSoft: "#232623",
+  surfaceAlt: "#2E312E",
+  neutral: "#7D867B",
+  text: "#E2E3E0",
+  textMuted: "#C4C7C3",
+  textLight: "#A4A9A4",
+  line: "rgba(255, 255, 255, 0.08)",
+  lineMedium: "rgba(255, 255, 255, 0.15)",
+  primary: "#81C784",
+  primaryDark: "#2E7D32",
+  primaryLight: "#1B5E20",
+  primarySoft: "rgba(129, 199, 132, 0.15)",
+  secondary: "#FFD54F",
+  secondaryDark: "#FFB300",
+  secondaryLight: "#FFF8E1",
+  secondarySoft: "rgba(255, 213, 79, 0.15)",
+  tertiary: "#81C784",
+  tertiaryLight: "#E8F5E9",
+  tertiarySoft: "rgba(129, 199, 132, 0.15)",
+  danger: "#FF8A80",
+  dangerLight: "#D32F2F",
+  warning: "#FFD54F",
+  info: "#64B5F6",
+  success: "#81C784",
+};
+
+export const theme = lightTheme; // Backward compatibility
+
 export const fonts = {
-  regular: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "400" as const },
-  medium: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "500" as const },
-  semibold: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "600" as const },
-  bold: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "700" as const },
-  extrabold: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "800" as const },
-  black: { fontFamily: "Poppins, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif", fontWeight: "900" as const },
+  regular: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "400" as const },
+  medium: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "500" as const },
+  semibold: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "600" as const },
+  bold: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "700" as const },
+  black: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "900" as const },
 } as const;
 
 export const roleColors = {
-  admin: "#1976d2",
-  dispatcher: "#f57c00",
-  site_manager: "#1d7b3a",
-  citizen: "#d32f2f"
+  admin: "#1B5E20",
+  dispatcher: "#2E7D32",
+  site_manager: "#FFB300",
+  citizen: "#004D40",
 } as const;

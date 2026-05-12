@@ -9,16 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.104.1",
+    "@tailwindcss/container-queries": "latest",
+    "@tailwindcss/forms": "latest",
+    "autoprefixer": "latest",
     "leaflet": "^1.9.4",
-    "next": "^16.2.4",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "next": "latest",
+    "postcss": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "^3.4.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
-    "@types/react": "^18",
-    "typescript": "^5"
+    "@types/react": "18.3.28",
+    "typescript": "5.9.3"
   }
 }

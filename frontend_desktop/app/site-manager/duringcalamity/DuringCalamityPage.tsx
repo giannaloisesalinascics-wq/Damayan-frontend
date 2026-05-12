@@ -626,4 +626,8 @@ export default function DuringCalamityPage() {
       </main>
     </div>
   );
+import SiteManagerDashboard from "../components/SiteManagerDashboard";
+
+export default function DuringCalamityPage() {
+  return <SiteManagerDashboard phase="during" />;
 }
