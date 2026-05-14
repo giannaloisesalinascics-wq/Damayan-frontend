@@ -88,6 +88,31 @@ export class SiteManagerController {
     return this.siteManagerProxyService.deleteInventoryItem(id);
   }
 
+  @Post('inventory/receive')
+  receiveInventory(
+    @Body()
+    payload: {
+      itemIds: string[];
+      quantities: number[];
+      arrivalTerminal?: string;
+      waybillNumber?: string;
+      condition?: string;
+    },
+  ) {
+    return this.siteManagerProxyService.receiveInventory(payload);
+  }
+
+  @Post('inventory/batch')
+  createInventoryBatch(
+    @Body()
+    payload: {
+      name: string;
+      items: Array<{ itemId: string; quantity: number }>;
+    },
+  ) {
+    return this.siteManagerProxyService.createInventoryBatch(payload);
+  }
+
   @Get('capacity')
   findCapacity(@Query('search') search?: string) {
     return this.siteManagerProxyService.findCapacity(search);
@@ -342,5 +367,15 @@ export class SiteManagerController {
   @Patch('check-ins/:id/checkout')
   checkOut(@Param('id') id: string) {
     return this.siteManagerProxyService.checkOut(id);
+  }
+
+  @Post('operations/close')
+  closeOperations() {
+    return this.siteManagerProxyService.closeOperations();
+  }
+
+  @Post('reports/summary')
+  generateSiteSummaryReport() {
+    return this.siteManagerProxyService.generateSiteSummaryReport();
   }
 }

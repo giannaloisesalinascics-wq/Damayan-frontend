@@ -66,6 +66,58 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   
+  // Incident Report Form State
+  const [incidentFormState, setIncidentFormState] = useState({
+    type: "Medical Emergency",
+    severity: "Moderate",
+    description: "",
+  });
+  const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
+  const [incidentSubmitError, setIncidentSubmitError] = useState<string | null>(null);
+  
+  // Stock Adjustment Form State
+  const [stockAdjustmentState, setStockAdjustmentState] = useState({
+    quantity: 0,
+    reason: "Distribution Update",
+    notes: "",
+  });
+  const [isSubmittingStockAdjustment, setIsSubmittingStockAdjustment] = useState(false);
+  const [stockAdjustmentError, setStockAdjustmentError] = useState<string | null>(null);
+
+  // Manual Check-in Form State
+  const [manualCheckInState, setManualCheckInState] = useState({
+    citizenName: "",
+    zone: "",
+    groupSize: "",
+  });
+  const [isSubmittingCheckIn, setIsSubmittingCheckIn] = useState(false);
+  const [checkInError, setCheckInError] = useState<string | null>(null);
+
+  // Receive Goods Form State
+  const [receiveGoodsState, setReceiveGoodsState] = useState({
+    arrivalTerminal: "",
+    waybillNumber: "",
+    condition: "Intact",
+    itemId: "",
+    quantity: "",
+  });
+  const [isSubmittingReceiveGoods, setIsSubmittingReceiveGoods] = useState(false);
+  const [receiveGoodsError, setReceiveGoodsError] = useState<string | null>(null);
+
+  // New Batch Form State
+  const [newBatchState, setNewBatchState] = useState({
+    name: "",
+    itemId: "",
+    quantity: "",
+  });
+  const [isSubmittingNewBatch, setIsSubmittingNewBatch] = useState(false);
+  const [newBatchError, setNewBatchError] = useState<string | null>(null);
+
+  // Operations States
+  const [isClosingOperations, setIsClosingOperations] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isRefreshingInventory, setIsRefreshingInventory] = useState(false);
+  
   const pathname = usePathname();
 
   useEffect(() => {
@@ -147,6 +199,304 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
     } else {
       document.documentElement.classList.add("dark");
       setIsDarkMode(true);
+    }
+  };
+
+  const handleSubmitIncidentReport = async () => {
+    if (!session?.accessToken || !session.user) {
+      setIncidentSubmitError("Session expired. Please login again.");
+      return;
+    }
+
+    if (!incidentFormState.description.trim()) {
+      setIncidentSubmitError("Please provide a description for the incident.");
+      return;
+    }
+
+    setIsSubmittingIncident(true);
+    setIncidentSubmitError(null);
+
+    try {
+      const { createIncidentReport } = await import("../../lib/api");
+      
+      // Use a placeholder disaster ID and location - ideally these would come from context
+      const disasterId = "current-disaster";
+      const location = "Central Site";
+
+      await createIncidentReport(session.accessToken, {
+        disasterId,
+        reportedBy: session.user.email || "System",
+        title: incidentFormState.type,
+        content: incidentFormState.description,
+        severity: incidentFormState.severity,
+        location,
+      });
+
+      // Reset form on success
+      setIncidentFormState({
+        type: "Medical Emergency",
+        severity: "Moderate",
+        description: "",
+      });
+
+      // Refresh incident reports
+      const freshReports = await getIncidentReports(session.accessToken);
+      setIncidentReports(freshReports);
+
+      alert("Incident report submitted successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to submit incident report";
+      setIncidentSubmitError(message);
+      console.error("Incident submission error:", error);
+    } finally {
+      setIsSubmittingIncident(false);
+    }
+  };
+
+  const handleConfirmStockAdjustment = async () => {
+    if (!session?.accessToken || !selectedItem) {
+      setStockAdjustmentError("Session expired. Please login again.");
+      return;
+    }
+
+    if (stockAdjustmentState.quantity === 0) {
+      setStockAdjustmentError("Please enter a quantity adjustment.");
+      return;
+    }
+
+    setIsSubmittingStockAdjustment(true);
+    setStockAdjustmentError(null);
+
+    try {
+      const { adjustInventoryItem } = await import("../../lib/api");
+
+      await adjustInventoryItem(
+        session.accessToken,
+        selectedItem.id,
+        stockAdjustmentState.quantity,
+      );
+
+      // Reset form on success
+      setStockAdjustmentState({
+        quantity: 0,
+        reason: "Distribution Update",
+        notes: "",
+      });
+
+      // Refresh inventory
+      const freshInventory = await getInventory("site-manager", session.accessToken);
+      setInventoryItems(freshInventory);
+
+      // Close panel
+      setIsActionPanelOpen(false);
+
+      alert("Stock adjustment applied successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to apply stock adjustment";
+      setStockAdjustmentError(message);
+      console.error("Stock adjustment error:", error);
+    } finally {
+      setIsSubmittingStockAdjustment(false);
+    }
+  };
+
+  const handleSubmitManualCheckIn = async () => {
+    if (!session?.accessToken) {
+      setCheckInError("Session expired. Please login again.");
+      return;
+    }
+
+    if (!manualCheckInState.citizenName.trim()) {
+      setCheckInError("Please enter citizen name or ID.");
+      return;
+    }
+
+    setIsSubmittingCheckIn(true);
+    setCheckInError(null);
+
+    try {
+      const { createManualCheckIn } = await import("../../lib/api");
+      
+      await createManualCheckIn(session.accessToken, {
+        evacueeNumber: manualCheckInState.citizenName,
+        firstName: manualCheckInState.citizenName.split(" ")[0] || "",
+        zone: manualCheckInState.zone || "",
+        location: "Site Manager Check-in",
+        familySize: Number(manualCheckInState.groupSize) > 0
+          ? Number(manualCheckInState.groupSize)
+          : undefined,
+      });
+
+      setManualCheckInState({ citizenName: "", zone: "", groupSize: "" });
+      const freshCheckIns = await getRecentCheckIns(session.accessToken);
+      setCheckIns(freshCheckIns);
+      alert("Check-in recorded successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to submit check-in";
+      setCheckInError(message);
+      console.error("Check-in error:", error);
+    } finally {
+      setIsSubmittingCheckIn(false);
+    }
+  };
+
+  const handleReceiveGoods = async () => {
+    if (!session?.accessToken) {
+      setReceiveGoodsError("Session expired. Please login again.");
+      return;
+    }
+
+    const selectedItemId = receiveGoodsState.itemId || inventoryItems[0]?.id;
+    const parsedQuantity = Number(receiveGoodsState.quantity);
+
+    if (!selectedItemId) {
+      setReceiveGoodsError("No inventory items available for intake.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      setReceiveGoodsError("Please enter a valid quantity greater than 0.");
+      return;
+    }
+
+    setIsSubmittingReceiveGoods(true);
+    setReceiveGoodsError(null);
+
+    try {
+      const { receiveInventory } = await import("../../lib/api");
+      
+      await receiveInventory(session.accessToken, {
+        itemIds: [selectedItemId],
+        quantities: [parsedQuantity],
+        arrivalTerminal: receiveGoodsState.arrivalTerminal || "Main Terminal",
+        waybillNumber: receiveGoodsState.waybillNumber || "N/A",
+        condition: receiveGoodsState.condition,
+      });
+
+      setReceiveGoodsState({
+        arrivalTerminal: "",
+        waybillNumber: "",
+        condition: "Intact",
+        itemId: "",
+        quantity: "",
+      });
+      setIsReceiveModalOpen(false);
+      const freshInventory = await getInventory("site-manager", session.accessToken);
+      setInventoryItems(freshInventory);
+      alert("Goods received successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to receive goods";
+      setReceiveGoodsError(message);
+      console.error("Receive goods error:", error);
+    } finally {
+      setIsSubmittingReceiveGoods(false);
+    }
+  };
+
+  const handleCreateNewBatch = async () => {
+    if (!session?.accessToken) {
+      setNewBatchError("Session expired. Please login again.");
+      return;
+    }
+
+    if (!newBatchState.name.trim()) {
+      setNewBatchError("Please enter batch name.");
+      return;
+    }
+
+    const selectedItemId = newBatchState.itemId || inventoryItems[0]?.id;
+    const parsedQuantity = Number(newBatchState.quantity);
+
+    if (!selectedItemId) {
+      setNewBatchError("No inventory items available for batching.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      setNewBatchError("Please enter a valid batch quantity greater than 0.");
+      return;
+    }
+
+    setIsSubmittingNewBatch(true);
+    setNewBatchError(null);
+
+    try {
+      const { createInventoryBatch } = await import("../../lib/api");
+      
+      await createInventoryBatch(session.accessToken, {
+        name: newBatchState.name,
+        items: [{ itemId: selectedItemId, quantity: parsedQuantity }],
+      });
+
+      setNewBatchState({ name: "", itemId: "", quantity: "" });
+      const freshInventory = await getInventory("site-manager", session.accessToken);
+      setInventoryItems(freshInventory);
+      alert("New batch created successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create batch";
+      setNewBatchError(message);
+      console.error("New batch error:", error);
+    } finally {
+      setIsSubmittingNewBatch(false);
+    }
+  };
+
+  const handleRefreshInventory = async () => {
+    if (!session?.accessToken) return;
+    
+    setIsRefreshingInventory(true);
+    try {
+      const freshInventory = await getInventory("site-manager", session.accessToken);
+      setInventoryItems(freshInventory);
+      alert("Inventory refreshed successfully.");
+    } catch (error) {
+      console.error("Refresh inventory error:", error);
+    } finally {
+      setIsRefreshingInventory(false);
+    }
+  };
+
+  const handleCloseOperations = async () => {
+    if (!session?.accessToken) {
+      alert("Session expired. Please login again.");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to close operations? This cannot be undone.")) {
+      return;
+    }
+
+    setIsClosingOperations(true);
+    try {
+      const { closeOperations } = await import("../../lib/api");
+      await closeOperations(session.accessToken);
+      alert("Operations closed successfully. Site is now in lockdown.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to close operations";
+      alert(`Error: ${message}`);
+      console.error("Close operations error:", error);
+    } finally {
+      setIsClosingOperations(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    if (!session?.accessToken) {
+      alert("Session expired. Please login again.");
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    try {
+      const { generateSiteReport } = await import("../../lib/api");
+      await generateSiteReport(session.accessToken);
+      alert("Site summary report generated successfully.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate report";
+      alert(`Error: ${message}`);
+      console.error("Generate report error:", error);
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -248,6 +598,9 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   });
 
   const activeAlerts = overview?.incidentReports.highSeverityReports ?? incidentReports.filter((report) => report.severity.toLowerCase().includes("high") || report.severity.toLowerCase().includes("critical")).length;
+  const fallbackTotalCapacity = capacityCenters.reduce((sum, center) => sum + center.capacity, 0);
+  const fallbackTotalOccupancy = capacityCenters.reduce((sum, center) => sum + center.currentOccupancy, 0);
+  const fallbackCheckedOut = checkIns.filter((record) => record.status === "checked-out").length;
   const readinessScore = overview
     ? Math.min(
         100,
@@ -257,7 +610,13 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             100,
         ),
       )
-    : 88;
+    : Math.min(
+        100,
+        Math.round(
+          ((fallbackTotalCapacity - fallbackTotalOccupancy) / Math.max(1, fallbackTotalCapacity)) *
+            100,
+        ),
+      );
   const recoveryProgress = overview
     ? Math.min(
         100,
@@ -265,7 +624,10 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
           (overview.checkIns.totalCheckedOut / Math.max(1, overview.checkIns.total)) * 100,
         ),
       )
-    : 94;
+    : Math.min(
+        100,
+        Math.round((fallbackCheckedOut / Math.max(1, checkIns.length)) * 100),
+      );
   const heroMetricValue =
     phase === "before"
       ? `${readinessScore}%`
@@ -342,10 +704,17 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
           <div className="relative" ref={menuRef}>
             <button 
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="w-10 h-10 rounded-full overflow-hidden border-2 transition-transform hover:scale-105" 
-              style={{ borderColor: phaseConfig.primaryColor }}
+              className="w-10 h-10 rounded-full overflow-hidden border-2 transition-transform hover:scale-105 flex items-center justify-center font-black text-white bg-gradient-to-br" 
+              style={{ borderColor: phaseConfig.primaryColor, backgroundImage: `linear-gradient(135deg, ${phaseConfig.primaryColor}, ${phaseConfig.primaryContainer})` }}
             >
-              <img alt="Site Manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5o43MJlKk8bFumbe-kD--UwuoZpPYmQe13R3y_AruXj4fEkC5rsNLjsVpCnlJch4n3eAK6DOantbCAO4H0NxLI_QM2cwka9ht_-BobRE4JMDVEZNxPkeB7ETtlrSQKx9a4ZpsTuZCM3W4kfGoLIhLnvbd5PCT9NIjS-OcjyZELEQnYcn6codRevDEiY7M8cQFuMbDgnuEqj_XeYoZuLTlONTm_G7U6hmjKX3dgBjK4En5LrN2MPLVVtDJBbUIusSkbWnK6V5duC-W" />
+              {session?.user ? (
+                <span className="text-sm">
+                  {(session.user.firstName?.[0] || 'S').toUpperCase()}
+                  {(session.user.lastName?.[session.user.lastName.length - 1] || 'M').toUpperCase()}
+                </span>
+              ) : (
+                'SM'
+              )}
             </button>
             
             {/* Profile Dropdown */}
@@ -484,7 +853,8 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
         {showProfile ? (
           <SiteManagerProfilePage 
             onBack={() => setShowProfile(false)} 
-            primaryColor={phaseConfig.primaryColor} 
+            primaryColor={phaseConfig.primaryColor}
+            session={session}
           />
         ) : (
           <>
@@ -566,17 +936,49 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                       </div>
                     ) : (
                       <div className="space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
-                        <input className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm focus:ring-2" style={{ outlineColor: phaseConfig.primaryColor } as any} placeholder="Citizen Name or ID..." type="text" />
+                        <input 
+                          className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm focus:ring-2" 
+                          style={{ outlineColor: phaseConfig.primaryColor } as any} 
+                          placeholder="Citizen Name or ID..." 
+                          type="text"
+                          value={manualCheckInState.citizenName}
+                          onChange={(e) => setManualCheckInState({ ...manualCheckInState, citizenName: e.target.value })}
+                        />
                         <div className="grid grid-cols-2 gap-3">
-                          <input className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm" placeholder="Zone" type="text" />
-                          <input className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm" placeholder="Group Size" type="number" min="0" />
+                          <input 
+                            className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm" 
+                            placeholder="Zone" 
+                            type="text"
+                            value={manualCheckInState.zone}
+                            onChange={(e) => setManualCheckInState({ ...manualCheckInState, zone: e.target.value })}
+                          />
+                          <input 
+                            className="w-full bg-white border border-[#dadad5] rounded-xl px-4 py-3 text-sm" 
+                            placeholder="Group Size" 
+                            type="number" 
+                            min="0"
+                            value={manualCheckInState.groupSize}
+                            onChange={(e) => setManualCheckInState({ ...manualCheckInState, groupSize: e.target.value })}
+                          />
                         </div>
                       </div>
                     )}
                   </div>
                 )}
-                <button className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg" style={{ background: phaseConfig.primaryColor }}>
-                  {phase === 'before' ? 'Log Readiness Status' : phase === 'during' ? 'Confirm Check-in' : 'Verify & Log Aid'}
+                {checkInError && (
+                  <p className="text-red-600 text-sm mb-3">{checkInError}</p>
+                )}
+                <button 
+                  onClick={() => {
+                    if (phase === 'before') handleSubmitManualCheckIn();
+                    else if (phase === 'during') handleSubmitManualCheckIn();
+                    else setIsReceiveModalOpen(true);
+                  }}
+                  disabled={isSubmittingCheckIn || isClosingOperations}
+                  className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg disabled:opacity-50" 
+                  style={{ background: phaseConfig.primaryColor }}
+                >
+                  {isSubmittingCheckIn || isClosingOperations ? "Processing..." : (phase === 'before' ? 'Log Readiness Status' : phase === 'during' ? 'Confirm Check-in' : 'Verify & Log Aid')}
                 </button>
               </div>
 
@@ -619,7 +1021,11 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Incident Type</label>
-                    <select className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none">
+                    <select 
+                      className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none"
+                      value={incidentFormState.type}
+                      onChange={(e) => setIncidentFormState({ ...incidentFormState, type: e.target.value })}
+                    >
                       <option>Medical Emergency</option>
                       <option>Supply Shortage</option>
                       <option>Infrastructure Damage</option>
@@ -629,17 +1035,44 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Severity</label>
                     <div className="flex gap-2">
-                      <button className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: '#ba1a1a' }}>Critical</button>
-                      <button className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: '#FFB300' }}>High</button>
-                      <button className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: '#81C784' }}>Moderate</button>
+                      <button 
+                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "Critical" })}
+                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
+                        style={{ background: incidentFormState.severity === "Critical" ? '#ba1a1a' : '#dadad5', color: incidentFormState.severity === "Critical" ? 'white' : '#444743' }}
+                      >Critical</button>
+                      <button 
+                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "High" })}
+                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
+                        style={{ background: incidentFormState.severity === "High" ? '#FFB300' : '#dadad5', color: incidentFormState.severity === "High" ? 'white' : '#444743' }}
+                      >High</button>
+                      <button 
+                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "Moderate" })}
+                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
+                        style={{ background: incidentFormState.severity === "Moderate" ? '#81C784' : '#dadad5', color: incidentFormState.severity === "Moderate" ? 'white' : '#444743' }}
+                      >Moderate</button>
                     </div>
                   </div>
                   <div className="md:col-span-2 space-y-1">
                     <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Detailed Description</label>
-                    <textarea className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm min-h-[100px]" placeholder="Describe the situation..."></textarea>
+                    <textarea 
+                      className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm min-h-[100px]" 
+                      placeholder="Describe the situation..."
+                      value={incidentFormState.description}
+                      onChange={(e) => setIncidentFormState({ ...incidentFormState, description: e.target.value })}
+                    ></textarea>
                   </div>
                 </div>
-                <button className="mt-4 w-full bg-[#1a1c19] text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg hover:scale-[1.01] transition-transform active:scale-95" style={{ background: '#1a1c19' }}>Submit Incident Report</button>
+                {incidentSubmitError && (
+                  <p className="text-red-600 text-sm mt-3">{incidentSubmitError}</p>
+                )}
+                <button 
+                  onClick={handleSubmitIncidentReport}
+                  disabled={isSubmittingIncident}
+                  className="mt-4 w-full bg-[#1a1c19] text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed" 
+                  style={{ background: '#1a1c19' }}
+                >
+                  {isSubmittingIncident ? 'Submitting...' : 'Submit Incident Report'}
+                </button>
               </div>
             )}
           </section>
@@ -688,21 +1121,29 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 </h3>
                 <p className="text-[#dadad5]/80 text-xs mb-6">Finalize day-of operations and prepare site handover documentation.</p>
                 <div className="space-y-3">
-                  <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center gap-4 transition-all group">
+                  <button 
+                    onClick={handleCloseOperations}
+                    disabled={isClosingOperations}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center gap-4 transition-all group disabled:opacity-50"
+                  >
                     <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                       <span className="material-symbols-outlined">lock_clock</span>
                     </div>
                     <div className="text-left">
-                      <p className="font-bold text-sm">Initiate Check-out</p>
+                      <p className="font-bold text-sm">{isClosingOperations ? "Processing..." : "Initiate Check-out"}</p>
                       <p className="text-[10px] text-[#dadad5]/50 uppercase tracking-widest">Site Lockdown</p>
                     </div>
                   </button>
-                  <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center gap-4 transition-all group">
+                  <button 
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl flex items-center gap-4 transition-all group disabled:opacity-50"
+                  >
                     <div className="w-10 h-10 rounded-xl bg-orange-400/20 flex items-center justify-center text-orange-400 group-hover:scale-110 transition-transform">
                       <span className="material-symbols-outlined">analytics</span>
                     </div>
                     <div className="text-left">
-                      <p className="font-bold text-sm">Site Summary Report</p>
+                      <p className="font-bold text-sm">{isGeneratingReport ? "Generating..." : "Site Summary Report"}</p>
                       <p className="text-[10px] text-[#dadad5]/50 uppercase tracking-widest">Generate PDF & Sync</p>
                     </div>
                   </button>
@@ -787,8 +1228,13 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <h3 className="text-2xl font-bold">Essential Supply Checklist</h3>
                 <p className="text-[#444743] text-sm">Real-time inventory levels across regional staging areas.</p>
               </div>
-              <button className="text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:opacity-90 transition-opacity" style={{ background: phaseConfig.primaryColor }}>
-                Update Site Inventory
+              <button 
+                onClick={handleRefreshInventory}
+                disabled={isRefreshingInventory}
+                className="text-white px-6 py-2 rounded-full font-bold text-sm shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50" 
+                style={{ background: phaseConfig.primaryColor }}
+              >
+                {isRefreshingInventory ? "Updating..." : "Update Site Inventory"}
               </button>
             </div>
             
@@ -838,9 +1284,45 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <h3 className="text-2xl font-black">Stock Ledger</h3>
                 <div className="flex gap-2">
                   <button className="bg-[#f4f4ef] dark:bg-[#1a1c19] px-4 py-2 rounded-xl text-xs font-bold border border-[#dadad5]">Export CSV</button>
-                  <button className="text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg" style={{ background: phaseConfig.primaryColor }}>+ New Batch</button>
+                  <button 
+                    onClick={handleCreateNewBatch}
+                    disabled={isSubmittingNewBatch}
+                    className="text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg disabled:opacity-50" 
+                    style={{ background: phaseConfig.primaryColor }}
+                  >
+                    {isSubmittingNewBatch ? "Creating..." : "+ New Batch"}
+                  </button>
                 </div>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <input
+                  className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-xs font-bold"
+                  placeholder="Batch name"
+                  value={newBatchState.name}
+                  onChange={(e) => setNewBatchState({ ...newBatchState, name: e.target.value })}
+                />
+                <select
+                  className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-xs font-bold"
+                  value={newBatchState.itemId}
+                  onChange={(e) => setNewBatchState({ ...newBatchState, itemId: e.target.value })}
+                >
+                  <option value="">Select item</option>
+                  {inventoryItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-xs font-bold"
+                  placeholder="Quantity"
+                  type="number"
+                  min="1"
+                  value={newBatchState.quantity}
+                  onChange={(e) => setNewBatchState({ ...newBatchState, quantity: e.target.value })}
+                />
+              </div>
+              {newBatchError && <p className="text-red-600 text-xs mb-4">{newBatchError}</p>}
               <div className="space-y-4">
                 {inventoryTable.slice(0, 6).map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-[#f4f4ef]/50 dark:bg-white/5 border border-transparent hover:border-[#dadad5] transition-all">
@@ -1029,22 +1511,35 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                <div className="space-y-3">
                  <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] ml-1">Manual Override</label>
                  <div className="flex items-center gap-3 bg-[#f4f4ef] p-2 rounded-2xl border border-[#dadad5] shadow-inner">
-                   <button className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all">-</button>
+                   <button 
+                     onClick={() => setStockAdjustmentState({ ...stockAdjustmentState, quantity: stockAdjustmentState.quantity - 1 })}
+                     className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all"
+                   >-</button>
                    <div className="flex-grow flex flex-col items-center">
                      <input 
                        className="w-full bg-transparent border-none text-center font-black text-2xl focus:ring-0 p-0" 
-                       defaultValue={parseInt(selectedItem.stock)} 
+                       type="number"
+                       value={stockAdjustmentState.quantity}
+                       onChange={(e) => setStockAdjustmentState({ ...stockAdjustmentState, quantity: parseInt(e.target.value) || 0 })}
                      />
                      <span className="text-[9px] font-black text-[#707a6c] uppercase tracking-tighter">Units</span>
                    </div>
-                   <button className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all">+</button>
+                   <button 
+                     onClick={() => setStockAdjustmentState({ ...stockAdjustmentState, quantity: stockAdjustmentState.quantity + 1 })}
+                     className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl hover:scale-105 active:scale-95 transition-all"
+                   >+</button>
                  </div>
                </div>
 
                <div className="space-y-3">
                  <label className="text-xs font-black uppercase tracking-[0.15em] text-[#444743] ml-1">Change Reason</label>
                  <div className="relative group">
-                   <select className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-2xl h-16 px-6 font-bold appearance-none cursor-pointer focus:ring-2 focus:ring-offset-2 transition-all" style={{ outlineColor: phaseConfig.primaryColor } as any}>
+                   <select 
+                     className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-2xl h-16 px-6 font-bold appearance-none cursor-pointer focus:ring-2 focus:ring-offset-2 transition-all"
+                     value={stockAdjustmentState.reason}
+                     onChange={(e) => setStockAdjustmentState({ ...stockAdjustmentState, reason: e.target.value })}
+                     style={{ outlineColor: phaseConfig.primaryColor } as any}
+                   >
                      <option>Distribution Update</option>
                      <option>Damaged Goods</option>
                      <option>Correction/Audit</option>
@@ -1059,10 +1554,16 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                  <textarea 
                     className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-2xl p-5 text-sm font-medium focus:ring-2 min-h-[100px] transition-all" 
                     placeholder="Provide context for this registry update..."
+                    value={stockAdjustmentState.notes}
+                    onChange={(e) => setStockAdjustmentState({ ...stockAdjustmentState, notes: e.target.value })}
                     style={{ outlineColor: phaseConfig.primaryColor } as any}
                  ></textarea>
                </div>
             </div>
+
+            {stockAdjustmentError && (
+              <p className="text-red-600 text-sm mb-4">{stockAdjustmentError}</p>
+            )}
 
             {/* Bottom Actions */}
             <div className="flex gap-4 mt-auto">
@@ -1073,10 +1574,12 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 Cancel
               </button>
               <button 
-                className="flex-[2] text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] hover:scale-[1.02] active:scale-95 transition-all" 
+                onClick={handleConfirmStockAdjustment}
+                disabled={isSubmittingStockAdjustment}
+                className="flex-[2] text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed" 
                 style={{ background: `linear-gradient(135deg, ${phaseConfig.primaryColor}, ${phaseConfig.primaryContainer})` }}
               >
-                Confirm Update
+                {isSubmittingStockAdjustment ? 'Processing...' : 'Confirm Update'}
               </button>
             </div>
           </aside>
@@ -1105,27 +1608,106 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
 
                <div className="space-y-4">
                   <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Inventory Item</label>
+                    <select
+                      className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold"
+                      value={receiveGoodsState.itemId}
+                      onChange={(e) => setReceiveGoodsState({ ...receiveGoodsState, itemId: e.target.value })}
+                    >
+                      <option value="">Select item</option>
+                      {inventoryItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Quantity Received</label>
+                    <input
+                      className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold"
+                      placeholder="e.g. 50"
+                      type="number"
+                      min="1"
+                      value={receiveGoodsState.quantity}
+                      onChange={(e) => setReceiveGoodsState({ ...receiveGoodsState, quantity: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Arrival Terminal</label>
-                    <input className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" placeholder="e.g. North Dock 4" />
+                    <input 
+                      className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" 
+                      placeholder="e.g. North Dock 4"
+                      value={receiveGoodsState.arrivalTerminal}
+                      onChange={(e) => setReceiveGoodsState({ ...receiveGoodsState, arrivalTerminal: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Waybill Number</label>
-                    <input className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" placeholder="WB-9982-X" />
+                    <input 
+                      className="w-full bg-[#f4f4ef] border-none rounded-xl h-12 px-4 font-bold" 
+                      placeholder="WB-9982-X"
+                      value={receiveGoodsState.waybillNumber}
+                      onChange={(e) => setReceiveGoodsState({ ...receiveGoodsState, waybillNumber: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#444743] ml-1">Condition</label>
                     <div className="grid grid-cols-3 gap-2">
-                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-green-100 text-green-700 border-2 border-green-500">Intact</button>
-                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743]">Minor</button>
-                      <button className="py-2 text-[10px] font-black uppercase rounded-lg bg-[#f4f4ef] text-[#444743]">Damaged</button>
+                      <button 
+                        onClick={() => setReceiveGoodsState({ ...receiveGoodsState, condition: "Intact" })}
+                        className={`py-2 text-[10px] font-black uppercase rounded-lg transition-all ${
+                          receiveGoodsState.condition === "Intact"
+                            ? "bg-green-100 text-green-700 border-2 border-green-500"
+                            : "bg-[#f4f4ef] text-[#444743]"
+                        }`}
+                      >
+                        Intact
+                      </button>
+                      <button 
+                        onClick={() => setReceiveGoodsState({ ...receiveGoodsState, condition: "Minor" })}
+                        className={`py-2 text-[10px] font-black uppercase rounded-lg transition-all ${
+                          receiveGoodsState.condition === "Minor"
+                            ? "bg-yellow-100 text-yellow-700 border-2 border-yellow-500"
+                            : "bg-[#f4f4ef] text-[#444743]"
+                        }`}
+                      >
+                        Minor
+                      </button>
+                      <button 
+                        onClick={() => setReceiveGoodsState({ ...receiveGoodsState, condition: "Damaged" })}
+                        className={`py-2 text-[10px] font-black uppercase rounded-lg transition-all ${
+                          receiveGoodsState.condition === "Damaged"
+                            ? "bg-red-100 text-red-700 border-2 border-red-500"
+                            : "bg-[#f4f4ef] text-[#444743]"
+                        }`}
+                      >
+                        Damaged
+                      </button>
                     </div>
                   </div>
                </div>
             </div>
 
+            {receiveGoodsError && (
+              <p className="text-red-600 text-sm mb-4 mt-4">{receiveGoodsError}</p>
+            )}
+
             <div className="mt-10 flex gap-4">
-               <button onClick={() => setIsReceiveModalOpen(false)} className="flex-1 bg-[#f4f4ef] py-4 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all">Cancel</button>
-               <button className="flex-[2] text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all" style={{ background: phaseConfig.primaryColor }}>Log Physical Intake</button>
+               <button 
+                 onClick={() => setIsReceiveModalOpen(false)} 
+                 className="flex-1 bg-[#f4f4ef] py-4 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all"
+               >
+                 Cancel
+               </button>
+               <button 
+                 onClick={handleReceiveGoods}
+                 disabled={isSubmittingReceiveGoods}
+                 className="flex-[2] text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50" 
+                 style={{ background: phaseConfig.primaryColor }}
+               >
+                 {isSubmittingReceiveGoods ? "Processing..." : "Log Physical Intake"}
+               </button>
             </div>
           </div>
         </div>

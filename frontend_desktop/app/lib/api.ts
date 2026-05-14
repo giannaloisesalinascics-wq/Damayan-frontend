@@ -190,6 +190,21 @@ export async function getProfile(token: string) {
   return request<{ user: AuthSession["user"] }>("/auth/me", {}, token);
 }
 
+export async function updateProfile(
+  token: string,
+  payload: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+  },
+) {
+  return request<{ user: AuthSession["user"] }>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
 export async function getDashboard(
   scope: "admin" | "site-manager",
   token: string,
@@ -242,6 +257,7 @@ export async function createManualCheckIn(
     lastName?: string;
     zone?: string;
     location?: string;
+    familySize?: number;
   },
 ) {
   return request<CheckInRecord>("/site-manager/check-ins/manual", {
@@ -282,6 +298,60 @@ export async function createIncidentReport(
   },
 ) {
   return request<IncidentReport>("/site-manager/incident-reports", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function adjustInventoryItem(
+  token: string,
+  itemId: string,
+  adjustment: number,
+) {
+  return request<InventoryItem>(`/site-manager/inventory/${itemId}/adjust`, {
+    method: "PATCH",
+    body: JSON.stringify({ adjustment }),
+  }, token);
+}
+
+export async function receiveInventory(
+  token: string,
+  payload: {
+    itemIds: string[];
+    quantities: number[];
+    arrivalTerminal?: string;
+    waybillNumber?: string;
+    condition: string;
+  },
+) {
+  return request<any>("/site-manager/inventory/receive", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function closeOperations(token: string) {
+  return request<any>("/site-manager/operations/close", {
+    method: "POST",
+    body: JSON.stringify({}),
+  }, token);
+}
+
+export async function generateSiteReport(token: string) {
+  return request<any>("/site-manager/reports/summary", {
+    method: "POST",
+    body: JSON.stringify({}),
+  }, token);
+}
+
+export async function createInventoryBatch(
+  token: string,
+  payload: {
+    name: string;
+    items: Array<{ itemId: string; quantity: number }>;
+  },
+) {
+  return request<any>("/site-manager/inventory/batch", {
     method: "POST",
     body: JSON.stringify(payload),
   }, token);

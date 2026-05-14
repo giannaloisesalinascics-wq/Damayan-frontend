@@ -1,26 +1,71 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import type { AuthSession } from "../../lib/types";
 
 interface SiteManagerProfilePageProps {
   onBack: () => void;
   primaryColor: string;
+  session: AuthSession | null;
 }
 
-export default function SiteManagerProfilePage({ onBack, primaryColor }: SiteManagerProfilePageProps) {
+export default function SiteManagerProfilePage({ onBack, primaryColor, session }: SiteManagerProfilePageProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [profileData, setProfileData] = useState({
-    fullName: "Site Manager",
-    email: "manager.visayas@damayan.gov.ph",
-    mobile: "+63 917 123 4567",
-    cluster: "Central Visayas Cluster",
-    employeeId: "SM-CV-2026-04",
-    emergencyContactName: "Damayan Regional HQ",
-    emergencyContactMobile: "+63 2 8888 9999",
+    firstName: "",
+    lastName: "",
+    fullName: "",
+    email: "",
+    phone: "",
+    cluster: "Central Visayas Cluster", // From assignment, typically not editable
+    employeeId: "SM-CV-2026-04", // From auth system
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // API call would go here
+  // Load profile data on mount
+  useEffect(() => {
+    if (session?.user) {
+      setProfileData({
+        firstName: session.user.firstName || "",
+        lastName: session.user.lastName || "",
+        fullName: session.user.name || "",
+        email: session.user.email || "",
+        phone: session.user.phone || "",
+        cluster: "Central Visayas Cluster",
+        employeeId: "SM-CV-2026-04",
+      });
+    }
+  }, [session]);
+
+  const handleSave = async () => {
+    if (!session?.accessToken) {
+      setError("Session expired. Please login again.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const { updateProfile } = await import("../../lib/api");
+      
+      await updateProfile(session.accessToken, {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        email: profileData.email,
+        phone: profileData.phone,
+      });
+
+      setIsEditing(false);
+      alert("Profile updated successfully.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update profile";
+      setError(message);
+      console.error("Profile update error:", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -45,14 +90,21 @@ export default function SiteManagerProfilePage({ onBack, primaryColor }: SiteMan
         ) : (
           <button 
             onClick={handleSave}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white shadow-lg transition-colors hover:brightness-90"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white shadow-lg transition-colors hover:brightness-90 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ backgroundColor: primaryColor }}
           >
             <span className="material-symbols-outlined text-xl">save</span>
-            Save Changes
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         )}
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-2xl text-red-600 dark:text-red-400 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white dark:bg-[#232622] rounded-[2.5rem] p-10 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm space-y-10">
         
@@ -64,10 +116,20 @@ export default function SiteManagerProfilePage({ onBack, primaryColor }: SiteMan
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">Full Name</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">First Name</label>
               <input 
-                value={profileData.fullName}
-                onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
+                value={profileData.firstName}
+                onChange={(e) => setProfileData({...profileData, firstName: e.target.value})}
+                disabled={!isEditing}
+                className="w-full px-6 py-4 rounded-2xl border-2 border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef] dark:bg-[#2e312d] text-[#1a1c19] dark:text-white font-bold focus:outline-none transition-colors disabled:opacity-70 disabled:bg-transparent" 
+                style={{ outlineColor: primaryColor } as any}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">Last Name</label>
+              <input 
+                value={profileData.lastName}
+                onChange={(e) => setProfileData({...profileData, lastName: e.target.value})}
                 disabled={!isEditing}
                 className="w-full px-6 py-4 rounded-2xl border-2 border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef] dark:bg-[#2e312d] text-[#1a1c19] dark:text-white font-bold focus:outline-none transition-colors disabled:opacity-70 disabled:bg-transparent" 
                 style={{ outlineColor: primaryColor } as any}
@@ -104,8 +166,8 @@ export default function SiteManagerProfilePage({ onBack, primaryColor }: SiteMan
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">Mobile Number</label>
               <input 
-                value={profileData.mobile}
-                onChange={(e) => setProfileData({...profileData, mobile: e.target.value})}
+                value={profileData.phone}
+                onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                 disabled={!isEditing}
                 className="w-full px-6 py-4 rounded-2xl border-2 border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef] dark:bg-[#2e312d] text-[#1a1c19] dark:text-white font-bold focus:outline-none transition-colors disabled:opacity-70 disabled:bg-transparent" 
                 style={{ outlineColor: primaryColor } as any}
@@ -114,34 +176,11 @@ export default function SiteManagerProfilePage({ onBack, primaryColor }: SiteMan
           </div>
         </div>
 
-        {/* HQ Contact */}
-        <div>
-          <div className="flex items-center gap-3 mb-6 border-b border-[#dadad5] dark:border-[#3b3b3b] pb-4">
-            <span className="material-symbols-outlined text-[#FFB300]">domain</span>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#444743] dark:text-[#a0a39f]">HQ Emergency Contact</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">HQ Name</label>
-              <input 
-                value={profileData.emergencyContactName}
-                onChange={(e) => setProfileData({...profileData, emergencyContactName: e.target.value})}
-                disabled={!isEditing}
-                className="w-full px-6 py-4 rounded-2xl border-2 border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef] dark:bg-[#2e312d] text-[#1a1c19] dark:text-white font-bold focus:outline-none transition-colors disabled:opacity-70 disabled:bg-transparent" 
-                style={{ outlineColor: primaryColor } as any}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#444743] dark:text-[#c4c7c0] ml-1">HQ Contact Number</label>
-              <input 
-                value={profileData.emergencyContactMobile}
-                onChange={(e) => setProfileData({...profileData, emergencyContactMobile: e.target.value})}
-                disabled={!isEditing}
-                className="w-full px-6 py-4 rounded-2xl border-2 border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef] dark:bg-[#2e312d] text-[#1a1c19] dark:text-white font-bold focus:outline-none transition-colors disabled:opacity-70 disabled:bg-transparent" 
-                style={{ outlineColor: primaryColor } as any}
-              />
-            </div>
-          </div>
+        {/* Note */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900 rounded-2xl">
+          <p className="text-sm text-blue-700 dark:text-blue-400">
+            <strong>Note:</strong> Cluster assignment and Employee ID are managed by the Damayan administration. Contact your regional coordinator to update these fields.
+          </p>
         </div>
 
       </div>

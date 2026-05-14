@@ -1,6 +1,5 @@
-import "./page.css";
-import DuringCalamityPage from "./DuringCalamityPage";
+import SiteManagerDashboard from "../components/SiteManagerDashboard";
 
-export default function Page() {
-  return <DuringCalamityPage />;
+export default function DuringCalamityPage() {
+  return <SiteManagerDashboard phase="during" />;
 }

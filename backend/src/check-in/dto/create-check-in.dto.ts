@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateCheckInDto {
   @IsNotEmpty()
@@ -20,4 +20,9 @@ export class CreateCheckInDto {
   @IsOptional()
   @IsString()
   location?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  familySize?: number;
 }

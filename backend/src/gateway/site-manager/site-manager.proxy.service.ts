@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -453,5 +453,128 @@ export class SiteManagerProxyService {
     return firstValueFrom(
       this.operationsClient.send(CHECK_IN_PATTERNS.GET_RECENT, { limit }),
     );
+  }
+
+  async receiveInventory(payload: {
+    itemIds: string[];
+    quantities: number[];
+    arrivalTerminal?: string;
+    waybillNumber?: string;
+    condition?: string;
+  }) {
+    const itemIds = payload.itemIds ?? [];
+    const quantities = payload.quantities ?? [];
+
+    if (itemIds.length === 0) {
+      throw new BadRequestException('At least one inventory item is required');
+    }
+
+    if (itemIds.length !== quantities.length) {
+      throw new BadRequestException('itemIds and quantities must have matching lengths');
+    }
+
+    const updatedItems = await Promise.all(
+      itemIds.map((id, index) => {
+        const adjustment = Number(quantities[index] ?? 0);
+        if (!Number.isFinite(adjustment) || adjustment <= 0) {
+          throw new BadRequestException('All received quantities must be positive numbers');
+        }
+
+        return firstValueFrom(
+          this.operationsClient.send(INVENTORY_PATTERNS.ADJUST_QUANTITY, {
+            id,
+            adjustQuantityDto: { adjustment },
+          }),
+        );
+      }),
+    );
+
+    return {
+      ok: true,
+      receivedAt: new Date().toISOString(),
+      arrivalTerminal: payload.arrivalTerminal ?? null,
+      waybillNumber: payload.waybillNumber ?? null,
+      condition: payload.condition ?? 'Intact',
+      updatedItems,
+    };
+  }
+
+  async createInventoryBatch(payload: {
+    name: string;
+    items: Array<{ itemId: string; quantity: number }>;
+  }) {
+    if (!payload.name?.trim()) {
+      throw new BadRequestException('Batch name is required');
+    }
+
+    if (!Array.isArray(payload.items) || payload.items.length === 0) {
+      throw new BadRequestException('Batch must include at least one item');
+    }
+
+    const updatedItems = await Promise.all(
+      payload.items.map((item) => {
+        const adjustment = Number(item.quantity ?? 0);
+        if (!item.itemId || !Number.isFinite(adjustment) || adjustment <= 0) {
+          throw new BadRequestException('Each batch item must have a valid itemId and positive quantity');
+        }
+
+        return firstValueFrom(
+          this.operationsClient.send(INVENTORY_PATTERNS.ADJUST_QUANTITY, {
+            id: item.itemId,
+            adjustQuantityDto: { adjustment },
+          }),
+        );
+      }),
+    );
+
+    return {
+      ok: true,
+      batchName: payload.name.trim(),
+      createdAt: new Date().toISOString(),
+      itemCount: payload.items.length,
+      updatedItems,
+    };
+  }
+
+  async closeOperations() {
+    const checkIns = (await firstValueFrom(
+      this.operationsClient.send(CHECK_IN_PATTERNS.FIND_ALL, {}),
+    )) as Array<{ id: string; status?: string }>;
+
+    const activeCheckIns = checkIns.filter((entry) => entry.status === 'checked-in');
+    const checkoutResults = await Promise.allSettled(
+      activeCheckIns.map((entry) =>
+        firstValueFrom(this.operationsClient.send(CHECK_IN_PATTERNS.CHECK_OUT, { id: entry.id })),
+      ),
+    );
+
+    const succeeded = checkoutResults.filter((result) => result.status === 'fulfilled').length;
+    const failed = checkoutResults.length - succeeded;
+
+    return {
+      ok: failed === 0,
+      closedAt: new Date().toISOString(),
+      totalActiveBeforeClose: activeCheckIns.length,
+      checkedOutCount: succeeded,
+      failedCount: failed,
+    };
+  }
+
+  async generateSiteSummaryReport() {
+    const [dashboard, inventoryStats, checkInStats, incidentStats] = await Promise.all([
+      firstValueFrom(this.operationsClient.send(DASHBOARD_PATTERNS.GET_OVERVIEW, { scope: 'site-manager' })),
+      firstValueFrom(this.operationsClient.send(INVENTORY_PATTERNS.GET_STATS, {})),
+      firstValueFrom(this.operationsClient.send(CHECK_IN_PATTERNS.GET_STATS, {})),
+      firstValueFrom(this.operationsClient.send(INCIDENT_REPORT_PATTERNS.GET_STATS, {})),
+    ]);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      type: 'site-summary',
+      dashboard,
+      inventoryStats,
+      checkInStats,
+      incidentStats,
+    };
   }
 }

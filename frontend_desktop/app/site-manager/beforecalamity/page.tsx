@@ -1,6 +1,5 @@
-import "./page.css";
-import BeforeCalamityPage from "./BeforeCalamityPage";
+import SiteManagerDashboard from "../components/SiteManagerDashboard";
 
-export default function Page() {
-  return <BeforeCalamityPage />;
+export default function BeforeCalamityPage() {
+  return <SiteManagerDashboard phase="before" />;
 }

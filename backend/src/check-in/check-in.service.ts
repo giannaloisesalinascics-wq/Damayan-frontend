@@ -147,7 +147,7 @@ export class CheckInService {
   }
 
   async createManual(createCheckInDto: CreateCheckInDto): Promise<CheckIn> {
-    const { evacueeNumber } = createCheckInDto;
+    const { evacueeNumber, familySize } = createCheckInDto;
     const supabase = this.supabaseService.getClient() as any;
 
     const { data: existing, error: existingError } = await this.findEvacueeRecord(
@@ -173,6 +173,9 @@ export class CheckInService {
         check_in_date: new Date().toISOString(),
         check_out_date: null,
         status: 'checked_in',
+        ...(typeof familySize === 'number' && Number.isFinite(familySize)
+          ? { family_size: familySize }
+          : {}),
       })
       .eq('id', (existing as EvacueeRow).id)
       .select('id, auth_user_id, disaster_id, center_id, family_head, family_size, special_needs, check_in_date, check_out_date, status')

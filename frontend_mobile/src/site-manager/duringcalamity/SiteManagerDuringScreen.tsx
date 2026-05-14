@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Animated, Text, View, StyleSheet, ScrollView, Pressable, Modal, TouchableOpacity, Image } from "react-native";
+import { Alert, Animated, Text, TextInput, View, StyleSheet, ScrollView, Pressable, Modal, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { theme, fonts, lightTheme, darkTheme } from "../../theme";
+import { createIncidentReport, createManualCheckIn, getInventory, scanCheckIn } from "../../api";
+import { loadSession } from "../../session";
+import type { AuthSession } from "../../types";
+
+const INCIDENT_TYPE_OPTIONS = [
+   "Medical Emergency",
+   "Supply Shortage",
+   "Infrastructure Damage",
+   "Security Issue",
+   "Evacuation Request",
+];
 
 export function SiteManagerDuringScreen({
   onBack,
@@ -15,11 +27,21 @@ export function SiteManagerDuringScreen({
   const [activeTab, setActiveTab] = useState<"scan" | "manual">("scan");
   const [incidentType, setIncidentType] = useState("Medical Emergency");
   const [severity, setSeverity] = useState<"CRITICAL" | "HIGH" | "MODERATE">("CRITICAL");
+   const [manualId, setManualId] = useState("");
+   const [manualZone, setManualZone] = useState("");
+   const [manualGroupSize, setManualGroupSize] = useState("");
+   const [scanCode, setScanCode] = useState("");
+   const [incidentDescription, setIncidentDescription] = useState("");
+   const [session, setSession] = useState<AuthSession | null>(null);
+   const [isCameraOpen, setIsCameraOpen] = useState(false);
+   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   
   const currentTheme = isDarkMode ? darkTheme : lightTheme;
   const localStyles = getStyles(currentTheme);
   
   const scanAnim = useRef(new Animated.Value(0)).current;
+   const scanLockRef = useRef(false);
 
   useEffect(() => {
     Animated.loop(
@@ -30,10 +52,134 @@ export function SiteManagerDuringScreen({
     ).start();
   }, []);
 
+   useEffect(() => {
+      loadSession()
+         .then((stored) => setSession(stored))
+         .catch(() => setSession(null));
+   }, []);
+
   const translateY = scanAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 120], 
   });
+
+   const handleConfirmCheckIn = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      try {
+         if (activeTab === "scan") {
+            if (!scanCode.trim()) {
+               Alert.alert("Missing QR", "Enter scanned QR content before confirming check-in.");
+               return;
+            }
+
+            await scanCheckIn(session.accessToken, {
+               qrCode: scanCode.trim(),
+            });
+
+            setScanCode("");
+         } else {
+            if (!manualId.trim()) {
+               Alert.alert("Missing ID", "Please enter a citizen name or ID.");
+               return;
+            }
+
+            await createManualCheckIn(session.accessToken, {
+               evacueeNumber: manualId.trim(),
+               firstName: manualId.split(" ")[0] || "",
+               zone: manualZone.trim() || "",
+               location: "Site Manager Mobile Check-in",
+               familySize: Number(manualGroupSize) > 0 ? Number(manualGroupSize) : undefined,
+            });
+
+            setManualId("");
+            setManualZone("");
+            setManualGroupSize("");
+         }
+
+         Alert.alert("Success", "Check-in recorded successfully.");
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to record check-in";
+         Alert.alert("Check-in failed", message);
+      }
+   };
+
+   const handleOpenCamera = async () => {
+      const permission = cameraPermission?.granted
+         ? cameraPermission
+         : await requestCameraPermission();
+
+      if (!permission?.granted) {
+         Alert.alert("Camera denied", "Camera permission is required for QR scanning.");
+         return;
+      }
+
+      scanLockRef.current = false;
+      setIsCameraOpen(true);
+   };
+
+   const handleBarcodeScanned = (event: { data?: string }) => {
+      if (scanLockRef.current) {
+         return;
+      }
+
+      const payload = event.data?.trim();
+      if (!payload) {
+         return;
+      }
+
+      scanLockRef.current = true;
+      setScanCode(payload);
+      setIsCameraOpen(false);
+      Alert.alert("QR captured", "Scan payload captured. Tap Confirm Check-in to submit.");
+   };
+
+   const handleSubmitIncident = async () => {
+      if (!session?.accessToken || !session.user) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      if (!incidentDescription.trim()) {
+         Alert.alert("Missing details", "Please add incident details before submitting.");
+         return;
+      }
+
+      try {
+         await createIncidentReport(session.accessToken, {
+            disasterId: "current-disaster",
+            reportedBy: session.user.email || "System",
+            title: incidentType,
+            content: incidentDescription,
+            severity,
+            location: "Central Site",
+         });
+
+         setIncidentDescription("");
+         Alert.alert("Success", "Incident report submitted.");
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to submit incident";
+         Alert.alert("Submit failed", message);
+      }
+   };
+
+   const handleRefreshInventory = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      try {
+         const inventory = await getInventory("site-manager", session.accessToken);
+         Alert.alert("Inventory updated", `${inventory.length} items synced.`);
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to update inventory";
+         Alert.alert("Update failed", message);
+      }
+   };
 
   return (
     <ScrollView 
@@ -85,13 +231,18 @@ export function SiteManagerDuringScreen({
                
                <View style={localStyles.scannerTabs}>
                   <TouchableOpacity 
-                    onPress={() => setActiveTab("scan")}
+                              onPress={() => {
+                                 setActiveTab("scan");
+                              }}
                     style={activeTab === "scan" ? localStyles.scannerTabActive : localStyles.scannerTab}
                   >
                     <Text style={activeTab === "scan" ? localStyles.scannerTabTextActive : localStyles.scannerTabText}>Scan QR</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    onPress={() => setActiveTab("manual")}
+                              onPress={() => {
+                                 setActiveTab("manual");
+                                 setIsCameraOpen(false);
+                              }}
                     style={activeTab === "manual" ? localStyles.scannerTabActive : localStyles.scannerTab}
                   >
                     <Text style={activeTab === "manual" ? localStyles.scannerTabTextActive : localStyles.scannerTabText}>Manual ID</Text>
@@ -99,28 +250,79 @@ export function SiteManagerDuringScreen({
                </View>
 
                {activeTab === "scan" ? (
-                 <View style={localStyles.viewfinder}>
-                    <View style={localStyles.viewfinderFrame} />
-                    <Animated.View style={[localStyles.scannerBeam, { transform: [{ translateY }] }]} />
-                    <Text style={localStyles.viewfinderText}>CAMERA VIEWFINDER</Text>
-                 </View>
+                         <>
+                                          {isCameraOpen ? (
+                                             <View style={localStyles.viewfinder}>
+                                                <CameraView
+                                                   style={localStyles.cameraView}
+                                                   facing="back"
+                                                   barcodeScannerSettings={{
+                                                      barcodeTypes: ["qr"],
+                                                   }}
+                                                   onBarcodeScanned={handleBarcodeScanned}
+                                                />
+                                             </View>
+                                          ) : (
+                                             <View style={localStyles.viewfinder}>
+                                                    <View style={localStyles.viewfinderFrame} />
+                                                    <Animated.View style={[localStyles.scannerBeam, { transform: [{ translateY }] }]} />
+                                                    <Text style={localStyles.viewfinderText}>CAMERA VIEWFINDER</Text>
+                                             </View>
+                                          )}
+                                          <TouchableOpacity
+                                             style={localStyles.scanActionButton}
+                                             onPress={isCameraOpen ? () => setIsCameraOpen(false) : handleOpenCamera}
+                                          >
+                                             <Text style={localStyles.scanActionButtonText}>
+                                                {isCameraOpen ? "Close Scanner" : "Open Scanner"}
+                                             </Text>
+                                          </TouchableOpacity>
+                            <View style={localStyles.inputWrapper}>
+                               <TextInput
+                                  value={scanCode}
+                                  onChangeText={setScanCode}
+                                  placeholder="Paste scanned QR payload"
+                                  placeholderTextColor={currentTheme.textLight}
+                                  style={localStyles.manualInput}
+                               />
+                            </View>
+                         </>
                ) : (
                  <View style={localStyles.manualForm}>
                     <View style={localStyles.inputWrapper}>
-                       <Text style={localStyles.manualInputPlaceholder}>Citizen Name or ID...</Text>
+                      <TextInput
+                        value={manualId}
+                        onChangeText={setManualId}
+                        placeholder="Citizen Name or ID..."
+                        placeholderTextColor={currentTheme.textLight}
+                        style={localStyles.manualInput}
+                      />
                     </View>
                     <View style={{ flexDirection: 'row', gap: 12 }}>
                        <View style={[localStyles.inputWrapper, { flex: 1 }]}>
-                          <Text style={localStyles.manualInputPlaceholder}>Zone</Text>
+                          <TextInput
+                            value={manualZone}
+                            onChangeText={setManualZone}
+                            placeholder="Zone"
+                            placeholderTextColor={currentTheme.textLight}
+                            style={localStyles.manualInput}
+                          />
                        </View>
                        <View style={[localStyles.inputWrapper, { flex: 1 }]}>
-                          <Text style={localStyles.manualInputPlaceholder}>Group Size</Text>
+                          <TextInput
+                            value={manualGroupSize}
+                            onChangeText={setManualGroupSize}
+                            placeholder="Group Size"
+                            placeholderTextColor={currentTheme.textLight}
+                            keyboardType="numeric"
+                            style={localStyles.manualInput}
+                          />
                        </View>
                     </View>
                  </View>
                )}
 
-               <TouchableOpacity style={localStyles.logStatusBtn}>
+               <TouchableOpacity style={localStyles.logStatusBtn} onPress={handleConfirmCheckIn}>
                   <Text style={localStyles.logStatusText}>Confirm Check-in</Text>
                </TouchableOpacity>
             </View>
@@ -208,9 +410,10 @@ export function SiteManagerDuringScreen({
          <View style={localStyles.incidentFormRow}>
             <View style={localStyles.pickerContainer}>
                <Text style={localStyles.inputLabel}>INCIDENT TYPE</Text>
-               <View style={localStyles.pickerBox}>
+               <TouchableOpacity style={localStyles.pickerBox} onPress={() => setIsTypeModalOpen(true)}>
                   <Text style={localStyles.pickerText}>{incidentType}</Text>
-               </View>
+                  <Text style={localStyles.pickerHint}>Tap to select</Text>
+               </TouchableOpacity>
             </View>
 
             <View style={localStyles.severityContainer}>
@@ -243,11 +446,18 @@ export function SiteManagerDuringScreen({
          <View style={{ marginTop: 24 }}>
             <Text style={localStyles.inputLabel}>DETAILED DESCRIPTION</Text>
             <View style={localStyles.textArea}>
-               <Text style={localStyles.placeholderText}>Describe the situation...</Text>
+              <TextInput
+                value={incidentDescription}
+                onChangeText={setIncidentDescription}
+                placeholder="Describe the situation..."
+                placeholderTextColor={currentTheme.textLight}
+                multiline
+                style={localStyles.textAreaInput}
+              />
             </View>
          </View>
 
-         <TouchableOpacity style={[localStyles.submitBtn, { flexDirection: 'row' }]}>
+         <TouchableOpacity style={[localStyles.submitBtn, { flexDirection: 'row' }]} onPress={handleSubmitIncident}>
             <Ionicons name="send" size={16} color="#fff" style={{ marginRight: 10 }} />
             <Text style={localStyles.submitBtnText}>Submit Incident Report</Text>
          </TouchableOpacity>
@@ -268,7 +478,7 @@ export function SiteManagerDuringScreen({
             <Text style={localStyles.sectionTitle}>Essential Supply Checklist</Text>
             <Text style={localStyles.sectionSub}>Real-time inventory levels across regional staging areas.</Text>
           </View>
-          <TouchableOpacity style={[localStyles.updateInventoryBtn, { backgroundColor: '#FFB300' }]}>
+          <TouchableOpacity style={[localStyles.updateInventoryBtn, { backgroundColor: '#FFB300' }]} onPress={handleRefreshInventory}>
              <Text style={localStyles.updateInventoryText}>Update Inventory</Text>
           </TouchableOpacity>
         </View>
@@ -297,6 +507,29 @@ export function SiteManagerDuringScreen({
            ))}
         </ScrollView>
       </View>
+
+         <Modal visible={isTypeModalOpen} transparent animationType="fade">
+            <Pressable style={localStyles.typePickerOverlay} onPress={() => setIsTypeModalOpen(false)}>
+               <View style={localStyles.typePickerCard}>
+                  <Text style={localStyles.typePickerTitle}>Select Incident Type</Text>
+                  {INCIDENT_TYPE_OPTIONS.map((option) => {
+                     const selected = option === incidentType;
+                     return (
+                        <TouchableOpacity
+                           key={option}
+                           style={[localStyles.typePickerOption, selected && localStyles.typePickerOptionActive]}
+                           onPress={() => {
+                              setIncidentType(option);
+                              setIsTypeModalOpen(false);
+                           }}
+                        >
+                           <Text style={[localStyles.typePickerOptionText, selected && localStyles.typePickerOptionTextActive]}>{option}</Text>
+                        </TouchableOpacity>
+                     );
+                  })}
+               </View>
+            </Pressable>
+         </Modal>
     </ScrollView>
   );
 }
@@ -336,15 +569,19 @@ const getStyles = (theme: any) => StyleSheet.create({
   scannerTabText: { fontSize: 11, ...fonts.bold, color: theme.textLight },
 
   viewfinder: { width: "100%", height: 120, backgroundColor: "#000", borderRadius: 16, marginTop: 12, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+   cameraView: { width: "100%", height: "100%" },
   viewfinderFrame: { width: "80%", height: "60%", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", borderStyle: "dashed", borderRadius: 8 },
   scannerBeam: { position: "absolute", top: 0, left: 0, right: 0, height: 2, backgroundColor: "red", shadowColor: "red", shadowOpacity: 1, shadowRadius: 10 },
   viewfinderText: { position: "absolute", bottom: 10, fontSize: 8, ...fonts.black, color: "rgba(255,255,255,0.5)", letterSpacing: 1 },
+   scanActionButton: { marginTop: 10, backgroundColor: "#1A1C1A", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+   scanActionButtonText: { color: "#fff", fontSize: 11, ...fonts.black, letterSpacing: 0.6, textTransform: "uppercase" },
 
   logStatusBtn: { backgroundColor: "#FFB300", paddingHorizontal: 20, paddingVertical: 18, borderRadius: 16, width: "100%", alignItems: "center", marginTop: 12, shadowColor: "#FFB300", shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   logStatusText: { color: "#fff", ...fonts.black, fontSize: 14, letterSpacing: 0.5 },
 
   manualForm: { width: "100%", gap: 12, marginTop: 12 },
   inputWrapper: { height: 56, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: theme.line, justifyContent: "center", paddingHorizontal: 20 },
+   manualInput: { fontSize: 14, color: theme.text, ...fonts.medium },
   manualInputPlaceholder: { fontSize: 14, color: theme.textLight, ...fonts.medium },
 
   essentialTasksCard: { backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, marginTop: 12 },
@@ -381,11 +618,20 @@ const getStyles = (theme: any) => StyleSheet.create({
   pickerContainer: { flex: 1.5, minWidth: 200 },
   pickerBox: { height: 56, backgroundColor: theme.surfaceAlt, borderRadius: 16, justifyContent: "center", paddingHorizontal: 20, borderWidth: 1, borderColor: theme.line },
   pickerText: { fontSize: 14, ...fonts.bold, color: theme.text },
+   pickerHint: { fontSize: 9, ...fonts.black, color: theme.textLight, marginTop: 2, textTransform: "uppercase", letterSpacing: 0.8 },
+   typePickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "center", padding: 24 },
+   typePickerCard: { backgroundColor: theme.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: theme.line },
+   typePickerTitle: { fontSize: 14, ...fonts.black, color: theme.text, marginBottom: 12 },
+   typePickerOption: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.line },
+   typePickerOptionActive: { backgroundColor: "#E3F2FD", borderColor: "#90CAF9" },
+   typePickerOptionText: { fontSize: 13, ...fonts.medium, color: theme.text },
+   typePickerOptionTextActive: { ...fonts.black },
   severityContainer: { flex: 1, minWidth: 160 },
   severityRow: { flexDirection: "row", gap: 6 },
   severityBtn: { flex: 1, height: 56, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   severityBtnText: { fontSize: 8, ...fonts.black, textAlign: "center" },
   textArea: { height: 120, backgroundColor: theme.surfaceAlt, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: theme.line },
+   textAreaInput: { flex: 1, color: theme.text, fontSize: 14, ...fonts.medium, textAlignVertical: "top" },
   placeholderText: { fontSize: 14, color: theme.textLight, ...fonts.medium },
   submitBtn: { height: 64, backgroundColor: "#1A1C1A", borderRadius: 24, alignItems: "center", justifyContent: "center", marginTop: 32 },
   submitBtnText: { color: "#fff", fontSize: 14, ...fonts.black, letterSpacing: 1.5 },
