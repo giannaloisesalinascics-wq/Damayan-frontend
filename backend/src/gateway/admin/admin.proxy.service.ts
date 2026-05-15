@@ -49,7 +49,7 @@ export class AdminProxyService {
       .from('user_profiles')
       .select('id, auth_user_id, first_name, last_name, phone, role, profile_photo_key, status, reject_reason, created_at')
       .in('role', ['dispatcher', 'line_manager'])
-      .eq('status', 'pending')
+      .in('status', ['pending', 'active', 'rejected'])
       .order('created_at', { ascending: true });
 
     if (error) {
