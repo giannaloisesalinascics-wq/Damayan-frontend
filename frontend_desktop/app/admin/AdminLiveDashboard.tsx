@@ -182,7 +182,7 @@ export default function AdminLiveDashboard() {
               Live system oversight for Damayan command.
             </h1>
             <p style={{ margin: 0, color: "#dbeafe", fontSize: 16, lineHeight: 1.6 }}>
-              Signed in as {session.user.name || session.user.email}. This dashboard now loads from the NestJS gateway and operations/auth microservices instead of the previous local demo arrays.
+              Signed in as {session.user.name || session.user.email}. This dashboard loads from the NestJS gateway and operations/auth microservices.
             </p>
           </div>
           <div style={{ display: "grid", gap: 12, justifyItems: "end" }}>
@@ -221,23 +221,23 @@ export default function AdminLiveDashboard() {
         <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }}>
           <div style={cardStyle("#2563eb")}>
             <div style={{ fontSize: 14, color: "#475569" }}>Active disasters</div>
-            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview?.disasterEvents.activeEvents ?? 0}</div>
-            <div style={{ color: "#64748b", marginTop: 8 }}>{overview?.disasterEvents.severeEvents ?? 0} marked high severity</div>
+            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview ? overview.disasterEvents.activeEvents : "N/A"}</div>
+            <div style={{ color: "#64748b", marginTop: 8 }}>{overview ? `${overview.disasterEvents.severeEvents} marked high severity` : "No backend data"}</div>
           </div>
           <div style={cardStyle("#f97316")}>
             <div style={{ fontSize: 14, color: "#475569" }}>Pending incident reports</div>
-            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview?.incidentReports.pendingReports ?? 0}</div>
-            <div style={{ color: "#64748b", marginTop: 8 }}>{overview?.incidentReports.totalReports ?? 0} total reports tracked</div>
+            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview ? overview.incidentReports.pendingReports : "N/A"}</div>
+            <div style={{ color: "#64748b", marginTop: 8 }}>{overview ? `${overview.incidentReports.totalReports} total reports tracked` : "No backend data"}</div>
           </div>
           <div style={cardStyle("#16a34a")}>
             <div style={{ fontSize: 14, color: "#475569" }}>Relief inventory units</div>
-            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview?.inventory.totalItems ?? 0}</div>
-            <div style={{ color: "#64748b", marginTop: 8 }}>{overview?.inventory.lowStockItems ?? 0} low-stock items detected</div>
+            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview ? overview.inventory.totalItems : "N/A"}</div>
+            <div style={{ color: "#64748b", marginTop: 8 }}>{overview ? `${overview.inventory.lowStockItems} low-stock items detected` : "No backend data"}</div>
           </div>
           <div style={cardStyle("#7c3aed")}>
             <div style={{ fontSize: 14, color: "#475569" }}>Available shelter slots</div>
-            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview?.capacity.availableSlots ?? 0}</div>
-            <div style={{ color: "#64748b", marginTop: 8 }}>{overview?.capacity.fullCenters ?? 0} centers already full</div>
+            <div style={{ fontSize: 34, fontWeight: 800, marginTop: 8 }}>{overview ? overview.capacity.availableSlots : "N/A"}</div>
+            <div style={{ color: "#64748b", marginTop: 8 }}>{overview ? `${overview.capacity.fullCenters} centers already full` : "No backend data"}</div>
           </div>
         </div>
 
@@ -307,7 +307,9 @@ export default function AdminLiveDashboard() {
             <section style={cardStyle("#16a34a")}>
               <h2 style={{ margin: 0, fontSize: 22 }}>Partner organizations</h2>
               <p style={{ margin: "8px 0 0", color: "#64748b" }}>
-                {overview?.organizations.verifiedOrganizations ?? 0} verified of {overview?.organizations.totalOrganizations ?? 0} total organizations.
+                {overview
+                  ? `${overview.organizations.verifiedOrganizations} verified of ${overview.organizations.totalOrganizations} total organizations.`
+                  : "No backend data"}
               </p>
               <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
                 {organizations.slice(0, 4).map((organization) => (

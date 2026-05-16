@@ -78,14 +78,6 @@ export default function SiteManagerRegionalMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centers]);
 
-  function fallbackPoint(index: number): [number, number] {
-    const row = Math.floor(index / 6);
-    const col = index % 6;
-    const lat = 12.6 + row * 0.35;
-    const lng = 121.1 + col * 0.32;
-    return [lat, lng];
-  }
-
   function markerColor(center: CapacityCenter): string {
     if (center.utilizationRate >= 90) return "#ba1a1a";
     if (center.utilizationRate >= 70) return "#FFB300";
@@ -113,8 +105,11 @@ export default function SiteManagerRegionalMap({
 
     const bounds = L.latLngBounds([]);
 
-    centers.forEach((center, index) => {
-      const cached = geocodeCacheRef.current[center.id] ?? fallbackPoint(index);
+    centers.forEach((center) => {
+      const cached = geocodeCacheRef.current[center.id];
+      if (!cached) {
+        return;
+      }
       const marker = L.marker(cached, {
         icon: L.divIcon({
           className: "",
@@ -162,7 +157,7 @@ export default function SiteManagerRegionalMap({
           ];
         }
       } catch {
-        // Ignore geocoding failures; fallback points keep the map usable.
+        // Ignore geocoding failures; markers without coordinates are skipped.
       }
     }
 

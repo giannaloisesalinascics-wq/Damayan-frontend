@@ -591,10 +591,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
     };
   });
 
-  const activeAlerts = overview?.incidentReports.highSeverityReports ?? incidentReports.filter((report) => report.severity.toLowerCase().includes("high") || report.severity.toLowerCase().includes("critical")).length;
-  const fallbackTotalCapacity = capacityCenters.reduce((sum, center) => sum + center.capacity, 0);
-  const fallbackTotalOccupancy = capacityCenters.reduce((sum, center) => sum + center.currentOccupancy, 0);
-  const fallbackCheckedOut = checkIns.filter((record) => record.status === "checked-out").length;
+  const activeAlerts = overview?.incidentReports.highSeverityReports;
   const readinessScore = overview
     ? Math.min(
         100,
@@ -604,13 +601,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
             100,
         ),
       )
-    : Math.min(
-        100,
-        Math.round(
-          ((fallbackTotalCapacity - fallbackTotalOccupancy) / Math.max(1, fallbackTotalCapacity)) *
-            100,
-        ),
-      );
+    : null;
   const recoveryProgress = overview
     ? Math.min(
         100,
@@ -618,16 +609,13 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
           (overview.checkIns.totalCheckedOut / Math.max(1, overview.checkIns.total)) * 100,
         ),
       )
-    : Math.min(
-        100,
-        Math.round((fallbackCheckedOut / Math.max(1, checkIns.length)) * 100),
-      );
+    : null;
   const heroMetricValue =
     phase === "before"
-      ? `${readinessScore}%`
+      ? (readinessScore != null ? `${readinessScore}%` : "N/A")
       : phase === "during"
-        ? String(activeAlerts)
-        : `${recoveryProgress}%`;
+        ? (activeAlerts != null ? String(activeAlerts) : "N/A")
+        : (recoveryProgress != null ? `${recoveryProgress}%` : "N/A");
 
   const activityLogs = [
     ...checkIns.slice(0, 3).map((entry) => ({
@@ -640,29 +628,45 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
     })),
   ].slice(0, 4);
 
+  const essentialTasks = [
+    {
+      t: "Inventory Validation",
+      s: loadingData ? "Loading" : inventoryItems.length > 0 ? "Ready" : "Pending",
+    },
+    {
+      t: "Comms Stabilization",
+      s: loadingData ? "Loading" : loadError ? "Needs Attention" : "Active",
+    },
+    {
+      t: "Volunteer Briefing",
+      s: loadingData ? "Loading" : (overview?.checkIns.total ?? checkIns.length) > 0 ? "Complete" : "Pending",
+    },
+  ];
+
   const inventoryCards = [
     {
       label: "Total Assets",
-      value: overview ? overview.inventory.itemCount.toLocaleString() : effectiveInventory.length.toLocaleString(),
-      trend: overview ? `${overview.inventory.totalCategories} categories` : "Live",
+      value: loadingData ? "..." : overview ? overview.inventory.itemCount.toLocaleString() : "N/A",
+      trend: loadingData ? "Loading" : overview ? `${overview.inventory.totalCategories} categories` : "No backend data",
       color: "#2196F3",
     },
     {
       label: "Critical Lows",
-      value: overview ? String(overview.inventory.lowStockItems) : String(effectiveInventory.filter((item) => getInventoryTone(item.status) !== "secure").length),
+      value: loadingData ? "..." : overview ? String(overview.inventory.lowStockItems) : "N/A",
       trend: "Needs attention",
       color: "#ba1a1a",
     },
     {
       label: "In Transit",
-      value: String(effectiveInventory.filter((item) => item.status.toLowerCase().includes("transit") || item.status.toLowerCase().includes("scheduled")).length),
-      trend: "Inbound",
+      value: loadingData ? "..." : "N/A",
+      trend: loadingData ? "Loading" : "No backend metric",
       color: "#FFB300",
     },
   ];
 
-  const activeShelters = overview?.capacity.totalCenters ?? 14;
-  const totalPopulation = overview?.capacity.totalOccupancy ?? 2842;
+  const activeShelters = overview?.capacity.totalCenters;
+  const totalPopulation = overview?.capacity.totalOccupancy;
+  const highUtilizationCenters = overview?.capacity.highUtilizationCenters;
 
   const avatarInitials = (() => {
     if (!session?.user) {
@@ -997,11 +1001,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     Essential Tasks
                   </h4>
                   <ul className="space-y-4">
-                    {[
-                      { t: "Inventory Validation", s: "Ready" },
-                      { t: "Comms Stabilization", s: "Active" },
-                      { t: "Volunteer Briefing", s: "Complete" }
-                    ].map((task, i) => (
+                    {essentialTasks.map((task, i) => (
                       <li key={i} className="flex justify-between items-center text-sm pb-2 border-b border-[#dadad5]/50">
                         <span className="font-medium">{task.t}</span>
                         <span className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold uppercase" style={{ color: phaseConfig.primaryColor }}>{task.s}</span>
@@ -1011,7 +1011,9 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 </div>
                 <div className="mt-6 pt-4 border-t border-[#dadad5]">
                   <p className="text-[10px] font-bold text-[#444743] uppercase tracking-widest mb-2">Protocol Note</p>
-                  <p className="text-xs italic text-[#444743]">"All resource reallocations must be synced to the central hub within 5 minutes of physical movement."</p>
+                  <p className="text-xs italic text-[#444743]">
+                    {activityLogs.length > 0 ? activityLogs[0].m : "Waiting for latest operational updates from backend."}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1359,15 +1361,19 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="bg-[#f4f4ef] dark:bg-[#1a1c19] rounded-2xl p-3 border border-[#dadad5] dark:border-[#3b3b3b]">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#707a6c]">Active Shelters</p>
-                    <p className="text-lg font-black" style={{ color: phaseConfig.primaryColor }}>{activeShelters}</p>
+                    <p className="text-lg font-black" style={{ color: phaseConfig.primaryColor }}>
+                      {loadingData ? "..." : activeShelters ?? "N/A"}
+                    </p>
                   </div>
                   <div className="bg-[#f4f4ef] dark:bg-[#1a1c19] rounded-2xl p-3 border border-[#dadad5] dark:border-[#3b3b3b]">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#707a6c]">Total Population</p>
-                    <p className="text-lg font-black">{totalPopulation.toLocaleString()} pax</p>
+                    <p className="text-lg font-black">
+                      {loadingData ? "..." : totalPopulation != null ? `${totalPopulation.toLocaleString()} pax` : "N/A"}
+                    </p>
                   </div>
                   <div className="bg-[#f4f4ef] dark:bg-[#1a1c19] rounded-2xl p-3 border border-[#dadad5] dark:border-[#3b3b3b]">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#707a6c]">High Utilization</p>
-                    <p className="text-lg font-black">{overview?.capacity.highUtilizationCenters ?? 0}</p>
+                    <p className="text-lg font-black">{loadingData ? "..." : highUtilizationCenters ?? "N/A"}</p>
                   </div>
                 </div>
               </div>

@@ -162,116 +162,6 @@ function mapLiveAlertToNotification(alert: LiveAlertRecord): Notification {
   };
 }
 
-//  Initial Data 
-const INITIAL_ACCOUNTS: PendingAccount[] = [
-  {
-    id: "ACC-1041",
-    name: "Ana Torres",
-    role: "Dispatcher",
-    area: "Metro Cluster 5",
-    email: "a.torres@ndrrmc.gov.ph",
-    submitted: "2h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "UMID", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1042",
-    name: "Renz Villanueva",
-    role: "Dispatcher",
-    area: "Metro Cluster 3",
-    email: "r.villanueva@ndrrmc.gov.ph",
-    submitted: "4h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Passport", status: "VERIFIED" },
-      { name: "Barangay Clearance", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1043",
-    name: "Liza Ramos",
-    role: "Site Manager",
-    area: "Zone B-3",
-    email: "l.ramos@dswd.gov.ph",
-    submitted: "1d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Driver's License", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-      { name: "Authorization Letter", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1044",
-    name: "Carlos Mendez",
-    role: "Site Manager",
-    area: "District 4",
-    email: "c.mendez@lgu-qc.gov.ph",
-    submitted: "2d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "PhilSys ID", status: "VERIFIED" },
-      { name: "Appointment Order", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "APPROVED",
-    qrGenerated: true,
-  },
-  {
-    id: "ACC-1045",
-    name: "Patricia Gomez",
-    role: "Dispatcher",
-    area: "Metro Cluster 7",
-    email: "p.gomez@ndrrmc.gov.ph",
-    submitted: "3d ago",
-    docs: [{ name: "Government-Issued ID", type: "UMID", status: "FAILED" }],
-    status: "REJECTED",
-    rejectReason: "Submitted ID is expired. Please resubmit with a valid document.",
-  },
-];
-
-const INITIAL_QR: QRRecord[] = [
-  { id: "QR-5001", name: "Carlos Mendez", type: "individual", area: "District 4", issuedAt: "Today 10:00", linkedAccountId: "ACC-1044" },
-  { id: "QR-5002", name: "Santos Family", type: "family", area: "Zone A-4", issuedAt: "Today 09:30", familySize: 5 },
-  { id: "QR-5003", name: "Maria Reyes", type: "individual", area: "North District", issuedAt: "Today 09:00" },
-  { id: "QR-5004", name: "Dela Rosa Family", type: "family", area: "Sector 12", issuedAt: "Yesterday", familySize: 3 },
-];
-
-const INITIAL_DISASTERS: DisasterEvent[] = [
-  { id: "DIS-001", name: "Typhoon Kristine", type: "Typhoon", severity: "CAT 3", phase: "DURING", areas: "Metro Manila, Rizal, Laguna", affected: 18432, tickets: 142, dispatchers: 4, riskLevel: "CRITICAL" },
-  { id: "DIS-002", name: "Flooding  Laguna Basin", type: "Flood", severity: "WATCH", phase: "BEFORE", areas: "Laguna, Cavite", affected: 3200, tickets: 12, dispatchers: 1, riskLevel: "HIGH" },
-  { id: "DIS-003", name: "Landslide  Rizal Province", type: "Landslide", severity: "RESOLVED", phase: "AFTER", areas: "Antipolo, Montalban", affected: 780, tickets: 87, dispatchers: 0, riskLevel: "LOW" },
-];
-
-const SYSTEM_SERVICES: ServiceHealth[] = [
-  { name: "API Gateway", status: "OPERATIONAL", latency: "11ms", uptime: "99.98%" },
-  { name: "Auth Service", status: "OPERATIONAL", latency: "8ms", uptime: "99.99%" },
-  { name: "Notification Service", status: "DEGRADED", latency: "340ms", uptime: "98.1%", note: "SMS provider rate limiting  ETA fix 15min" },
-  { name: "GIS / Mapping API", status: "OPERATIONAL", latency: "24ms", uptime: "99.95%" },
-  { name: "Screening API", status: "OPERATIONAL", latency: "58ms", uptime: "99.91%" },
-  { name: "QR Code Service", status: "OPERATIONAL", latency: "15ms", uptime: "99.97%" },
-  { name: "Database (Supabase)", status: "OPERATIONAL", latency: "18ms", uptime: "99.99%" },
-  { name: "File Storage", status: "OPERATIONAL", latency: "22ms", uptime: "99.93%" },
-];
-
-const ADMIN_PROFILE: AdminProfile = {
-  name: "Juan C. dela Cruz",
-  initials: "JD",
-  badge: "ADM-2024-0012",
-  station: "NDRRMC National Operations Center",
-  email: "j.delacruz@ndrrmc.gov.ph",
-  phone: "09XX-801-0012",
-  role: "System Administrator",
-};
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 1, title: "3 Pending Approvals", sub: "ACC-1041, ACC-1042, ACC-1043 awaiting review", time: "Just now", type: "red", read: false },
-  { id: 2, title: "Notification Service Degraded", sub: "SMS latency 340ms  engineering notified", time: "5 min ago", type: "amber", read: false },
-  { id: 3, title: "DIS-001 Status Update", sub: "Typhoon Kristine  risk level remains CRITICAL", time: "12 min ago", type: "red", read: false },
-  { id: 4, title: "QR-5001 Issued", sub: "Carlos Mendez individual QR generated", time: "2h ago", type: "green", read: true },
-];
-
 //  Color maps 
 const RISK_CLASS: Record<RiskLevel, string> = {
   CRITICAL: "red",
@@ -398,8 +288,6 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleLogin = () => {
     if (!username || !password) { setLoginError("Enter username and password."); return; }
-    if (username === "admin" && password === "admin123") { setLoginError(""); onLogin(); return; }
-    // Demo  accept any non-empty
     setLoginError(""); onLogin();
   };
 
@@ -584,10 +472,6 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     <button className="admin-btn admin-btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.9rem", fontSize: "0.92rem", borderRadius: "0.75rem", marginTop: "0.25rem" }} onClick={handleLogin}>
                       Sign In to Admin Console 
                     </button>
-                  </div>
-
-                  <div style={{ marginTop: "1.2rem", padding: "0.85rem 1rem", background: "#f5f6f8", borderRadius: "0.85rem", fontSize: "0.78rem", color: "#6b7494" }}>
-                    <strong style={{ color: "#1a1c2e" }}>Demo access:</strong> username <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin</code>  password <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin123</code>
                   </div>
                 </>
               ) : (
@@ -962,7 +846,7 @@ function ApprovalsPage({
       {dataStatus === "unavailable" && (
         <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
           <span className="admin-alert-icon material-symbols-outlined">warning</span>
-          <div>Approvals endpoint is not reachable. No fallback applicants are shown so you only see real backend data.</div>
+          <div>Approvals endpoint is not reachable. Showing live backend state only.</div>
         </div>
       )}
 
@@ -3088,7 +2972,7 @@ function SystemHealthPage({
       {services.length === 0 && (
         <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
           <span className="admin-alert-icon material-symbols-outlined">warning</span>
-          <div>System health endpoint is unavailable. No demo fallback is shown so this reflects real backend connectivity.</div>
+          <div>System health endpoint is unavailable. Showing live backend state only.</div>
         </div>
       )}
 
