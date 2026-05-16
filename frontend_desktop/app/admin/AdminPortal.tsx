@@ -299,7 +299,7 @@ const RISK_COLOR: Record<RiskLevel, string> = {
   LOW: "var(--admin-green)",
 };
 
-const TOAST_ICONS = { success: "", error: "", info: "", warning: "" };
+const TOAST_ICONS = { success: "check_circle", error: "error", info: "info", warning: "warning" };
 
 //  Toast container 
 function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
@@ -307,7 +307,7 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
     <div className="admin-toast-wrap">
       {toasts.map((t) => (
         <div key={t.id} className={`admin-toast ${t.type}`}>
-          <span className="admin-toast-ico">{TOAST_ICONS[t.type]}</span>
+          <span className="admin-toast-ico material-symbols-outlined">{TOAST_ICONS[t.type]}</span>
           <div>
             <div className="admin-toast-title">{t.title}</div>
             {t.sub && <div className="admin-toast-sub">{t.sub}</div>}
@@ -340,7 +340,9 @@ function Modal({
       <div className={cls}>
         <div className="admin-modal-header">
           <div className="admin-modal-title">{title}</div>
-          <button className="admin-modal-close" onClick={onClose}></button>
+          <button className="admin-modal-close" onClick={onClose}>
+            <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>close</span>
+          </button>
         </div>
         <div className="admin-modal-body">{children}</div>
         {footer && <div className="admin-modal-footer">{footer}</div>}
@@ -361,7 +363,7 @@ function Stepper({ steps, current }: { steps: { id: string; label: string }[]; c
           <div key={step.id} className="admin-step-wrap">
             <div className="admin-step">
               <div className={`admin-step-circle ${isDone ? "done" : isActive ? "active" : "pending"}`}>
-                {isDone ? "" : i + 1}
+                {isDone ? <span className="material-symbols-outlined" style={{ fontSize: "0.9rem" }}>check</span> : i + 1}
               </div>
               <div className={`admin-step-label ${isDone ? "done" : isActive ? "active" : ""}`}>
                 {step.label}
@@ -420,11 +422,11 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   };
 
   const features = [
-    { icon: "", label: "Account Approvals", desc: "Review and validate role applications" },
-    { icon: "", label: "Family Records", desc: "View and manage registered family groups" },
-    { icon: "", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
-    { icon: "", label: "Early Warning", desc: "Configure and broadcast alerts" },
-    { icon: "", label: "System Health", desc: "Monitor all platform services" },
+    { icon: "how_to_reg", label: "Account Approvals", desc: "Review and validate role applications" },
+    { icon: "groups", label: "Family Records", desc: "View and manage registered family groups" },
+    { icon: "crisis_alert", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
+    { icon: "campaign", label: "Early Warning", desc: "Configure and broadcast alerts" },
+    { icon: "monitor_heart", label: "System Health", desc: "Monitor all platform services" },
   ];
 
   return (
@@ -471,7 +473,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
             {features.map((f) => (
               <div key={f.label} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "0.85rem", padding: "0.85rem 1rem", display: "flex", gap: "0.65rem", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{f.icon}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", flexShrink: 0 }}>{f.icon}</span>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: "0.78rem", color: "#fff", marginBottom: "0.15rem" }}>{f.label}</div>
                   <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>{f.desc}</div>
@@ -518,7 +520,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                 ) : (
                   <>
                     <div className="admin-alert info">
-                      <span className="admin-alert-icon"></span>
+                      <span className="admin-alert-icon material-symbols-outlined">info</span>
                       <div>A 6-digit OTP has been sent to <strong>{forgotEmail}</strong>. Enter it below to create a new password.</div>
                     </div>
                     <div className="admin-form-group">
@@ -560,7 +562,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
                   {loginError && (
                     <div className="admin-alert critical" style={{ marginBottom: "1rem" }}>
-                      <span className="admin-alert-icon"></span>
+                      <span className="admin-alert-icon material-symbols-outlined">error</span>
                       <div>{loginError}</div>
                     </div>
                   )}
@@ -651,6 +653,7 @@ function OverviewPage({
   accounts,
   qrRecords,
   disasters,
+  loading,
   activityLog,
   setPage,
   overview,
@@ -658,6 +661,7 @@ function OverviewPage({
   accounts: PendingAccount[];
   qrRecords: QRRecord[];
   disasters: DisasterEvent[];
+  loading: boolean;
   activityLog: { time: string; type: string; msg: string; col: string }[];
   setPage: (p: AdminPage) => void;
   overview: DashboardOverview | null;
@@ -680,27 +684,27 @@ function OverviewPage({
       <div className="admin-stats-row admin-stats-5">
         <div className="admin-stat red">
           <div className="admin-stat-label">Active Disasters</div>
-          <div className="admin-stat-value">{activeDisasters}</div>
+          <div className="admin-stat-value">{loading ? "..." : activeDisasters}</div>
           <div className="admin-stat-note">Require monitoring</div>
         </div>
         <div className="admin-stat orange">
           <div className="admin-stat-label">Pending Approvals</div>
-          <div className="admin-stat-value">{pending}</div>
+          <div className="admin-stat-value">{loading ? "..." : pending}</div>
           <div className="admin-stat-note">Awaiting review</div>
         </div>
         <div className="admin-stat blue">
           <div className="admin-stat-label">QR Codes Issued</div>
-          <div className="admin-stat-value">{qrRecords.length}</div>
+          <div className="admin-stat-value">{loading ? "..." : qrRecords.length}</div>
           <div className="admin-stat-note">Total issued</div>
         </div>
         <div className="admin-stat green">
           <div className="admin-stat-label">Inventory Items</div>
-          <div className="admin-stat-value">{overview?.inventory?.totalItems ?? 0}</div>
+          <div className="admin-stat-value">{loading ? "..." : (overview?.inventory?.totalItems ?? 0)}</div>
           <div className="admin-stat-note">Across all centers</div>
         </div>
         <div className="admin-stat violet">
           <div className="admin-stat-label">Incident Reports</div>
-          <div className="admin-stat-value">{overview?.incidentReports?.totalReports ?? 0}</div>
+          <div className="admin-stat-value">{loading ? "..." : (overview?.incidentReports?.totalReports ?? 0)}</div>
           <div className="admin-stat-note">All events</div>
         </div>
       </div>
@@ -725,20 +729,34 @@ function OverviewPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {disasters.map((d) => (
-                    <tr key={d.id}>
-                      <td>
-                        <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{d.name}</div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{d.areas}</div>
-                      </td>
-                      <td><span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span></td>
-                      <td><span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span></td>
-                      <td style={{ fontWeight: 800 }}>{d.tickets}</td>
-                      <td>
-                        <button className="admin-btn admin-btn-ghost admin-btn-xs" onClick={() => setPage("disaster_monitoring")}>Monitor</button>
+                  {loading && disasters.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", color: "var(--admin-text-soft)" }}>
+                        Loading active disaster events...
                       </td>
                     </tr>
-                  ))}
+                  ) : disasters.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", color: "var(--admin-text-soft)" }}>
+                        No active disaster events found.
+                      </td>
+                    </tr>
+                  ) : (
+                    disasters.map((d) => (
+                      <tr key={d.id}>
+                        <td>
+                          <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{d.name.charAt(0).toUpperCase() + d.name.slice(1)}</div>
+                          <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{d.areas}</div>
+                        </td>
+                        <td><span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span></td>
+                        <td><span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span></td>
+                        <td style={{ fontWeight: 800 }}>{d.tickets}</td>
+                        <td>
+                          <button className="admin-btn admin-btn-ghost admin-btn-xs" onClick={() => setPage("disaster_monitoring")}>Monitor</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -754,7 +772,9 @@ function OverviewPage({
                     <div key={i} className="admin-tl-item">
                       <div className="admin-tl-left">
                         <div className="admin-tl-dot" style={{ background: log.col + "18", borderColor: log.col, color: log.col, fontSize: "0.55rem" }}>
-                          {log.type === "APPROVED" ? "" : log.type === "REJECTED" ? "" : log.type === "QR" ? "" : ""}
+                          <span className="material-symbols-outlined" style={{ fontSize: "0.7rem" }}>
+                            {log.type === "APPROVED" ? "check_circle" : log.type === "REJECTED" ? "cancel" : log.type === "QR" ? "qr_code_2" : "campaign"}
+                          </span>
                         </div>
                         {i < Math.min(activityLog.length, 5) - 1 && <div className="admin-tl-line" />}
                       </div>
@@ -778,7 +798,7 @@ function OverviewPage({
               {[
                 { label: "Review Account Approvals", icon: "how_to_reg", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
                 { label: "People & Records", icon: "people", count: null, color: "var(--admin-blue)", page: "people_records" as AdminPage },
-                { label: "After Calamity", icon: "", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
+                { label: "After Calamity", icon: "assignment_turned_in", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
                 { label: "Monitor Disasters", icon: "crisis_alert", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
                 { label: "Configure Early Warning", icon: "broadcast_on_home", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
                 { label: "System Health", icon: "monitor_heart", count: null, color: "var(--admin-green)", page: "system_health" as AdminPage },
@@ -790,7 +810,7 @@ function OverviewPage({
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--admin-surface-muted)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "var(--admin-surface-low)")}
                 >
-                  <span style={{ fontSize: "1rem" }}>{qa.icon}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{qa.icon}</span>
                   <span style={{ flex: 1, fontWeight: 700, fontSize: "0.82rem" }}>{qa.label}</span>
                   {qa.count != null && qa.count > 0 ? (
                     <span style={{ background: qa.color, color: "#fff", fontSize: "0.62rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px" }}>{qa.count}</span>
@@ -941,14 +961,14 @@ function ApprovalsPage({
 
       {dataStatus === "unavailable" && (
         <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
-          <span className="admin-alert-icon"></span>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
           <div>Approvals endpoint is not reachable. No fallback applicants are shown so you only see real backend data.</div>
         </div>
       )}
 
       {/* Process info */}
       <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
-        <span className="admin-alert-icon"></span>
+        <span className="admin-alert-icon material-symbols-outlined">info</span>
         <div>
           <strong>Approval Workflow:</strong> Review documents for approval  Validate document authenticity  Approve or Reject account
         </div>
@@ -1031,7 +1051,7 @@ function ApprovalsPage({
           }
         >
           <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
-            <span className="admin-alert-icon"></span>
+            <span className="admin-alert-icon material-symbols-outlined">warning</span>
             <div>Rejecting <strong>{rejectTarget.name}</strong>'s application for <strong>{rejectTarget.role}</strong>. The rejection reason will be sent to the applicant.</div>
           </div>
           <div className="admin-form-group">
@@ -1993,11 +2013,13 @@ function AfterCalamityPage({
 // 
 function DisasterMonitoringPage({
   disasters,
+  loading,
   setDisasters,
   showToast,
   authToken,
 }: {
   disasters: DisasterEvent[];
+  loading: boolean;
   setDisasters: React.Dispatch<React.SetStateAction<DisasterEvent[]>>;
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
   authToken?: string;
@@ -2005,9 +2027,9 @@ function DisasterMonitoringPage({
   const [selected, setSelected] = useState<DisasterEvent | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const liveFeeds = disasters.slice(0, 6).map((event) => ({
-    src: event.type || "Disaster Event",
+    src: (event.type?.charAt(0).toUpperCase() + event.type?.slice(1)) || "Disaster Event",
     status: event.phase === "DURING" ? "LIVE" : event.phase === "AFTER" ? "RESOLVED" : "MONITORING",
-    data: `${event.name} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected  ${event.tickets} open ticket(s)`,
+    data: `${event.name.charAt(0).toUpperCase() + event.name.slice(1)} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected  ${event.tickets} open ticket(s)`,
   }));
   const forecastRows = disasters.map((event) => ({
     id: event.id,
@@ -2092,6 +2114,14 @@ function DisasterMonitoringPage({
         </div>
       </div>
 
+      {loading && disasters.length === 0 && (
+        <div className="admin-card" style={{ marginBottom: "1rem" }}>
+          <div className="admin-card-body" style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}>
+            Loading latest disaster data from the backend...
+          </div>
+        </div>
+      )}
+
       {/* Live feeds */}
       <div className="admin-card" style={{ marginBottom: "1rem" }}>
         <div className="admin-card-header">
@@ -2099,16 +2129,23 @@ function DisasterMonitoringPage({
           <span className="admin-live"><span className="admin-live-dot" />Real-time</span>
         </div>
         <div className="admin-card-body">
-          <div className="admin-grid-2">
+          <div className="admin-grid-2" style={{ marginBottom: "1rem" }}>
             {liveFeeds.map((f) => (
-              <div key={f.src} style={{ padding: "0.85rem 1rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", border: "1px solid var(--admin-outline)", display: "flex", gap: "0.75rem" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-                    <span style={{ fontWeight: 800, fontSize: "0.8rem" }}>{f.src}</span>
-                    <span className="admin-badge green"> {f.status}</span>
-                  </div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--admin-text)", lineHeight: 1.5 }}>{f.data}</div>
+              <div key={f.src} style={{
+                padding: "1rem 1.1rem",
+                background: "var(--admin-surface-low)",
+                border: "1px solid var(--admin-outline)",
+                borderRadius: "0.85rem",
+                borderLeft: "3px solid var(--admin-accent)",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+                  <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src.charAt(0).toUpperCase() + f.src.slice(1)}</span>
+                  <span className={`admin-badge ${f.status === "LIVE" ? "green" : f.status === "RESOLVED" ? "gray" : "amber"}`} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor", display: "inline-block", flexShrink: 0 }} />
+                    {f.status}
+                  </span>
                 </div>
+                <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>{f.data}</div>
               </div>
             ))}
           </div>
@@ -2116,35 +2153,35 @@ function DisasterMonitoringPage({
       </div>
 
       {/* Disaster event cards */}
-      <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "1rem" }}>
+      <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "2rem", gap: "1rem" }}>
         {disasters.map((d) => (
           <div key={d.id} className="admin-disaster-card">
             <div className="admin-disaster-card-top" style={{ background: RISK_COLOR[d.riskLevel] }} />
-            <div style={{ padding: "1rem 1.1rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.65rem" }}>
+            <div style={{ padding: "1.2rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.85rem" }}>
                 <span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span>
                 <span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span>
               </div>
-              <div style={{ fontWeight: 900, fontSize: "1rem", letterSpacing: "-0.02em", marginBottom: "0.25rem" }}>{d.name}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginBottom: "0.85rem" }}> {d.areas}  {d.type}  {d.severity}</div>
+              <div style={{ fontWeight: 900, fontSize: "1rem", letterSpacing: "-0.02em", marginBottom: "0.35rem" }}>{d.name.charAt(0).toUpperCase() + d.name.slice(1)}</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginBottom: "1rem", lineHeight: 1.5 }}>{d.areas}  •  {d.type.charAt(0).toUpperCase() + d.type.slice(1)}  •  {d.severity}</div>
 
-              <div className="admin-grid-2" style={{ gap: "0.5rem", marginBottom: "0.85rem" }}>
-                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.6rem 0.75rem" }}>
-                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.2rem" }}>Affected</div>
+              <div className="admin-grid-2" style={{ gap: "0.65rem", marginBottom: "1rem" }}>
+                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.75rem" }}>
+                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.3rem" }}>Affected</div>
                   <div style={{ fontWeight: 900, fontSize: "1.1rem", color: RISK_COLOR[d.riskLevel] }}>{d.affected.toLocaleString()}</div>
                 </div>
-                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.6rem 0.75rem" }}>
-                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.2rem" }}>Tickets</div>
+                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.75rem" }}>
+                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.3rem" }}>Tickets</div>
                   <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "var(--admin-blue)" }}>{d.tickets}</div>
                 </div>
               </div>
 
-              <div style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)", marginBottom: "0.75rem" }}>
+              <div style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)", marginBottom: "0.85rem" }}>
                 {d.dispatchers} dispatcher(s) active
               </div>
 
               {/* Phase controls */}
-              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {(["BEFORE", "DURING", "AFTER"] as CalamityPhase[]).map((ph) => (
                   <button
                     key={ph}
@@ -2163,29 +2200,29 @@ function DisasterMonitoringPage({
       </div>
 
       {/* Forecast table */}
-      <div className="admin-card">
+      <div className="admin-card" style={{ marginTop: "2rem" }}>
         <div className="admin-card-header">
           <div className="admin-card-title"> Forecast & Predictive Risk Analysis</div>
         </div>
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr>
-                <th>Area</th>
-                <th>Risk Level</th>
-                <th>Current Phase</th>
-                <th>Open Tickets</th>
-                <th>Recommended Action</th>
+              <tr style={{ borderBottom: "2px solid var(--admin-outline)" }}>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Area</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Risk Level</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Current Phase</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Open Tickets</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Recommended Action</th>
               </tr>
             </thead>
             <tbody>
-              {forecastRows.map((f) => (
-                <tr key={f.id}>
-                  <td style={{ fontWeight: 700 }}>{f.area}</td>
-                  <td><span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span></td>
-                  <td style={{ fontSize: "0.78rem" }}>{f.phase}</td>
-                  <td style={{ fontSize: "0.78rem" }}>{f.tickets}</td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--admin-text-muted)" }}>{f.action}</td>
+              {forecastRows.map((f, idx) => (
+                <tr key={f.id} style={{ borderBottom: idx < forecastRows.length - 1 ? "1px solid var(--admin-outline)" : "none" }}>
+                  <td style={{ padding: "1rem 1.1rem", fontWeight: 700, fontSize: "0.82rem" }}>{f.area}</td>
+                  <td style={{ padding: "1rem 1.1rem" }}><span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span></td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem" }}>{f.phase}</td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem", fontWeight: 700 }}>{f.tickets}</td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem", color: "var(--admin-text-muted)" }}>{f.action}</td>
                 </tr>
               ))}
             </tbody>
@@ -2301,8 +2338,9 @@ function EarlyWarningPage({
   };
 
   const liveFeeds = disasters.slice(0, 6).map((event) => ({
-    src: event.type || "Disaster Event",
-    data: `${event.name} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected`,
+    src: (event.type?.charAt(0).toUpperCase() + event.type?.slice(1)) || "Disaster Event",
+    status: event.phase === "DURING" ? "LIVE" : event.phase === "AFTER" ? "RESOLVED" : "MONITORING",
+    data: `${event.name.charAt(0).toUpperCase() + event.name.slice(1)} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected`,
   }));
   const forecastRows = disasters.map((event) => ({
     area: event.areas,
@@ -2447,10 +2485,10 @@ function EarlyWarningPage({
                     borderLeft: "3px solid var(--admin-accent)",
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src}</span>
-                      <span className="admin-badge green" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--admin-green)", display: "inline-block" }} />
-                        LIVE
+                      <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src.charAt(0).toUpperCase() + f.src.slice(1)}</span>
+                      <span className={`admin-badge ${f.status === "LIVE" ? "green" : f.status === "RESOLVED" ? "gray" : "amber"}`} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor", display: "inline-block", flexShrink: 0 }} />
+                        {f.status}
                       </span>
                     </div>
                     <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>{f.data}</div>
@@ -3035,7 +3073,7 @@ function SystemHealthPage({
 
       {degraded.length > 0 && (
         <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon"></span>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
           <div>
             <strong>{degraded.length} service(s) are not fully operational:</strong>{" "}
             {degraded.map((s) => s.name).join(", ")}.
@@ -3049,7 +3087,7 @@ function SystemHealthPage({
 
       {services.length === 0 && (
         <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon"></span>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
           <div>System health endpoint is unavailable. No demo fallback is shown so this reflects real backend connectivity.</div>
         </div>
       )}
@@ -3159,7 +3197,7 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
           <div className="admin-card-header"><div className="admin-card-title"> Change Password</div></div>
           <div className="admin-card-body">
             <div className="admin-alert info" style={{ marginBottom: "1rem" }}>
-              <span className="admin-alert-icon"></span>
+              <span className="admin-alert-icon material-symbols-outlined">info</span>
               <div>Password changes require OTP verification sent to your registered email address.</div>
             </div>
             <div className="admin-form-grid">
@@ -3259,14 +3297,24 @@ function mapSystemHealthRecord(svc: AdminSystemHealthRecord): ServiceHealth {
 export default function AdminPortal() {
   const router = useRouter();
   const [page, setPage] = useState<AdminPage>("overview");
-  const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
-  const [qrRecords, setQRRecords] = useState<QRRecord[]>(INITIAL_QR);
-  const [disasters, setDisasters] = useState<DisasterEvent[]>(INITIAL_DISASTERS);
-  const [profile, setProfile] = useState<AdminProfile>(ADMIN_PROFILE);
+  const [accounts, setAccounts] = useState<PendingAccount[]>([]);
+  const [qrRecords, setQRRecords] = useState<QRRecord[]>([]);
+  const [disasters, setDisasters] = useState<DisasterEvent[]>([]);
+  const [disastersLoading, setDisastersLoading] = useState(true);
+  const [profile, setProfile] = useState<AdminProfile>({
+    name: "",
+    initials: "AD",
+    badge: "",
+    station: "",
+    email: "",
+    phone: "",
+    role: "System Administrator",
+  });
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [systemHealth, setSystemHealth] = useState<ServiceHealth[]>([]);
   const [healthRefreshing, setHealthRefreshing] = useState(false);
+  const [initialHydrating, setInitialHydrating] = useState(true);
   const [approvalsDataStatus, setApprovalsDataStatus] = useState<"live" | "unavailable">("unavailable");
   const [session, setSession] = useState<AuthSession | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -3325,31 +3373,40 @@ export default function AdminPortal() {
     // Hydrate dashboard and disaster data from the backend
     async function hydrate() {
       const token = stored!.accessToken;
-      const [ovResult, evResult, citizenResult, familyResult, approvalsResult] = await Promise.allSettled([
-        getDashboard("admin", token),
-        getDisasterEvents("admin", token),
-        getCitizens(token),
-        getFamilies(token),
-        getPendingApprovals(token),
-      ]);
-      if (ovResult.status === "fulfilled") {
-        setOverview(ovResult.value);
-      }
-      if (evResult.status === "fulfilled") {
-        const payload = evResult.value;
-        const eventList = Array.isArray(payload)
-          ? payload
-          : Array.isArray((payload as { disasterEvents?: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents)
-            ? (payload as { disasterEvents: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents
-            : [];
-        setDisasters(eventList.map(mapBackendDisaster));
-      } else {
-        setDisasters([]);
-      }
-      // Build QR records from real registered citizens and families
-      const qrList: QRRecord[] = [];
-      if (citizenResult.status === "fulfilled") {
-        for (const c of citizenResult.value) {
+      setInitialHydrating(true);
+      setDisastersLoading(true);
+
+      const dashboardPromise = getDashboard("admin", token)
+        .then((result) => {
+          setOverview(result);
+        })
+        .catch(() => {
+          setOverview(null);
+        });
+
+      const disasterPromise = getDisasterEvents("admin", token)
+        .then((payload) => {
+          const eventList = Array.isArray(payload)
+            ? payload
+            : Array.isArray((payload as { disasterEvents?: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents)
+              ? (payload as { disasterEvents: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents
+              : [];
+          setDisasters(eventList.map(mapBackendDisaster));
+        })
+        .catch(() => {
+          setDisasters([]);
+        })
+        .finally(() => {
+          setDisastersLoading(false);
+        });
+
+      const citizenPromise = getCitizens(token).catch(() => [] as Awaited<ReturnType<typeof getCitizens>>);
+      const familyPromise = getFamilies(token).catch(() => [] as Awaited<ReturnType<typeof getFamilies>>);
+
+      const qrPromise = Promise.all([citizenPromise, familyPromise]).then(([citizens, families]) => {
+        const qrList: QRRecord[] = [];
+
+        for (const c of citizens) {
           const qrId = c.qrCodeId ?? c.qr_code_id;
           if (!qrId) continue;
           const area = [c.barangay, c.municipality].filter(Boolean).join(", ") || "";
@@ -3362,9 +3419,8 @@ export default function AdminPortal() {
             linkedAccountId: c.userId ?? c.user_id,
           });
         }
-      }
-      if (familyResult.status === "fulfilled") {
-        for (const f of familyResult.value) {
+
+        for (const f of families) {
           const qrId = f.qrCodeId ?? f.qr_code_id;
           if (!qrId) continue;
           const area = [f.barangay, f.municipality].filter(Boolean).join(", ") || "";
@@ -3378,16 +3434,28 @@ export default function AdminPortal() {
             familySize: f.members?.length || f.family_member_count || undefined,
           });
         }
-      }
-      setQRRecords(qrList);
-      if (approvalsResult.status === "fulfilled") {
-        setAccounts(approvalsResult.value.map(mapApprovalToAccount));
-        setApprovalsDataStatus("live");
-      } else {
-        setAccounts([]);
-        setApprovalsDataStatus("unavailable");
-      }
-      await refreshSystemHealth(token);
+
+        setQRRecords(qrList);
+      });
+
+      const approvalsPromise = getPendingApprovals(token)
+        .then((result) => {
+          setAccounts(result.map(mapApprovalToAccount));
+          setApprovalsDataStatus("live");
+        })
+        .catch(() => {
+          setAccounts([]);
+          setApprovalsDataStatus("unavailable");
+        });
+
+      await Promise.allSettled([
+        dashboardPromise,
+        disasterPromise,
+        qrPromise,
+        approvalsPromise,
+        refreshSystemHealth(token),
+      ]);
+      setInitialHydrating(false);
     }
     void hydrate();
   }, [router, refreshSystemHealth]);
@@ -3556,13 +3624,14 @@ export default function AdminPortal() {
           </div>
           <div className="admin-topbar-right">
             <button className="admin-btn admin-btn-broadcast admin-btn-sm" onClick={() => setBroadcastModal(true)}>
-               Broadcast Alert
+              <span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>campaign</span>
+              Broadcast Alert
             </button>
 
             {/* Notifications */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button className="admin-topbar-icon-btn" onClick={() => { setNotifOpen((p) => !p); setProfileOpen(false); }}>
-                
+                <span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>notifications</span>
                 {unreadNotifs > 0 && <span className="admin-notif-dot" />}
               </button>
               {notifOpen && (
@@ -3596,14 +3665,14 @@ export default function AdminPortal() {
                     <div className="admin-profile-dropdown-avatar">{profile.initials}</div>
                     <div>
                       <div className="admin-profile-dropdown-name">{profile.name}</div>
-                      <div className="admin-profile-dropdown-role">Admin  {profile.badge}</div>
+                      <div className="admin-profile-dropdown-role">Admin - {profile.badge}</div>
                     </div>
                   </div>
-                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}> View Profile</button>
-                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}> Edit Profile</button>
+                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}><span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>person</span> View Profile</button>
+                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}><span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>edit</span> Edit Profile</button>
                   <div style={{ height: "1px", background: "var(--admin-outline)" }} />
                   <button className="admin-profile-dropdown-item danger" onClick={() => { clearSession(); router.replace("/admin/login"); }}>
-                     Log Out
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>logout</span> Log Out
                   </button>
                 </div>
               )}
@@ -3614,7 +3683,15 @@ export default function AdminPortal() {
         {/* Content */}
         <div className="admin-content">
           {page === "overview" && (
-            <OverviewPage accounts={accounts} qrRecords={qrRecords} disasters={disasters} activityLog={activityLog} setPage={setPage} overview={overview} />
+            <OverviewPage
+              accounts={accounts}
+              qrRecords={qrRecords}
+              disasters={disasters}
+              loading={initialHydrating}
+              activityLog={activityLog}
+              setPage={setPage}
+              overview={overview}
+            />
           )}
           {page === "approvals" && (
             <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} dataStatus={approvalsDataStatus} />
@@ -3628,6 +3705,7 @@ export default function AdminPortal() {
           {page === "disaster_monitoring" && (
             <DisasterMonitoringPage
               disasters={disasters}
+              loading={disastersLoading}
               setDisasters={setDisasters}
               showToast={showToast}
               authToken={session?.accessToken}
@@ -3672,7 +3750,7 @@ export default function AdminPortal() {
           }
         >
           <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
-            <span className="admin-alert-icon"></span>
+            <span className="admin-alert-icon material-symbols-outlined">warning</span>
             <div>This broadcast will be sent to all registered citizens, dispatchers, and field units.</div>
           </div>
           <div className="admin-form-group">

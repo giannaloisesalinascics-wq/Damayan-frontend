@@ -161,37 +161,27 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
       setLoadingData(true);
       setLoadError(null);
 
-      const [dashboardResult, inventoryResult, checkInResult, incidentResult, capacityResult] =
-        await Promise.allSettled([
-          getDashboard("site-manager", stored.accessToken),
-          getInventory("site-manager", stored.accessToken),
-          getRecentCheckIns(stored.accessToken, 8),
-          getIncidentReports(stored.accessToken),
-          getCapacity(stored.accessToken),
-        ]);
+      const dashboardPromise = getDashboard("site-manager", stored.accessToken)
+        .then(setOverview)
+        .catch(() => setOverview(null));
 
-      if (dashboardResult.status === "fulfilled") {
-        setOverview(dashboardResult.value);
-      }
-      if (inventoryResult.status === "fulfilled") {
-        setInventoryItems(inventoryResult.value);
-      }
-      if (checkInResult.status === "fulfilled") {
-        setCheckIns(checkInResult.value);
-      }
-      if (incidentResult.status === "fulfilled") {
-        setIncidentReports(incidentResult.value);
-      }
-      if (capacityResult.status === "fulfilled") {
-        setCapacityCenters(capacityResult.value);
-      }
+      const inventoryPromise = getInventory("site-manager", stored.accessToken)
+        .then(setInventoryItems)
+        .catch(() => setInventoryItems([]));
 
-      const allRejected = [dashboardResult, inventoryResult, checkInResult, incidentResult].every(
-        (result) => result.status === "rejected",
-      );
-      if (allRejected) {
-        setLoadError("Unable to load site manager dashboard data.");
-      }
+      const checkInPromise = getRecentCheckIns(stored.accessToken, 8)
+        .then(setCheckIns)
+        .catch(() => setCheckIns([]));
+
+      const incidentPromise = getIncidentReports(stored.accessToken)
+        .then(setIncidentReports)
+        .catch(() => setIncidentReports([]));
+
+      const capacityPromise = getCapacity(stored.accessToken)
+        .then(setCapacityCenters)
+        .catch(() => setCapacityCenters([]));
+
+      await Promise.allSettled([dashboardPromise, inventoryPromise, checkInPromise, incidentPromise, capacityPromise]);
 
       setLoadingData(false);
     }
