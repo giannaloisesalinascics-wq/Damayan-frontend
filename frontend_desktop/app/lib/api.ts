@@ -423,7 +423,7 @@ export async function generateSiteReport(token: string) {
 export async function createInventoryBatch(
   token: string,
   payload: {
-    name: string;
+    name?: string;
     items: Array<{ itemId: string; quantity: number }>;
   },
 ) {

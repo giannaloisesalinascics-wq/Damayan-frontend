@@ -500,16 +500,14 @@ export class SiteManagerProxyService {
   }
 
   async createInventoryBatch(payload: {
-    name: string;
+    name?: string;
     items: Array<{ itemId: string; quantity: number }>;
   }) {
-    if (!payload.name?.trim()) {
-      throw new BadRequestException('Batch name is required');
-    }
-
     if (!Array.isArray(payload.items) || payload.items.length === 0) {
       throw new BadRequestException('Batch must include at least one item');
     }
+
+    const batchName = payload.name?.trim() || `Batch-${new Date().toISOString()}`;
 
     const updatedItems = await Promise.all(
       payload.items.map((item) => {
@@ -529,7 +527,7 @@ export class SiteManagerProxyService {
 
     return {
       ok: true,
-      batchName: payload.name.trim(),
+      batchName,
       createdAt: new Date().toISOString(),
       itemCount: payload.items.length,
       updatedItems,

@@ -114,6 +114,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   });
   const [isSubmittingNewBatch, setIsSubmittingNewBatch] = useState(false);
   const [newBatchError, setNewBatchError] = useState<string | null>(null);
+  const [newBatchSuccess, setNewBatchSuccess] = useState<string | null>(null);
 
   // Operations States
   const [isClosingOperations, setIsClosingOperations] = useState(false);
@@ -393,45 +394,47 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   const handleCreateNewBatch = async () => {
     if (!session?.accessToken) {
       setNewBatchError("Session expired. Please login again.");
+      setNewBatchSuccess(null);
       return;
     }
 
-    if (!newBatchState.name.trim()) {
-      setNewBatchError("Please enter batch name.");
-      return;
-    }
-
-    const selectedItemId = newBatchState.itemId || inventoryItems[0]?.id;
+    const selectedItemId = newBatchState.itemId;
     const parsedQuantity = Number(newBatchState.quantity);
 
     if (!selectedItemId) {
-      setNewBatchError("No inventory items available for batching.");
+      setNewBatchError("Please select an inventory item.");
+      setNewBatchSuccess(null);
       return;
     }
 
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
       setNewBatchError("Please enter a valid batch quantity greater than 0.");
+      setNewBatchSuccess(null);
       return;
     }
 
     setIsSubmittingNewBatch(true);
     setNewBatchError(null);
+    setNewBatchSuccess(null);
 
     try {
       const { createInventoryBatch } = await import("../../lib/api");
+      const submittedBatchName =
+        newBatchState.name.trim() || `Batch-${new Date().toISOString()}`;
       
-      await createInventoryBatch(session.accessToken, {
-        name: newBatchState.name,
+      const batchResult = await createInventoryBatch(session.accessToken, {
+        name: submittedBatchName,
         items: [{ itemId: selectedItemId, quantity: parsedQuantity }],
       });
 
       setNewBatchState({ name: "", itemId: "", quantity: "" });
       const freshInventory = await getInventory("site-manager", session.accessToken);
       setInventoryItems(freshInventory);
-      alert("New batch created successfully.");
+      setNewBatchSuccess(`Batch processed: ${batchResult?.batchName ?? "Batch"}. Inventory quantity updated.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to create batch";
       setNewBatchError(message);
+      setNewBatchSuccess(null);
       console.error("New batch error:", error);
     } finally {
       setIsSubmittingNewBatch(false);
@@ -1301,7 +1304,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <input
                   className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-xs font-bold"
-                  placeholder="Batch name"
+                  placeholder="Batch name (optional)"
                   value={newBatchState.name}
                   onChange={(e) => setNewBatchState({ ...newBatchState, name: e.target.value })}
                 />
@@ -1326,9 +1329,10 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                   onChange={(e) => setNewBatchState({ ...newBatchState, quantity: e.target.value })}
                 />
               </div>
-              {newBatchError && <p className="text-red-600 text-xs mb-4">{newBatchError}</p>}
+              {newBatchError && <p className="text-red-600 text-xs mb-2">{newBatchError}</p>}
+              {newBatchSuccess && <p className="text-[#2E7D32] text-xs mb-4">{newBatchSuccess}</p>}
               <div className="space-y-4">
-                {inventoryTable.slice(0, 6).map((item, i) => (
+                {inventoryTable.map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-[#f4f4ef]/50 dark:bg-white/5 border border-transparent hover:border-[#dadad5] transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#1a1c19] flex items-center justify-center border border-[#dadad5] dark:border-[#3b3b3b]">

@@ -106,7 +106,7 @@ export class SiteManagerController {
   createInventoryBatch(
     @Body()
     payload: {
-      name: string;
+      name?: string;
       items: Array<{ itemId: string; quantity: number }>;
     },
   ) {
