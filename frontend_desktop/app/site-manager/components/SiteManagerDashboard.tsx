@@ -9,11 +9,12 @@ import { clearSession, hasRole, loadSession } from "../../lib/session";
 import {
   getDashboard,
   getCapacity,
+  getDisasterEvents,
   getIncidentReports,
   getInventory,
   getRecentCheckIns,
 } from "../../lib/api";
-import { AppRole, AuthSession, CapacityCenter, CheckInRecord, DashboardOverview, IncidentReport, InventoryItem } from "../../lib/types";
+import { AppRole, AuthSession, CapacityCenter, CheckInRecord, DashboardOverview, DisasterEvent, IncidentReport, InventoryItem } from "../../lib/types";
 
 interface SiteManagerDashboardProps {
   phase: "before" | "during" | "after";
@@ -64,13 +65,16 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   const [checkIns, setCheckIns] = useState<CheckInRecord[]>([]);
   const [incidentReports, setIncidentReports] = useState<IncidentReport[]>([]);
   const [capacityCenters, setCapacityCenters] = useState<CapacityCenter[]>([]);
+  const [disasterEvents, setDisasterEvents] = useState<DisasterEvent[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   
   // Incident Report Form State
   const [incidentFormState, setIncidentFormState] = useState({
-    type: "Medical Emergency",
-    severity: "Moderate",
+    disasterId: "",
+    location: "",
+    type: "",
+    severity: "",
     description: "",
   });
   const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
@@ -182,7 +186,18 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
         .then(setCapacityCenters)
         .catch(() => setCapacityCenters([]));
 
-      await Promise.allSettled([dashboardPromise, inventoryPromise, checkInPromise, incidentPromise, capacityPromise]);
+      const disastersPromise = getDisasterEvents("site-manager", stored.accessToken)
+        .then((payload) => {
+          const eventList = Array.isArray(payload)
+            ? payload
+            : Array.isArray((payload as { disasterEvents?: DisasterEvent[] }).disasterEvents)
+              ? (payload as { disasterEvents: DisasterEvent[] }).disasterEvents
+              : [];
+          setDisasterEvents(eventList);
+        })
+        .catch(() => setDisasterEvents([]));
+
+      await Promise.allSettled([dashboardPromise, inventoryPromise, checkInPromise, incidentPromise, capacityPromise, disastersPromise]);
 
       setLoadingData(false);
     }
@@ -211,29 +226,37 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
       return;
     }
 
+    if (!incidentFormState.type.trim() || !incidentFormState.severity.trim()) {
+      setIncidentSubmitError("Please select incident type and severity.");
+      return;
+    }
+
+    if (!incidentFormState.disasterId.trim() || !incidentFormState.location.trim()) {
+      setIncidentSubmitError("Please select disaster context and location.");
+      return;
+    }
+
     setIsSubmittingIncident(true);
     setIncidentSubmitError(null);
 
     try {
       const { createIncidentReport } = await import("../../lib/api");
       
-      // Use a placeholder disaster ID and location - ideally these would come from context
-      const disasterId = "current-disaster";
-      const location = "Central Site";
-
       await createIncidentReport(session.accessToken, {
-        disasterId,
+        disasterId: incidentFormState.disasterId,
         reportedBy: session.user.email || "System",
         title: incidentFormState.type,
         content: incidentFormState.description,
         severity: incidentFormState.severity,
-        location,
+        location: incidentFormState.location,
       });
 
       // Reset form on success
       setIncidentFormState({
-        type: "Medical Emergency",
-        severity: "Moderate",
+        disasterId: incidentDisasterOptions[0]?.id ?? "",
+        location: incidentLocationOptions[0] ?? "",
+        type: incidentTypeOptions[0] ?? "",
+        severity: incidentSeverityOptions[0] ?? "",
         description: "",
       });
 
@@ -627,6 +650,36 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
       m: `${report.title} - ${report.status}`,
     })),
   ].slice(0, 4);
+
+  const incidentTypeOptions = Array.from(
+    new Set(
+      incidentReports
+        .map((report) => report.title?.trim())
+        .concat(disasterEvents.map((event) => event.type?.trim()))
+        .concat(incidentFormState.type)
+        .filter((value): value is string => Boolean(value && value.length > 0)),
+    ),
+  );
+
+  const incidentSeverityOptions = Array.from(
+    new Set(
+      incidentReports
+        .map((report) => report.severity?.trim())
+        .concat(disasterEvents.map((event) => event.severityLevel?.trim()))
+        .concat(incidentFormState.severity)
+        .filter((value): value is string => Boolean(value && value.length > 0)),
+    ),
+  );
+
+  const incidentDisasterOptions = disasterEvents.filter((event) => event.id && event.name);
+
+  const incidentLocationOptions = Array.from(
+    new Set(
+      capacityCenters
+        .map((center) => [center.name, center.barangay, center.municipality].filter(Boolean).join(", "))
+        .filter((value) => value.length > 0),
+    ),
+  );
 
   const essentialTasks = [
     {
@@ -1030,36 +1083,67 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Disaster Context</label>
+                    <select
+                      className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none"
+                      value={incidentFormState.disasterId}
+                      onChange={(e) => setIncidentFormState({ ...incidentFormState, disasterId: e.target.value })}
+                    >
+                      <option value="" disabled>{incidentDisasterOptions.length > 0 ? "Select active disaster" : "No disaster events available"}</option>
+                      {incidentDisasterOptions.map((event) => (
+                        <option key={event.id} value={event.id}>{event.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Location</label>
+                    <select
+                      className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none"
+                      value={incidentFormState.location}
+                      onChange={(e) => setIncidentFormState({ ...incidentFormState, location: e.target.value })}
+                    >
+                      <option value="" disabled>{incidentLocationOptions.length > 0 ? "Select location" : "No center locations available"}</option>
+                      {incidentLocationOptions.map((location) => (
+                        <option key={location} value={location}>{location}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Incident Type</label>
                     <select 
                       className="w-full bg-[#f4f4ef] border border-[#dadad5] rounded-xl px-4 py-3 text-sm font-bold appearance-none"
                       value={incidentFormState.type}
                       onChange={(e) => setIncidentFormState({ ...incidentFormState, type: e.target.value })}
                     >
-                      <option>Medical Emergency</option>
-                      <option>Supply Shortage</option>
-                      <option>Infrastructure Damage</option>
-                      <option>Security/Conflict</option>
+                      <option value="" disabled>{incidentTypeOptions.length > 0 ? "Select incident type" : "No incident types available"}</option>
+                      {incidentTypeOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-[#444743] ml-1">Severity</label>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "Critical" })}
-                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
-                        style={{ background: incidentFormState.severity === "Critical" ? '#ba1a1a' : '#dadad5', color: incidentFormState.severity === "Critical" ? 'white' : '#444743' }}
-                      >Critical</button>
-                      <button 
-                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "High" })}
-                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
-                        style={{ background: incidentFormState.severity === "High" ? '#FFB300' : '#dadad5', color: incidentFormState.severity === "High" ? 'white' : '#444743' }}
-                      >High</button>
-                      <button 
-                        onClick={() => setIncidentFormState({ ...incidentFormState, severity: "Moderate" })}
-                        className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" 
-                        style={{ background: incidentFormState.severity === "Moderate" ? '#81C784' : '#dadad5', color: incidentFormState.severity === "Moderate" ? 'white' : '#444743' }}
-                      >Moderate</button>
+                      {incidentSeverityOptions.slice(0, 3).map((severity) => {
+                        const normalized = severity.toLowerCase();
+                        const selected = incidentFormState.severity === severity;
+                        const activeColor = normalized.includes("critical")
+                          ? "#ba1a1a"
+                          : normalized.includes("high")
+                            ? "#FFB300"
+                            : "#81C784";
+
+                        return (
+                          <button
+                            key={severity}
+                            onClick={() => setIncidentFormState({ ...incidentFormState, severity })}
+                            className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95"
+                            style={{ background: selected ? activeColor : "#dadad5", color: selected ? "white" : "#444743" }}
+                          >
+                            {severity}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="md:col-span-2 space-y-1">
