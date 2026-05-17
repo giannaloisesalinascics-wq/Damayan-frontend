@@ -1,29 +1,16 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+﻿import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
-import Twilio from 'twilio';
+import { ApiCenterService } from '../apicenter/apicenter.service.js';
 import { RecoveryMethod } from '../auth/dto/forgot-password.dto.js';
 
 @Injectable()
 export class NotificationsService {
-  private readonly resendClient: Resend | null;
-  private readonly twilioClient: Twilio.Twilio | null;
-  private readonly resendFromEmail: string | null;
-  private readonly twilioFromPhone: string | null;
   private readonly isProduction: boolean;
 
-  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {
-    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
-    const twilioAccountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
-    const twilioAuthToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
-
-    this.resendClient = resendApiKey ? new Resend(resendApiKey) : null;
-    this.twilioClient =
-      twilioAccountSid && twilioAuthToken
-        ? Twilio(twilioAccountSid, twilioAuthToken)
-        : null;
-    this.resendFromEmail = this.configService.get<string>('RESEND_FROM_EMAIL') ?? null;
-    this.twilioFromPhone = this.configService.get<string>('TWILIO_FROM_PHONE') ?? null;
+  constructor(
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(ApiCenterService) private readonly apiCenterService: ApiCenterService,
+  ) {
     this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
   }
 
@@ -51,17 +38,9 @@ export class NotificationsService {
   }
 
   async sendBroadcastEmail(to: string, subject: string, message: string): Promise<boolean> {
-    if (!this.resendClient || !this.resendFromEmail) {
-      this.handleDeliveryFailure(
-        'Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.',
-      );
-      return false;
-    }
-
     try {
-      await this.resendClient.emails.send({
-        from: this.resendFromEmail,
-        to,
+      await this.apiCenterService.sendEmail({
+        to: [{ email: to }],
         subject,
         text: message,
       });
@@ -75,19 +54,8 @@ export class NotificationsService {
   }
 
   async sendBroadcastSms(to: string, message: string): Promise<boolean> {
-    if (!this.twilioClient || !this.twilioFromPhone) {
-      this.handleDeliveryFailure(
-        'SMS delivery is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE.',
-      );
-      return false;
-    }
-
     try {
-      await this.twilioClient.messages.create({
-        from: this.twilioFromPhone,
-        to,
-        body: message,
-      });
+      await this.apiCenterService.sendSms({ to, message });
       return true;
     } catch (error) {
       this.handleDeliveryFailure(
@@ -98,17 +66,9 @@ export class NotificationsService {
   }
 
   private async sendPasswordResetEmail(to: string, code: string): Promise<void> {
-    if (!this.resendClient || !this.resendFromEmail) {
-      this.handleDeliveryFailure(
-        'Email delivery is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.',
-      );
-      return;
-    }
-
     try {
-      await this.resendClient.emails.send({
-        from: this.resendFromEmail,
-        to,
+      await this.apiCenterService.sendEmail({
+        to: [{ email: to }],
         subject: 'Your Damayan password reset code',
         text: `Your password reset code is ${code}. It will expire in 10 minutes.`,
       });
@@ -120,18 +80,10 @@ export class NotificationsService {
   }
 
   private async sendPasswordResetSms(to: string, code: string): Promise<void> {
-    if (!this.twilioClient || !this.twilioFromPhone) {
-      this.handleDeliveryFailure(
-        'SMS delivery is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_PHONE.',
-      );
-      return;
-    }
-
     try {
-      await this.twilioClient.messages.create({
-        from: this.twilioFromPhone,
+      await this.apiCenterService.sendSms({
         to,
-        body: `Your Damayan password reset code is ${code}. It expires in 10 minutes.`,
+        message: `Your Damayan password reset code is ${code}. It expires in 10 minutes.`,
       });
     } catch (error) {
       this.handleDeliveryFailure(
@@ -170,11 +122,7 @@ export class NotificationsService {
           apikey: supabaseKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          method,
-          contact,
-          code,
-        }),
+        body: JSON.stringify({ method, contact, code }),
       });
 
       if (!response.ok) {

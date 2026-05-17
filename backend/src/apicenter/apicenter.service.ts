@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TribeClient } from '@implementsprint/sdk';
+import type { EmailSendRequest, SmsSendRequest } from '@implementsprint/sdk';
 
 @Injectable()
 export class ApiCenterService {
@@ -37,6 +38,16 @@ export class ApiCenterService {
       const message = error instanceof Error ? error.message : 'Unknown APICenter error';
       throw new ServiceUnavailableException(`Unable to list APICenter services: ${message}`);
     }
+  }
+
+  async sendEmail(payload: EmailSendRequest) {
+    const client = await this.authenticateClient();
+    return client.emailSend(payload);
+  }
+
+  async sendSms(payload: SmsSendRequest) {
+    const client = await this.authenticateClient();
+    return client.smsSend(payload);
   }
 
   private async authenticateClient() {

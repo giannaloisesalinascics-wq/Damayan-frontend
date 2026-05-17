@@ -24,7 +24,7 @@ const backendRoot = resolve(__dirname, '..');
     }),
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET || 'replace-this-with-a-long-random-secret',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '7d' },
     }),
     AuthGatewayModule,
