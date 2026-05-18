@@ -5,12 +5,16 @@ import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
+import { NotificationBell } from "../components/NotificationBell";
+import { useNotifications } from "../hooks/useNotifications";
+import { loadSession } from "../session";
 import { CitizenBeforeScreen } from "./beforecalamity/screens/CitizenBeforeScreen";
 import { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 import CitizenAfterScreen from "./aftercalamity/CitizenAfterScreen";
 import { CitizenIndividualRegistrationScreen } from "./beforecalamity/screens/CitizenIndividualRegistrationScreen";
 import { CitizenHouseholdRegistrationScreen } from "./beforecalamity/screens/CitizenHouseholdRegistrationScreen";
 import { CitizenProfileEditScreen } from "./CitizenProfileEditScreen";
+import { useSystemPhase } from "../context/SystemPhaseContext";
 
 export type Phase = "before" | "during" | "after";
 export type NavDestination = "Overview" | "Family & ID" | "Safety Map" | "Relief Status";
@@ -20,15 +24,18 @@ interface CitizenDashboardScreenProps {
 }
 
 export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardScreenProps) {
-  const [phase, setPhase] = useState<Phase>("before");
+  // Phase is driven by the global system state set by admin, with offline caching
+  const { citizenPhase: phase } = useSystemPhase();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  
   const [session, setSession] = useState<any>(null);
   const [authUser, setAuthUser] = useState<any>(null);
   const [citizenProfile, setCitizenProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   async function loadUserData() {
     try {
@@ -41,6 +48,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
 
       setSession(activeSession);
       setAuthUser(activeSession.user);
+      setToken(activeSession.accessToken);
+      setUserId(activeSession.user.authUserId ?? activeSession.user.id);
 
       // Fetch latest details from `/auth/me`
       try {
@@ -75,6 +84,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
     loadUserData();
   }, []);
 
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications(userId, token);
+
   const theme = isDarkMode ? darkTheme : lightTheme;
 
   const [activeNav, setActiveNav] = useState<NavDestination>("Overview");
@@ -89,21 +100,18 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
   const handleNavigate = (dest: NavDestination) => {
     setActiveNav(dest);
     setIsDrawerOpen(false);
-    
+
     switch (dest) {
       case "Overview":
         setTargetStep("dashboard");
         break;
       case "Family & ID":
-        setPhase("before");
         setTargetStep("registration");
         break;
       case "Safety Map":
-        setPhase("during");
         setTargetStep("map");
         break;
       case "Relief Status":
-        setPhase("after");
         setTargetStep("relief_claim");
         break;
     }
@@ -125,6 +133,14 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       {!isEditingProfile && (
         <SafeAreaView style={styles.headerSafe}>
           <View style={styles.headerInner}>
+            {/* Notification Bell */}
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
+            />
+
             {/* Logo / Brand Centered */}
             <View style={styles.headerCenter}>
               <Text style={styles.brandText}>DAMAYAN</Text>
@@ -195,9 +211,9 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                     onRefreshProfile={loadUserData}
                   />
                 ) : (
-                  <CitizenBeforeScreen 
-                    onBack={onSignOut} 
-                    onOpenResponse={() => setPhase("during")} 
+                  <CitizenBeforeScreen
+                    onBack={onSignOut}
+                    onOpenResponse={() => setTargetStep("dashboard")}
                     onRegisterIndividual={() => setTargetStep("individual_registration")}
                     onRegisterHousehold={() => setTargetStep("household_registration")}
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
@@ -208,17 +224,16 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
               </View>
             )}
             {phase === "during" && (
-              <CitizenDuringScreen 
-                onBack={() => setPhase("before")} 
+              <CitizenDuringScreen
+                onBack={() => setTargetStep("dashboard")}
                 initialStep={targetStep === "map" ? "map" : "decision"}
                 session={session}
                 authUser={authUser}
               />
             )}
             {phase === "after" && (
-              <CitizenAfterScreen 
+              <CitizenAfterScreen
                 onBack={() => {
-                  setPhase("before");
                   setActiveNav("Overview");
                   setTargetStep("dashboard");
                 }}
@@ -244,10 +259,10 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                   key={item.id}
                   onPress={() => {
                     setActiveNav(item.id as NavDestination);
-                    if (item.id === "Family & ID") { setPhase("before"); setTargetStep("registration"); }
-                    else if (item.id === "Safety Map") { setPhase("during"); setTargetStep("map"); }
-                    else if (item.id === "Relief Status") { setPhase("after"); setTargetStep("relief_claim"); }
-                    else { setPhase("before"); setTargetStep("dashboard"); }
+                    if (item.id === "Family & ID") { setTargetStep("registration"); }
+                    else if (item.id === "Safety Map") { setTargetStep("map"); }
+                    else if (item.id === "Relief Status") { setTargetStep("relief_claim"); }
+                    else { setTargetStep("dashboard"); }
                   }}
                   style={styles.navTab}
                 >
@@ -284,7 +299,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
               
               <Pressable style={styles.profileActionItem} onPress={() => {
                 setIsProfileOpen(false);
-                setPhase("before");
                 setActiveNav("Overview");
                 setTargetStep("dashboard");
               }}>

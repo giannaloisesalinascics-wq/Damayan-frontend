@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,15 +9,14 @@ import {
   Post,
   Put,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiCenterService } from '../../apicenter/apicenter.service.js';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/roles.guard.js';
 import { Roles } from '../../common/auth/roles.decorator.js';
 import { AppRole } from '../../../libs/contracts/src/roles.js';
 import { SiteManagerProxyService } from './site-manager.proxy.service.js';
+import { UpsertAfterActionAssessmentDto } from './dto/upsert-after-action-assessment.dto.js';
 import { CreateItemDto } from '../../inventory/dto/create-item.dto.js';
 import { UpdateItemDto } from '../../inventory/dto/update-item.dto.js';
 import { AdjustQuantityDto } from '../../inventory/dto/adjust-quantity.dto.js';
@@ -43,14 +41,21 @@ import { CreateObjectViewUrlDto } from '../../uploads/dto/create-object-view-url
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(AppRole.LINE_MANAGER)
 export class SiteManagerController {
-  constructor(
-    @Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService,
-    @Inject(ApiCenterService) private readonly apiCenterService: ApiCenterService,
-  ) {}
+  constructor(@Inject(SiteManagerProxyService) private readonly siteManagerProxyService: SiteManagerProxyService) {}
 
   @Get('dashboard')
   getDashboard() {
     return this.siteManagerProxyService.getDashboard();
+  }
+
+  @Get('after-action-assessment/latest')
+  getLatestAfterActionAssessment(@Query('disasterId') disasterId?: string) {
+    return this.siteManagerProxyService.getLatestAfterActionAssessment(disasterId);
+  }
+
+  @Put('after-action-assessment')
+  upsertAfterActionAssessment(@Body() payload: UpsertAfterActionAssessmentDto) {
+    return this.siteManagerProxyService.upsertAfterActionAssessment(payload);
   }
 
   @Get('inventory')
@@ -381,34 +386,7 @@ export class SiteManagerController {
   }
 
   @Post('reports/summary')
-  @Roles(AppRole.LINE_MANAGER, AppRole.ADMIN)
   generateSiteSummaryReport() {
     return this.siteManagerProxyService.generateSiteSummaryReport();
-  }
-
-  // ── Profile: On-Duty Status & Zone ────────────────────────────────────────
-
-  @Patch('status')
-  updateDutyStatus(
-    @Req() request: { user: { sub: string } },
-    @Body('isOnDuty') isOnDuty: boolean,
-  ) {
-    return this.siteManagerProxyService.updateDutyStatus(request.user.sub, isOnDuty);
-  }
-
-  @Patch('zone')
-  updateZone(
-    @Req() request: { user: { sub: string } },
-    @Body() zone: { barangay?: string; municipality?: string; province?: string },
-  ) {
-    return this.siteManagerProxyService.updateZone(request.user.sub, zone);
-  }
-
-  @Get('geo/geocode')
-  async geocodeAddress(@Query('address') address: string) {
-    if (!address?.trim()) {
-      throw new BadRequestException('address query parameter is required');
-    }
-    return this.apiCenterService.geoGeocode(address.trim());
   }
 }
