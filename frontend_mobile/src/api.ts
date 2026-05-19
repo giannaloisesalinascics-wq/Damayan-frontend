@@ -140,6 +140,11 @@ export async function signup(payload: {
   role?: string;
   governmentIdKey?: string;
   governmentIdFileName?: string;
+  gender?: string;
+  address?: string;
+  barangay?: string;
+  municipality?: string;
+  province?: string;
 }) {
   return request<{
     access_token: string;
@@ -175,6 +180,10 @@ export async function updateProfile(
     phone?: string;
     profilePhotoKey?: string;
     gender?: string;
+    address?: string;
+    barangay?: string;
+    municipality?: string;
+    province?: string;
   },
 ) {
   return request<{ user: AuthSession["user"] }>("/auth/me", {
@@ -522,4 +531,75 @@ export async function getFileViewUrl(
     body: JSON.stringify({ bucket, objectPath, expiresIn }),
   }, token);
   return result.signedUrl;
+}
+
+// ─── Family Group API ─────────────────────────────────────────────────────────
+
+export interface FamilyGroupMember {
+  id: string;
+  citizenQrCodeId: string;
+  memberUserId?: string;
+  memberFullName?: string;
+  relationship?: string;
+  addedAt: string;
+}
+
+export interface FamilyGroup {
+  id: string;
+  familyQrCodeId: string;
+  headUserId: string;
+  familyName?: string;
+  members: FamilyGroupMember[];
+  createdAt: string;
+}
+
+export async function getFamilyGroup(token: string): Promise<FamilyGroup | null> {
+  try {
+    return await request<FamilyGroup>("/citizen/family-group", {}, token);
+  } catch {
+    return null;
+  }
+}
+
+export async function createFamilyGroup(token: string, familyName?: string): Promise<FamilyGroup> {
+  return request<FamilyGroup>("/citizen/family-group", {
+    method: "POST",
+    body: JSON.stringify({ familyName }),
+  }, token);
+}
+
+export async function addFamilyGroupMember(
+  token: string,
+  payload: { citizenQrCodeId: string; relationship?: string },
+): Promise<FamilyGroupMember> {
+  return request<FamilyGroupMember>("/citizen/family-group/members", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function removeFamilyGroupMember(token: string, qrCodeId: string): Promise<void> {
+  await request<{ ok: boolean }>(`/citizen/family-group/members/${encodeURIComponent(qrCodeId)}`, {
+    method: "DELETE",
+  }, token);
+}
+
+export async function deleteFamilyGroup(token: string): Promise<void> {
+  await request<{ ok: boolean }>("/citizen/family-group", { method: "DELETE" }, token);
+}
+
+/** Look up a citizen by their individual QR code — used when scanning to preview info before adding. */
+export async function lookupCitizenByQr(
+  token: string,
+  qrCode: string,
+): Promise<{ fullName?: string; qrCodeId?: string; userId?: string } | null> {
+  try {
+    return await request<{ fullName?: string; qrCodeId?: string; userId?: string }>(
+      `/citizen/lookup-citizen?qrCode=${encodeURIComponent(qrCode)}`,
+      {},
+      token,
+    );
+  } catch {
+    return null;
+  }
 }

@@ -1,7 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ScanQrDto {
   @IsNotEmpty()
   @IsString()
-  qrCode: string; // QR code data
+  qrCode: string;
+
+  @IsOptional()
+  @IsString()
+  centerId?: string;
 }
