@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import QRCode from "react-native-qrcode-svg";
 import * as ImagePicker from "expo-image-picker";
 import { theme, fonts } from "../../theme";
 import { styles } from "./CitizenDuringScreen.styles";
@@ -45,8 +46,6 @@ const STEP_ORDER: DuringStep[] = [
   "logged_in",
 ];
 
-const QR_URI =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCrX9Nqu19-hAhpO8rM-9DherTik7ptpsbnrQch9rvtbUQAhyhNf6D82iXcimlfey1XA3K9KgtUzbPxxm-S6NOSLrPT2QbRg82ettvfR239M-w2yBxNuNvAzeNmsH8Z9eMuTpCZPxC00vxBqfNGsnYaX-q-X5i8K3GQ5NzGpBF0W3QdP16xUgAAoybfEuVWOiYqtxjrzlKjuijxK_qGRfvSnb2JDR-r7rMdsKlZxORTjU73kQrDnzs5PeBpIPiP-k6oUhY45_7jXYxy";
 
 // ─── Pulsating Dot ────────────────────────────────────────────────────────────
 function PulsatingDot({ color = theme.danger }: { color?: string }) {
@@ -92,16 +91,18 @@ function ProgressBar({ step }: { step: number }) {
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export function CitizenDuringScreen({ 
+export function CitizenDuringScreen({
   onBack,
   initialStep = "rescue_decision",
   session,
   authUser,
+  qrCodeId,
 }: { 
   onBack: () => void;
   initialStep?: string;
   session: any;
   authUser: any;
+  qrCodeId?: string | null;
 }) {
   const [step, setStep] = useState<DuringStep>("rescue_decision");
   const [rescueNeeded, setRescueNeeded] = useState<boolean | null>(null);
@@ -556,10 +557,10 @@ export function CitizenDuringScreen({
 
             <View style={styles.qrWrap}>
               <View style={styles.qrFrame}>
-                <Image source={{ uri: QR_URI }} style={styles.qrImage} />
+                <QRCode value={qrCodeId ?? "DAMAYAN-ID"} size={120} color="#0F6E56" backgroundColor="#fff" />
               </View>
               <View style={styles.qrIdBadge}>
-                <Text style={styles.qrIdText}>284-991-001</Text>
+                <Text style={styles.qrIdText}>{qrCodeId ?? "—"}</Text>
               </View>
             </View>
 

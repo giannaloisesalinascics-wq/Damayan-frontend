@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { loadSession } from "../session";
-import { getProfile, getCitizenProfile, ApiError } from "../api";
 import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
 import { NotificationBell } from "../components/NotificationBell";
 import { useNotifications } from "../hooks/useNotifications";
+import { loadSession } from "../session";
+import { getProfile, getCitizenProfile, getFileViewUrl, ApiError, type CitizenProfile } from "../api";
 import { CitizenBeforeScreen } from "./beforecalamity/screens/CitizenBeforeScreen";
 import { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 import CitizenAfterScreen from "./aftercalamity/CitizenAfterScreen";
@@ -14,6 +14,7 @@ import { CitizenIndividualRegistrationScreen } from "./beforecalamity/screens/Ci
 import { CitizenHouseholdRegistrationScreen } from "./beforecalamity/screens/CitizenHouseholdRegistrationScreen";
 import { CitizenProfileEditScreen } from "./CitizenProfileEditScreen";
 import { useSystemPhase } from "../context/SystemPhaseContext";
+import type { AuthSession } from "../types";
 
 export type Phase = "before" | "during" | "after";
 export type NavDestination = "Overview" | "Family & ID" | "Safety Map" | "Relief Status";
@@ -30,13 +31,14 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [session, setSession] = useState<any>(null);
-  const [authUser, setAuthUser] = useState<any>(null);
-  const [citizenProfile, setCitizenProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [citizenProfile, setCitizenProfile] = useState<CitizenProfile | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
 
   async function loadUserData() {
     try {
@@ -66,6 +68,14 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       try {
         const profile = await getCitizenProfile(activeSession.accessToken);
         setCitizenProfile(profile);
+        if (profile?.profilePhotoKey) {
+          try {
+            const url = await getFileViewUrl(activeSession.accessToken, "government-ids", profile.profilePhotoKey);
+            setProfilePhotoUrl(url);
+          } catch (photoErr) {
+            console.warn("Failed to fetch profile photo url:", photoErr);
+          }
+        }
       } catch (err) {
         if (err instanceof ApiError && err.status === 404) {
           console.log("Citizen registration profile not found. User is unregistered.");
@@ -83,6 +93,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
 
   useEffect(() => {
     loadUserData();
+  }, []);
   }, []);
 
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications(userId, token);
@@ -126,10 +137,17 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
 
   const styles = getStyles(theme);
 
+  const displayName = citizenProfile?.fullName
+    || (citizenProfile?.firstName && citizenProfile?.lastName ? `${citizenProfile.firstName} ${citizenProfile.lastName}` : null)
+    || (session?.user ? `${session.user.firstName || ''} ${session.user.lastName || ''}`.trim() || null : null)
+    || session?.user?.email
+    || 'Citizen';
+  const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
+
   return (
     <View style={styles.container}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
-      
+
       {/* Background Decoration */}
       <View style={[styles.orb, styles.orb1, { backgroundColor: phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info }]} />
       <View style={[styles.orb, styles.orb2]} />
@@ -170,6 +188,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             {/* Profile on the Right */}
             <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
               <View style={styles.profileTextContainer}>
+<<<<<<< HEAD
                 <Text style={styles.headerProfileName}>{citizenProfile?.fullName || (authUser ? `${authUser.firstName} ${authUser.lastName}` : "Elena Villacruz")}</Text>
                 <Text style={styles.headerProfileSub}>{citizenProfile?.address || authUser?.barangay || "BRGY. 102, DIST 4"}</Text>
               </View>
@@ -178,6 +197,17 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                    source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" }} 
                    style={styles.avatarImage} 
                  />
+                <Text style={styles.headerProfileName}>{displayName}</Text>
+                <Text style={styles.headerProfileSub}>{citizenProfile?.registrationType?.toUpperCase() ?? 'CITIZEN'}</Text>
+              </View>
+              <View style={styles.avatar}>
+                {profilePhotoUrl ? (
+                  <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarInitials}>
+                    <Text style={styles.avatarInitialsText}>{initials}</Text>
+                  </View>
+                )}
               </View>
             </Pressable>
           </View>
@@ -187,24 +217,28 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       {/* Main Content */}
       <View style={styles.content}>
         {isEditingProfile ? (
-          <CitizenProfileEditScreen 
-            onBack={() => setTargetStep("dashboard")} 
+          <CitizenProfileEditScreen
+            onBack={() => setTargetStep("dashboard")}
             onSave={(data) => {
-              console.log("Profile saved:", data);
               setTargetStep("dashboard");
             }}
+            citizenProfile={citizenProfile}
+            session={session}
           />
         ) : (
           <>
             {phase === "before" && (
               <View style={{ flex: 1 }}>
                 {targetStep === "individual_registration" ? (
-                  <CitizenIndividualRegistrationScreen 
-                    onBack={() => setTargetStep("dashboard")} 
+                  <CitizenIndividualRegistrationScreen
+                    onBack={() => setTargetStep("dashboard")}
                     onContinue={() => setTargetStep("dashboard")}
                     session={session}
                     authUser={authUser}
                     onRefreshProfile={loadUserData}
+                    citizenProfile={citizenProfile}
+                    profilePhotoUrl={profilePhotoUrl}
+                    initials={initials}
                   />
                 ) : targetStep === "household_registration" ? (
                   <CitizenHouseholdRegistrationScreen 
@@ -224,6 +258,10 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
                     citizenProfile={citizenProfile}
                     authUser={authUser}
+                    citizenName={displayName !== 'Citizen' ? displayName : undefined}
+                    qrCodeId={citizenProfile?.qrCodeId}
+                    registrationType={citizenProfile?.registrationType}
+                    profilePhotoUrl={profilePhotoUrl ?? undefined}
                   />
                 )}
               </View>
@@ -234,6 +272,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                 initialStep={targetStep === "map" ? "map" : "decision"}
                 session={session}
                 authUser={authUser}
+                qrCodeId={citizenProfile?.qrCodeId}
               />
             )}
             {phase === "after" && (
@@ -292,8 +331,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         <Pressable style={styles.modalOverlay} onPress={() => setIsProfileOpen(false)}>
           <View style={styles.profileDropdown}>
             <View style={styles.profileHeader}>
-              <Text style={styles.profileName}>{citizenProfile?.fullName || (authUser ? `${authUser.firstName} ${authUser.lastName}` : "Elena Villacruz")}</Text>
-              <Text style={styles.profileSub}>{citizenProfile?.address || authUser?.barangay || "Brgy. 102, Dist 4"}</Text>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileSub}>{session?.user?.email ?? 'Citizen'}</Text>
             </View>
             <View style={styles.profileActions}>
               <Pressable style={styles.profileActionItem} onPress={() => setIsDarkMode(!isDarkMode)}>
@@ -335,13 +374,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
-    ...Platform.select({
-      web: {
-        height: "100%",
-        minHeight: 0,
-        overflow: "hidden",
-      } as any,
-    }),
   },
   headerSafe: {
     backgroundColor: theme.surface + "CC", // 80% opacity
@@ -438,14 +470,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  avatarInitials: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: theme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitialsText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 16,
+  },
   content: {
     flex: 1,
-    ...Platform.select({
-      web: {
-        height: "100%",
-        minHeight: 0,
-      } as any,
-    }),
   },
   // Modal Styles
   modalOverlay: {

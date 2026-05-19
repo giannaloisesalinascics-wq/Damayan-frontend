@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native";
 import { theme, fonts, lightTheme, darkTheme } from "../../theme";
-import { createIncidentReport, createManualCheckIn, getInventory, scanCheckIn, getCitizenByQrCode, getCapacity, getCheckInByQrCode, checkOutById } from "../../api";
+import { createIncidentReport, createManualCheckIn, getInventory, getCitizenByQrCode, getCapacity, getCheckInByQrCode, checkOutById } from "../../api";
 import { loadSession } from "../../session";
 import { parseScannedPayload, getInitials } from "../qr/qr-utils";
 import type { AuthSession } from "../../types";

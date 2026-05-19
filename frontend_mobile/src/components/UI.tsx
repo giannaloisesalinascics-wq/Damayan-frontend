@@ -81,16 +81,18 @@ export function Button({
 }
 
 export function Input({
-  label,
-  placeholder,
-  secureTextEntry,
-  onChangeText,
+  value,
+  keyboardType,
+  autoCapitalize,
   ...props
 }: {
   label?: string;
   placeholder: string;
   secureTextEntry?: boolean;
   onChangeText?: (text: string) => void;
+  value?: string;
+  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
   [key: string]: any;
 }) {
   return (
@@ -101,6 +103,9 @@ export function Input({
         placeholderTextColor={theme.textLight}
         secureTextEntry={secureTextEntry}
         onChangeText={onChangeText}
+        value={value}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         style={styles.input}
         {...props}
       />
