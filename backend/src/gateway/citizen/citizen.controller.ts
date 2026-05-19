@@ -10,6 +10,7 @@ import {
   Request,
   Delete,
   Param,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/roles.guard.js';
@@ -18,6 +19,8 @@ import { AppRole } from '../../../libs/contracts/src/roles.js';
 import { RegistrationsService } from '../../registrations/registrations.service.js';
 import { IncidentReportsService } from '../../incident-reports/incident-reports.service.js';
 import { DisasterEventsService } from '../../disaster-events/disaster-events.service.js';
+import { FamilyGroupsService } from '../../family-groups/family-groups.service.js';
+import { generateQrCodeId } from '../../utils/qr-utils.js';
 
 @Controller('citizen')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,6 +33,8 @@ export class CitizenController {
     private readonly incidentReportsService: IncidentReportsService,
     @Inject(DisasterEventsService)
     private readonly disasterEventsService: DisasterEventsService,
+    @Inject(FamilyGroupsService)
+    private readonly familyGroupsService: FamilyGroupsService,
   ) {}
 
   @Get('profile')
@@ -123,6 +128,65 @@ export class CitizenController {
     const userId = req.user.sub;
     return this.registrationsService.findAnimalsByUser(userId);
   }
+
+  // ─── Family Group endpoints ───────────────────────────────────────────────
+
+  @Get('family-group')
+  async getFamilyGroup(@Request() req: any) {
+    const userId = req.user.sub;
+    return this.familyGroupsService.getGroupByHeadUser(userId);
+  }
+
+  @Post('family-group')
+  async createFamilyGroup(@Request() req: any, @Body() body: { familyName?: string }) {
+    const userId = req.user.sub;
+    const familyQrCodeId = generateQrCodeId('FAM');
+    return this.familyGroupsService.createGroup({
+      familyQrCodeId,
+      headUserId: userId,
+      familyName: body.familyName,
+    });
+  }
+
+  @Post('family-group/members')
+  async addFamilyGroupMember(@Request() req: any, @Body() body: { citizenQrCodeId: string; relationship?: string }) {
+    const userId = req.user.sub;
+    const group = await this.familyGroupsService.getGroupByHeadUser(userId);
+    if (!group) {
+      throw new Error('Create a family group first before adding members');
+    }
+    return this.familyGroupsService.addMember({
+      familyGroupId: group.id,
+      citizenQrCodeId: body.citizenQrCodeId,
+      relationship: body.relationship,
+    });
+  }
+
+  @Delete('family-group/members/:qrCodeId')
+  async removeFamilyGroupMember(@Request() req: any, @Param('qrCodeId') qrCodeId: string) {
+    const userId = req.user.sub;
+    const group = await this.familyGroupsService.getGroupByHeadUser(userId);
+    if (!group) return { ok: true };
+    await this.familyGroupsService.removeMember(group.id, qrCodeId);
+    return { ok: true };
+  }
+
+  @Delete('family-group')
+  async deleteFamilyGroup(@Request() req: any) {
+    const userId = req.user.sub;
+    await this.familyGroupsService.deleteGroup(userId);
+    return { ok: true };
+  }
+
+  /** Lookup a citizen by QR code — used when scanning members to preview their info. */
+  @Get('lookup-citizen')
+  async lookupCitizen(@Query('qrCode') qrCode: string) {
+    if (!qrCode) return null;
+    const citizens = await this.registrationsService.findCitizens(qrCode);
+    return citizens.find((c) => c.qrCodeId === qrCode) ?? null;
+  }
+
+  // ─── Incident report ─────────────────────────────────────────────────────
 
   @Post('incident-report')
   async createIncidentReport(@Request() req: any, @Body() body: any) {

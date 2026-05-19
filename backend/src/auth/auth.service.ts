@@ -31,6 +31,12 @@ interface UserProfileRow {
   role: string | null;
   status: string | null;
   auth_user_id?: string | null;
+  profile_photo_key?: string | null;
+  gender?: string | null;
+  address?: string | null;
+  barangay?: string | null;
+  municipality?: string | null;
+  province?: string | null;
 }
 
 interface PasswordResetRequestRow {
@@ -113,6 +119,10 @@ export class AuthService {
         profile_photo_key: signupDto.governmentIdKey ?? null,
         role: requestedRole,
         gender: signupDto.gender ?? null,
+        address: signupDto.address ?? null,
+        barangay: signupDto.barangay ?? null,
+        municipality: signupDto.municipality ?? null,
+        province: signupDto.province ?? null,
       });
 
     if (profileError) {
@@ -284,7 +294,7 @@ export class AuthService {
         this.withTimeout<any>(
           supabase
             .from('user_profiles')
-            .select('id, first_name, last_name, phone, role, status, auth_user_id, profile_photo_key, gender')
+            .select('id, first_name, last_name, phone, role, status, auth_user_id, profile_photo_key, gender, address, barangay, municipality, province')
             .eq('auth_user_id', userId)
             .maybeSingle(),
           'Profile lookup timed out while loading the current user.',
@@ -319,6 +329,10 @@ export class AuthService {
         accountStatus: (resolvedProfile?.status as string | undefined) ?? 'active',
         profilePhotoKey: resolvedProfile?.profile_photo_key ?? null,
         gender: resolvedProfile?.gender ?? null,
+        address: resolvedProfile?.address ?? null,
+        barangay: resolvedProfile?.barangay ?? null,
+        municipality: resolvedProfile?.municipality ?? null,
+        province: resolvedProfile?.province ?? null,
       },
     };
   }
@@ -341,6 +355,18 @@ export class AuthService {
     }
     if (updateProfileDto.gender !== undefined) {
       profileUpdates.gender = updateProfileDto.gender;
+    }
+    if (updateProfileDto.address !== undefined) {
+      profileUpdates.address = updateProfileDto.address;
+    }
+    if (updateProfileDto.barangay !== undefined) {
+      profileUpdates.barangay = updateProfileDto.barangay;
+    }
+    if (updateProfileDto.municipality !== undefined) {
+      profileUpdates.municipality = updateProfileDto.municipality;
+    }
+    if (updateProfileDto.province !== undefined) {
+      profileUpdates.province = updateProfileDto.province;
     }
 
     if (Object.keys(profileUpdates).length > 0) {

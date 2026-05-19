@@ -13,6 +13,7 @@ import CitizenAfterScreen from "./aftercalamity/CitizenAfterScreen";
 import { CitizenIndividualRegistrationScreen } from "./beforecalamity/screens/CitizenIndividualRegistrationScreen";
 import { CitizenHouseholdRegistrationScreen } from "./beforecalamity/screens/CitizenHouseholdRegistrationScreen";
 import { CitizenProfileEditScreen } from "./CitizenProfileEditScreen";
+import { CitizenFamilyGroupScreen } from "./familygroup/CitizenFamilyGroupScreen";
 import { useSystemPhase } from "../context/SystemPhaseContext";
 import type { AuthSession } from "../types";
 
@@ -118,8 +119,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         setPhaseOverride(null);
         break;
       case "Family & ID":
-        setTargetStep("registration");
-        setPhaseOverride("before");
+        setTargetStep("family_group");
         break;
       case "Safety Map":
         setTargetStep("map");
@@ -133,6 +133,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
   };
 
   const isEditingProfile = targetStep === "edit_profile";
+  const isViewingFamilyGroup = targetStep === "family_group";
 
   const styles = getStyles(theme);
 
@@ -151,8 +152,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       <View style={[styles.orb, styles.orb1, { backgroundColor: phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info }]} />
       <View style={[styles.orb, styles.orb2]} />
 
-      {/* Header - Hidden when editing profile */}
-      {!isEditingProfile && (
+      {/* Header - Hidden when editing profile or viewing family group */}
+      {!isEditingProfile && !isViewingFamilyGroup && (
         <SafeAreaView style={styles.headerSafe}>
           <View style={styles.headerInner}>
             {/* Notification Bell */}
@@ -215,6 +216,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             citizenProfile={citizenProfile}
             session={session}
           />
+        ) : isViewingFamilyGroup ? (
+          <CitizenFamilyGroupScreen onBack={() => setTargetStep("dashboard")} />
         ) : (
           <>
             {phase === "before" && (
@@ -278,8 +281,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         )}
       </View>
 
-      {/* Premium Bottom Navigation - Hidden when editing profile */}
-      {!isEditingProfile && (
+      {/* Premium Bottom Navigation - Hidden when editing profile or family group */}
+      {!isEditingProfile && !isViewingFamilyGroup && (
         <View style={styles.bottomNavWrapper}>
           <View style={styles.bottomNavInner}>
             {[
@@ -294,7 +297,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                   key={item.id}
                   onPress={() => {
                     setActiveNav(item.id as NavDestination);
-                    if (item.id === "Family & ID") { setPhaseOverride("before"); setTargetStep("registration"); }
+                    if (item.id === "Family & ID") { setTargetStep("family_group"); }
                     else if (item.id === "Safety Map") { setPhaseOverride("during"); setTargetStep("map"); }
                     else if (item.id === "Relief Status") { setPhaseOverride("after"); setTargetStep("relief_claim"); }
                     else { setPhaseOverride(null); setTargetStep("dashboard"); }

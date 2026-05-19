@@ -8,6 +8,7 @@ import { CheckIn } from './interfaces/check-in.interface.js';
 import { CreateCheckInDto } from './dto/create-check-in.dto.js';
 import { ScanQrDto } from './dto/scan-qr.dto.js';
 import { SupabaseService } from '../supabase/supabase.service.js';
+import { FamilyGroupsService } from '../family-groups/family-groups.service.js';
 
 type EvacueeDbStatus = 'checked_in' | 'checked_out' | string | null;
 
@@ -38,7 +39,10 @@ interface EvacuationCenterRow {
 
 @Injectable()
 export class CheckInService {
-  constructor(@Inject(SupabaseService) private readonly supabaseService: SupabaseService) {}
+  constructor(
+    @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
+    @Inject(FamilyGroupsService) private readonly familyGroupsService: FamilyGroupsService,
+  ) {}
 
   async findAll(search?: string): Promise<CheckIn[]> {
     const supabase = this.supabaseService.getClient() as any;
@@ -143,7 +147,37 @@ export class CheckInService {
   async scanQr(scanQrDto: ScanQrDto): Promise<CheckIn> {
     const raw = scanQrDto.qrCode.trim();
     const evacueeNumber = raw.startsWith('QR-') ? raw.replace('QR-', '') : raw;
+
+    // Family group QR codes start with "FAM-"
+    if (evacueeNumber.startsWith('FAM-')) {
+      return this.scanFamilyGroupQr(evacueeNumber, scanQrDto);
+    }
+
     return this.createManual({ evacueeNumber });
+  }
+
+  /** Check in all members of a family group at once. Returns the head's check-in record. */
+  private async scanFamilyGroupQr(familyQrCodeId: string, scanQrDto: ScanQrDto): Promise<CheckIn> {
+    const memberQrCodes = await this.familyGroupsService.getMemberQrCodesByGroupQr(familyQrCodeId);
+
+    if (!memberQrCodes.length) {
+      // No registered members — check in as a group entity instead
+      return this.createManual({ evacueeNumber: familyQrCodeId });
+    }
+
+    const results: CheckIn[] = [];
+    for (const qr of memberQrCodes) {
+      try {
+        const checkIn = await this.createManual({ evacueeNumber: qr, centerId: scanQrDto.centerId });
+        results.push(checkIn);
+      } catch {
+        // Continue checking in other members even if one fails
+      }
+    }
+
+    // Return the first successful check-in as the primary result
+    if (results.length > 0) return results[0];
+    return this.createManual({ evacueeNumber: familyQrCodeId });
   }
 
   async createManual(createCheckInDto: CreateCheckInDto): Promise<CheckIn> {
