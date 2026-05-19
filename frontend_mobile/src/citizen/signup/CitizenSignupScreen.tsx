@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Text, View, Pressable, ScrollView, TouchableOpacity } from "react-native";
+import { Platform, Text, View, Pressable, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { Button, Input, Pill, Screen, SectionCard } from "../../components/UI";
@@ -46,9 +46,18 @@ export function CitizenSignupScreen({
   }
 
   useEffect(() => {
+    if (Platform.OS !== "web") return;
+
     const el = uploadBoxRef.current as any;
     if (!el || typeof window === "undefined") return;
     const node = el.getScrollableNode ? el.getScrollableNode() : el;
+    if (
+      !node ||
+      typeof node.addEventListener !== "function" ||
+      typeof node.removeEventListener !== "function"
+    ) {
+      return;
+    }
 
     const onDragOver = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
     const onDragLeave = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); };

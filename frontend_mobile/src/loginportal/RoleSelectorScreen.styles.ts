@@ -92,10 +92,12 @@ export const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.5)",
+    minWidth: 0,
   },
   statItem: {
     flex: 1,
     alignItems: "center",
+    minWidth: 0,
   },
   statValue: {
     color: theme.text,
@@ -104,10 +106,12 @@ export const styles = StyleSheet.create({
   },
   statLabel: {
     color: theme.textLight,
-    fontSize: 11,
+    fontSize: 10,
     ...fonts.bold,
     textTransform: "uppercase",
     marginTop: 2,
+    textAlign: "center",
+    flexShrink: 1,
   },
   statDivider: {
     width: 1,
@@ -118,10 +122,12 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.textLight,
     ...fonts.bold,
-    letterSpacing: 2,
-    marginLeft: 24,
+    letterSpacing: 1,
+    marginLeft: 0,
     marginBottom: 16,
     textTransform: "uppercase",
+    textAlign: "center",
+    alignSelf: "stretch",
   },
   roleCard: {
     flexDirection: "row",
@@ -138,6 +144,7 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
     position: "relative",
+    overflow: "hidden",
   },
   roleIconWrap: {
     width: 54,
@@ -149,26 +156,30 @@ export const styles = StyleSheet.create({
   },
   roleCopy: {
     flex: 1,
+    minWidth: 0,
   },
   roleSub: {
     fontSize: 10,
     ...fonts.black,
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 0.8,
     marginBottom: 4,
+    flexShrink: 1,
   },
   roleLabel: {
-    fontSize: 20,
+    fontSize: 18,
     color: theme.text,
     ...fonts.black,
     marginBottom: 6,
-    letterSpacing: -0.5,
+    lineHeight: 22,
+    flexShrink: 1,
   },
   roleDesc: {
     fontSize: 13,
     color: theme.textMuted,
     lineHeight: 18,
     ...fonts.medium,
+    flexShrink: 1,
   },
   roleActionIcon: {
     width: 32,

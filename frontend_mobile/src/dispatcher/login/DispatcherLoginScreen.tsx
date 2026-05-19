@@ -92,11 +92,25 @@ export function DispatcherLoginScreen({
               <TouchableOpacity onPress={onBack} style={styles.menuButton}>
                 <Ionicons name="arrow-back" size={24} color={theme.primary} />
               </TouchableOpacity>
-              <Text style={styles.brandText}>DAMAYAN</Text>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}
+                style={styles.brandText}
+              >
+                DAMAYAN
+              </Text>
             </View>
 
             <View style={styles.roleBadgeRow}>
-              <Text style={styles.roleTag}>DISPATCHER</Text>
+              <Text
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                style={styles.roleTag}
+              >
+                DISPATCHER
+              </Text>
               <View style={styles.avatarIcon}>
                 <Ionicons name="radio" size={22} color={accent} />
               </View>
@@ -191,7 +205,14 @@ export function DispatcherLoginScreen({
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Text style={styles.primaryActionText}>ENTER DISPATCH TERMINAL</Text>
+                    <Text
+                      numberOfLines={2}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                      style={styles.primaryActionText}
+                    >
+                      ENTER DISPATCH TERMINAL
+                    </Text>
                     <Ionicons name="arrow-forward" size={20} color="#fff" />
                   </>
                 )}
@@ -204,7 +225,14 @@ export function DispatcherLoginScreen({
               </View>
 
               <TouchableOpacity onPress={onBack} style={styles.tertiaryAction}>
-                <Text style={styles.tertiaryActionText}>SWITCH PORTAL ACCESS</Text>
+                <Text
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                  style={styles.tertiaryActionText}
+                >
+                  SWITCH PORTAL ACCESS
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

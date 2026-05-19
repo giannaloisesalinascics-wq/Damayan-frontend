@@ -68,6 +68,9 @@ export function Button({
       ]}
     >
       <Text
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
         style={[
           styles.buttonText,
           tone === "ghost" && styles.buttonTextGhost,
@@ -132,6 +135,9 @@ export function Pill({
       ]}
     >
       <Text
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
         style={[
           styles.pillText,
           tone === "primary" && { color: theme.primary },
@@ -184,6 +190,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingVertical: 12,
     ...fonts.bold,
   },
   buttonPrimary: {
@@ -213,7 +220,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     ...fonts.black,
     textTransform: "uppercase",
-    letterSpacing: 1.5,
+    letterSpacing: 0.8,
+    lineHeight: 20,
+    textAlign: "center",
+    flexShrink: 1,
   },
   buttonTextGhost: {
     color: theme.text,
@@ -257,7 +267,9 @@ const styles = StyleSheet.create({
     color: theme.text,
     fontSize: 11,
     ...fonts.bold,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     textTransform: "uppercase",
+    textAlign: "center",
+    flexShrink: 1,
   },
 });

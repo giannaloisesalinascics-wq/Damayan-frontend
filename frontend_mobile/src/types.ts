@@ -106,6 +106,7 @@ export interface CheckInRecord {
   id: string;
   evacueeId: string;
   evacueeNumber: string;
+  qrCode?: string;
   firstName: string;
   lastName: string;
   fullName: string;

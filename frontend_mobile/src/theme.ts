@@ -66,13 +66,20 @@ export const darkTheme = {
 
 export const theme = lightTheme; // Backward compatibility
 
+const appFontFamily =
+  Platform.OS === "web"
+    ? "Poppins, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    : Platform.OS === "android"
+      ? "sans-serif"
+      : "System";
+
 export const fonts = {
-  regular: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "400" as const },
-  medium: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "500" as const },
-  semibold: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "600" as const },
-  bold: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "700" as const },
-  extrabold: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "800" as const },
-  black: { fontFamily: "Poppins, -apple-system, sans-serif", fontWeight: "900" as const },
+  regular: { fontFamily: appFontFamily, fontWeight: "400" as const },
+  medium: { fontFamily: appFontFamily, fontWeight: "500" as const },
+  semibold: { fontFamily: appFontFamily, fontWeight: "600" as const },
+  bold: { fontFamily: appFontFamily, fontWeight: "700" as const },
+  extrabold: { fontFamily: appFontFamily, fontWeight: "800" as const },
+  black: { fontFamily: appFontFamily, fontWeight: "900" as const },
 } as const;
 
 export const roleColors = {
@@ -81,3 +88,4 @@ export const roleColors = {
   site_manager: "#FFB300",
   citizen: "#004D40",
 } as const;
+import { Platform } from "react-native";

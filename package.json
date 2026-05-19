@@ -6,6 +6,11 @@
     "backend:start:stable": "npm --prefix backend run start:all:stable",
     "backend:start:once": "npm --prefix backend run start:all:once",
     "backend:stop": "npm --prefix backend run stop:all",
-    "frontend:desktop": "npm --prefix frontend_desktop run dev"
+    "frontend:desktop": "npm --prefix frontend_desktop run dev",
+    "frontend:mobile": "npm --prefix frontend_mobile run start",
+    "frontend:mobile:web": "npm --prefix frontend_mobile run web",
+    "frontend:mobile:android": "npm --prefix frontend_mobile run android",
+    "frontend:mobile:ios": "npm --prefix frontend_mobile run ios",
+    "frontend:mobile:typecheck": "npm --prefix frontend_mobile run typecheck"
   }
 }

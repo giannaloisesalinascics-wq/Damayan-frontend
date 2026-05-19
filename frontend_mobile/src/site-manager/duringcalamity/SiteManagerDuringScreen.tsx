@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Alert, Animated, Text, TextInput, View, StyleSheet, ScrollView, Pressable, Modal, TouchableOpacity, Image, Dimensions } from "react-native";
+import { Alert, Text, TextInput, View, StyleSheet, ScrollView, Pressable, Modal, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native";
 import { theme, fonts, lightTheme, darkTheme } from "../../theme";
-import { createIncidentReport, createManualCheckIn, getInventory, scanCheckIn, getCitizenByQrCode, getCapacity, getCheckInByQrCode, checkOutById } from "../../api";
+import { createIncidentReport, createManualCheckIn, getInventory, getCitizenByQrCode, getCapacity, getCheckInByQrCode, checkOutById } from "../../api";
 import { loadSession } from "../../session";
 import { parseScannedPayload, getInitials } from "../qr/qr-utils";
 import type { AuthSession } from "../../types";
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const INCIDENT_TYPE_OPTIONS = [
   "Medical Emergency",
@@ -270,124 +268,6 @@ export function SiteManagerDuringScreen({
       }
    };
 
-   const handleConfirmCheckIn = async () => {
-      if (!session?.accessToken) {
-         Alert.alert("Session expired", "Please sign in again.");
-         return;
-      }
-
-      try {
-         if (activeTab === "scan") {
-            if (!scanCode.trim()) {
-               Alert.alert("Missing QR", "Enter scanned QR content before confirming check-in.");
-               return;
-            }
-
-            await scanCheckIn(session.accessToken, {
-               qrCode: scanCode.trim(),
-            });
-
-            setScanCode("");
-         } else {
-            if (!manualId.trim()) {
-               Alert.alert("Missing ID", "Please enter a citizen name or ID.");
-               return;
-            }
-
-            await createManualCheckIn(session.accessToken, {
-               evacueeNumber: manualId.trim(),
-               firstName: manualId.split(" ")[0] || "",
-               zone: manualZone.trim() || "",
-               location: "Site Manager Mobile Check-in",
-               familySize: Number(manualGroupSize) > 0 ? Number(manualGroupSize) : undefined,
-            });
-
-            setManualId("");
-            setManualZone("");
-            setManualGroupSize("");
-         }
-
-         Alert.alert("Success", "Check-in recorded successfully.");
-      } catch (error) {
-         const message = error instanceof Error ? error.message : "Failed to record check-in";
-         Alert.alert("Check-in failed", message);
-      }
-   };
-
-   const handleOpenCamera = async () => {
-      const permission = cameraPermission?.granted
-         ? cameraPermission
-         : await requestCameraPermission();
-
-      if (!permission?.granted) {
-         Alert.alert("Camera denied", "Camera permission is required for QR scanning.");
-         return;
-      }
-
-      scanLockRef.current = false;
-      setIsCameraOpen(true);
-   };
-
-   const handleBarcodeScanned = (event: { data?: string }) => {
-      if (scanLockRef.current) {
-         return;
-      }
-
-      const payload = event.data?.trim();
-      if (!payload) {
-         return;
-      }
-
-      scanLockRef.current = true;
-      setScanCode(payload);
-      setIsCameraOpen(false);
-      Alert.alert("QR captured", "Scan payload captured. Tap Confirm Check-in to submit.");
-   };
-
-   const handleSubmitIncident = async () => {
-      if (!session?.accessToken || !session.user) {
-         Alert.alert("Session expired", "Please sign in again.");
-         return;
-      }
-
-      if (!incidentDescription.trim()) {
-         Alert.alert("Missing details", "Please add incident details before submitting.");
-         return;
-      }
-
-      try {
-         await createIncidentReport(session.accessToken, {
-            disasterId: "current-disaster",
-            reportedBy: session.user.email || "System",
-            title: incidentType,
-            content: incidentDescription,
-            severity,
-            location: "Central Site",
-         });
-
-         setIncidentDescription("");
-         Alert.alert("Success", "Incident report submitted.");
-      } catch (error) {
-         const message = error instanceof Error ? error.message : "Failed to submit incident";
-         Alert.alert("Submit failed", message);
-      }
-   };
-
-   const handleRefreshInventory = async () => {
-      if (!session?.accessToken) {
-         Alert.alert("Session expired", "Please sign in again.");
-         return;
-      }
-
-      try {
-         const inventory = await getInventory("site-manager", session.accessToken);
-         Alert.alert("Inventory updated", `${inventory.length} items synced.`);
-      } catch (error) {
-         const message = error instanceof Error ? error.message : "Failed to update inventory";
-         Alert.alert("Update failed", message);
-      }
-   };
-
   return (
     <ScrollView 
       style={localStyles.container}
@@ -410,7 +290,14 @@ export function SiteManagerDuringScreen({
         </View>
         <View style={localStyles.scoreCard}>
           <Text style={localStyles.scoreValue}>04:22</Text>
-          <Text style={localStyles.scoreLabel}>CRITICAL WINDOW</Text>
+          <Text
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            style={localStyles.scoreLabel}
+          >
+            CRITICAL WINDOW
+          </Text>
         </View>
       </View>
 
@@ -419,12 +306,19 @@ export function SiteManagerDuringScreen({
         <View style={localStyles.checklistSection}>
           <View style={localStyles.sectionHeaderRow}>
             <View>
-              <Text style={localStyles.sectionTitle}>Emergency Operational Guide</Text>
+               <Text style={localStyles.sectionTitle}>Emergency Operational Guide</Text>
               <Text style={localStyles.sectionSub}>This view follows the daily process: evacuee arrival, identity capture, and relief distribution.</Text>
             </View>
             <View style={localStyles.priorityBadge}>
                <Ionicons name="shield-checkmark" size={14} color={currentTheme.warning} />
-               <Text style={localStyles.priorityText}>Priority Status</Text>
+               <Text
+                 numberOfLines={1}
+                 adjustsFontSizeToFit
+                 minimumFontScale={0.75}
+                 style={localStyles.priorityText}
+               >
+                 Priority Status
+               </Text>
             </View>
           </View>
 
@@ -494,7 +388,14 @@ export function SiteManagerDuringScreen({
                      onPress={() => openCamera("check-in")}
                    >
                      <Ionicons name="qr-code-outline" size={18} color="#fff" />
-                     <Text style={localStyles.scanActionButtonText}>SCAN QR TO CHECK-IN</Text>
+                      <Text
+                        numberOfLines={2}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                        style={localStyles.scanActionButtonText}
+                      >
+                        SCAN QR TO CHECK-IN
+                      </Text>
                    </TouchableOpacity>
 
                    {/* Check-Out scanner button */}
@@ -503,7 +404,14 @@ export function SiteManagerDuringScreen({
                      onPress={() => openCamera("check-out")}
                    >
                      <Ionicons name="exit-outline" size={18} color="#fff" />
-                     <Text style={localStyles.scanActionButtonText}>SCAN QR TO CHECK-OUT</Text>
+                      <Text
+                        numberOfLines={2}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                        style={localStyles.scanActionButtonText}
+                      >
+                        SCAN QR TO CHECK-OUT
+                      </Text>
                    </TouchableOpacity>
                  </>
                ) : (
@@ -543,7 +451,14 @@ export function SiteManagerDuringScreen({
 
                {activeTab === "manual" && (
                  <TouchableOpacity style={localStyles.logStatusBtn} onPress={handleManualCheckIn}>
-                    <Text style={localStyles.logStatusText}>Confirm Check-in</Text>
+                     <Text
+                       numberOfLines={2}
+                       adjustsFontSizeToFit
+                       minimumFontScale={0.75}
+                       style={localStyles.logStatusText}
+                     >
+                       Confirm Check-in
+                     </Text>
                  </TouchableOpacity>
                )}
             </View>
@@ -680,7 +595,14 @@ export function SiteManagerDuringScreen({
 
          <TouchableOpacity style={[localStyles.submitBtn, { flexDirection: 'row' }]} onPress={handleSubmitIncident}>
             <Ionicons name="send" size={16} color="#fff" style={{ marginRight: 10 }} />
-            <Text style={localStyles.submitBtnText}>Submit Incident Report</Text>
+            <Text
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={localStyles.submitBtnText}
+            >
+              Submit Incident Report
+            </Text>
          </TouchableOpacity>
 
          <TouchableOpacity 
@@ -688,7 +610,14 @@ export function SiteManagerDuringScreen({
            onPress={onEnterRecovery}
          >
             <Ionicons name="arrow-forward" size={16} color={currentTheme.text} style={{ marginRight: 10 }} />
-            <Text style={[localStyles.submitBtnText, { color: currentTheme.text }]}>Transition to Recovery Mode</Text>
+            <Text
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={[localStyles.submitBtnText, { color: currentTheme.text }]}
+            >
+              Transition to Recovery Mode
+            </Text>
          </TouchableOpacity>
       </View>
 
@@ -700,7 +629,14 @@ export function SiteManagerDuringScreen({
             <Text style={localStyles.sectionSub}>Real-time inventory levels across regional staging areas.</Text>
           </View>
           <TouchableOpacity style={[localStyles.updateInventoryBtn, { backgroundColor: '#FFB300' }]} onPress={handleRefreshInventory}>
-             <Text style={localStyles.updateInventoryText}>Update Inventory</Text>
+             <Text
+               numberOfLines={2}
+               adjustsFontSizeToFit
+               minimumFontScale={0.75}
+               style={localStyles.updateInventoryText}
+             >
+               Update Inventory
+             </Text>
           </TouchableOpacity>
         </View>
 
@@ -975,28 +911,28 @@ export function SiteManagerDuringScreen({
 
 const getStyles = (theme: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.bg },
-  scrollContent: { padding: 24, paddingBottom: 160 },
-  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 16, marginBottom: 32 },
+  scrollContent: { padding: 16, paddingBottom: 160 },
+  headerRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 28, flexWrap: "wrap" },
   backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.surfaceAlt, alignItems: "center", justifyContent: "center", marginTop: 4 },
   statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.warning },
-  statusBadgeText: { fontSize: 10, ...fonts.black, color: theme.textLight, letterSpacing: 1 },
-  dashboardTitle: { fontSize: 36, ...fonts.black, color: theme.text, letterSpacing: -1.5, lineHeight: 42 },
+  statusBadgeText: { fontSize: 10, ...fonts.black, color: theme.textLight, letterSpacing: 0.5, flexShrink: 1 },
+  dashboardTitle: { fontSize: 32, ...fonts.black, color: theme.text, lineHeight: 38, flexShrink: 1 },
   dashboardSub: { fontSize: 14, ...fonts.medium, color: theme.textMuted, marginTop: 8, lineHeight: 20 },
-  scoreCard: { backgroundColor: "#fff", padding: 16, borderRadius: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, width: 110 },
-  scoreValue: { fontSize: 22, ...fonts.black, color: theme.warning },
-  scoreLabel: { fontSize: 8, ...fonts.black, color: theme.textLight, letterSpacing: 1, textAlign: "center" },
+  scoreCard: { backgroundColor: "#fff", padding: 12, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, width: 96, minHeight: 76 },
+  scoreValue: { fontSize: 20, ...fonts.black, color: theme.warning },
+  scoreLabel: { fontSize: 8, ...fonts.black, color: theme.textLight, letterSpacing: 0.3, textAlign: "center", lineHeight: 10, flexShrink: 1 },
 
   mainSection: { gap: 24, marginBottom: 40 },
-  checklistSection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
-  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
-  sectionTitle: { fontSize: 22, ...fonts.black, color: theme.text },
+  checklistSection: { backgroundColor: theme.surface, borderRadius: 28, padding: 20, borderWidth: 1, borderColor: theme.line },
+  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 12, flexWrap: "wrap" },
+  sectionTitle: { fontSize: 20, ...fonts.black, color: theme.text, lineHeight: 24, flexShrink: 1 },
   sectionSub: { fontSize: 13, ...fonts.medium, color: theme.textMuted, marginTop: 4 },
-  priorityBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.surfaceAlt, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  priorityText: { fontSize: 10, ...fonts.black, color: theme.text, letterSpacing: 0.5 },
+  priorityBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: theme.surfaceAlt, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, maxWidth: "100%" },
+  priorityText: { fontSize: 10, ...fonts.black, color: theme.text, letterSpacing: 0.2, flexShrink: 1 },
 
   checklistGrid: { flexDirection: "column", gap: 16 },
-  readinessCheckCard: { backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, alignItems: "center", gap: 12 },
+  readinessCheckCard: { backgroundColor: theme.surfaceAlt, borderRadius: 24, padding: 18, alignItems: "center", gap: 12 },
   checkIconWrap: { width: 64, height: 64, borderRadius: 24, backgroundColor: "rgba(255, 179, 0, 0.05)", alignItems: "center", justifyContent: "center" },
   checkTitle: { fontSize: 18, ...fonts.black, color: theme.text },
   checkDesc: { fontSize: 12, ...fonts.medium, color: theme.textMuted, textAlign: "center", lineHeight: 18 },
@@ -1012,11 +948,11 @@ const getStyles = (theme: any) => StyleSheet.create({
   viewfinderFrame: { width: "80%", height: "60%", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)", borderStyle: "dashed", borderRadius: 8 },
   scannerBeam: { position: "absolute", top: 0, left: 0, right: 0, height: 2, backgroundColor: "red", shadowColor: "red", shadowOpacity: 1, shadowRadius: 10 },
   viewfinderText: { position: "absolute", bottom: 10, fontSize: 8, ...fonts.black, color: "rgba(255,255,255,0.5)", letterSpacing: 1 },
-   scanActionButton: { marginTop: 10, backgroundColor: "#1A1C1A", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-   scanActionButtonText: { color: "#fff", fontSize: 11, ...fonts.black, letterSpacing: 0.6, textTransform: "uppercase" },
+   scanActionButton: { marginTop: 10, backgroundColor: "#1A1C1A", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, minHeight: 44, alignItems: "center" },
+   scanActionButtonText: { color: "#fff", fontSize: 11, ...fonts.black, letterSpacing: 0.2, textTransform: "uppercase", textAlign: "center", lineHeight: 14, flexShrink: 1 },
 
-  logStatusBtn: { backgroundColor: "#FFB300", paddingHorizontal: 20, paddingVertical: 18, borderRadius: 16, width: "100%", alignItems: "center", marginTop: 12, shadowColor: "#FFB300", shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-  logStatusText: { color: "#fff", ...fonts.black, fontSize: 14, letterSpacing: 0.5 },
+  logStatusBtn: { backgroundColor: "#FFB300", paddingHorizontal: 20, paddingVertical: 16, borderRadius: 16, width: "100%", alignItems: "center", marginTop: 12, shadowColor: "#FFB300", shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  logStatusText: { color: "#fff", ...fonts.black, fontSize: 13, letterSpacing: 0.2, textAlign: "center", lineHeight: 16 },
 
   manualForm: { width: "100%", gap: 12, marginTop: 12 },
   inputWrapper: { height: 56, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: theme.line, justifyContent: "center", paddingHorizontal: 20 },
@@ -1035,7 +971,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   protocolText: { fontSize: 11, ...fonts.medium, color: theme.textMuted, fontStyle: "italic", lineHeight: 16 },
 
   sideContent: { gap: 24 },
-  liveActivityCard: { backgroundColor: "#1A1C1A", borderRadius: 40, padding: 32 },
+  liveActivityCard: { backgroundColor: "#1A1C1A", borderRadius: 28, padding: 24 },
   liveHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 24 },
   liveTitle: { fontSize: 18, ...fonts.black, color: "#fff" },
   activityItem: { flexDirection: "row", gap: 16, marginBottom: 20 },
@@ -1049,7 +985,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   siteMapSub: { fontSize: 9, ...fonts.black, color: theme.textLight, letterSpacing: 1, marginTop: 4 },
   siteMapImage: { width: "100%", height: "100%", opacity: 0.8 },
 
-  incidentSection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
+  incidentSection: { backgroundColor: theme.surface, borderRadius: 28, padding: 20, borderWidth: 1, borderColor: theme.line },
   activeAlertsBadge: { backgroundColor: "#FFF3E0", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   activeAlertsText: { fontSize: 10, ...fonts.black, color: "#E65100", letterSpacing: 0.5 },
   incidentFormRow: { flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 24 },
@@ -1068,16 +1004,16 @@ const getStyles = (theme: any) => StyleSheet.create({
   severityContainer: { flex: 1, minWidth: 160 },
   severityRow: { flexDirection: "row", gap: 6 },
   severityBtn: { flex: 1, height: 56, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  severityBtnText: { fontSize: 8, ...fonts.black, textAlign: "center" },
+  severityBtnText: { fontSize: 8, ...fonts.black, textAlign: "center", lineHeight: 10, flexShrink: 1 },
   textArea: { height: 120, backgroundColor: theme.surfaceAlt, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: theme.line },
    textAreaInput: { flex: 1, color: theme.text, fontSize: 14, ...fonts.medium, textAlignVertical: "top" },
   placeholderText: { fontSize: 14, color: theme.textLight, ...fonts.medium },
-  submitBtn: { height: 64, backgroundColor: "#1A1C1A", borderRadius: 24, alignItems: "center", justifyContent: "center", marginTop: 32 },
-  submitBtnText: { color: "#fff", fontSize: 14, ...fonts.black, letterSpacing: 1.5 },
+  submitBtn: { minHeight: 64, backgroundColor: "#1A1C1A", borderRadius: 24, alignItems: "center", justifyContent: "center", marginTop: 32, paddingHorizontal: 16, paddingVertical: 12 },
+  submitBtnText: { color: "#fff", fontSize: 13, ...fonts.black, letterSpacing: 0.5, textAlign: "center", lineHeight: 17, flexShrink: 1 },
 
-  supplySection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
-  updateInventoryBtn: { backgroundColor: "#81C784", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-  updateInventoryText: { color: "#fff", ...fonts.black, fontSize: 11 },
+  supplySection: { backgroundColor: theme.surface, borderRadius: 28, padding: 20, borderWidth: 1, borderColor: theme.line },
+  updateInventoryBtn: { backgroundColor: "#81C784", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, maxWidth: "100%" },
+  updateInventoryText: { color: "#fff", ...fonts.black, fontSize: 11, textAlign: "center", lineHeight: 14, flexShrink: 1 },
   supplyScroll: { marginTop: 24, marginHorizontal: -12 },
   supplyCard: { width: 220, backgroundColor: theme.surfaceAlt, borderRadius: 32, padding: 24, marginHorizontal: 12 },
   supplyCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },

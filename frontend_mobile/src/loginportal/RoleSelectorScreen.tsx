@@ -76,8 +76,17 @@ function RoleCard({ role, onNavigate }: { role: typeof roles[0], onNavigate: (ro
       </View>
       
       <View style={styles.roleCopy}>
-        <Text style={[styles.roleSub, { color: isHovered ? role.color : theme.textLight }]}>{role.sub}</Text>
-        <Text style={styles.roleLabel}>{role.label}</Text>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+          style={[styles.roleSub, { color: isHovered ? role.color : theme.textLight }]}
+        >
+          {role.sub}
+        </Text>
+        <Text numberOfLines={2} style={styles.roleLabel}>
+          {role.label}
+        </Text>
         <Text style={styles.roleDesc} numberOfLines={2}>{role.desc}</Text>
       </View>
       
@@ -121,7 +130,14 @@ export function RoleSelectorScreen({ onNavigate }: { onNavigate: (route: AppRout
                 <React.Fragment key={stat.lab}>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue}>{stat.val}</Text>
-                    <Text style={styles.statLabel}>{stat.lab}</Text>
+                    <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                      style={styles.statLabel}
+                    >
+                      {stat.lab}
+                    </Text>
                   </View>
                   {i < 2 && <View style={styles.statDivider} />}
                 </React.Fragment>
@@ -132,7 +148,14 @@ export function RoleSelectorScreen({ onNavigate }: { onNavigate: (route: AppRout
 
         <View style={{ paddingHorizontal: 24, paddingBottom: 60 }}>
           <View style={{ marginBottom: 24 }}>
-            <Text style={styles.selectorHeadText}>IDENTIFY YOUR PORTAL TO CONTINUE</Text>
+            <Text
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={styles.selectorHeadText}
+            >
+              IDENTIFY YOUR PORTAL TO CONTINUE
+            </Text>
           </View>
           
           {roles.map((role) => (
