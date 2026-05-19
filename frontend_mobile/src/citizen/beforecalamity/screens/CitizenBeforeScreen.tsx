@@ -273,7 +273,7 @@ export function CitizenBeforeScreen({
               {/* Emergency Status Card */}
               <View style={{ backgroundColor: "#FFF3E0", borderRadius: 24, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: "#FFE0B2", flexDirection: "row", gap: 14, alignItems: "center" }}>
                 <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: "#FFE0B2", alignItems: "center", justifyContent: "center" }}>
-                  <Ionicons name="shield-alert-outline" size={24} color="#E65100" />
+                  <Ionicons name="shield-half-outline" size={32} color="#E65100" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, ...fonts.black, color: "#E65100" }}>Level 2 Alert Active</Text>

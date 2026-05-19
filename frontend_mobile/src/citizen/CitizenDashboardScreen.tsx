@@ -7,7 +7,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
 import { NotificationBell } from "../components/NotificationBell";
 import { useNotifications } from "../hooks/useNotifications";
-import { loadSession } from "../session";
 import { CitizenBeforeScreen } from "./beforecalamity/screens/CitizenBeforeScreen";
 import { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 import CitizenAfterScreen from "./aftercalamity/CitizenAfterScreen";
@@ -24,8 +23,10 @@ interface CitizenDashboardScreenProps {
 }
 
 export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardScreenProps) {
-  // Phase is driven by the global system state set by admin, with offline caching
-  const { citizenPhase: phase } = useSystemPhase();
+  // Phase is driven by the global system state, but can be locally overridden via bottom tabs
+  const { citizenPhase: systemPhase } = useSystemPhase();
+  const [phaseOverride, setPhaseOverride] = useState<Phase | null>(null);
+  const phase = phaseOverride || systemPhase;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -104,15 +105,19 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
     switch (dest) {
       case "Overview":
         setTargetStep("dashboard");
+        setPhaseOverride(null);
         break;
       case "Family & ID":
         setTargetStep("registration");
+        setPhaseOverride("before");
         break;
       case "Safety Map":
         setTargetStep("map");
+        setPhaseOverride("during");
         break;
       case "Relief Status":
         setTargetStep("relief_claim");
+        setPhaseOverride("after");
         break;
     }
   };
@@ -213,7 +218,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                 ) : (
                   <CitizenBeforeScreen
                     onBack={onSignOut}
-                    onOpenResponse={() => setTargetStep("dashboard")}
+                    onOpenResponse={() => { setPhaseOverride("during"); setActiveNav("Safety Map"); setTargetStep("decision"); }}
                     onRegisterIndividual={() => setTargetStep("individual_registration")}
                     onRegisterHousehold={() => setTargetStep("household_registration")}
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
@@ -236,6 +241,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                 onBack={() => {
                   setActiveNav("Overview");
                   setTargetStep("dashboard");
+                  setPhaseOverride(null);
                 }}
               />
             )}
@@ -259,10 +265,10 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                   key={item.id}
                   onPress={() => {
                     setActiveNav(item.id as NavDestination);
-                    if (item.id === "Family & ID") { setTargetStep("registration"); }
-                    else if (item.id === "Safety Map") { setTargetStep("map"); }
-                    else if (item.id === "Relief Status") { setTargetStep("relief_claim"); }
-                    else { setTargetStep("dashboard"); }
+                    if (item.id === "Family & ID") { setPhaseOverride("before"); setTargetStep("registration"); }
+                    else if (item.id === "Safety Map") { setPhaseOverride("during"); setTargetStep("map"); }
+                    else if (item.id === "Relief Status") { setPhaseOverride("after"); setTargetStep("relief_claim"); }
+                    else { setPhaseOverride(null); setTargetStep("dashboard"); }
                   }}
                   style={styles.navTab}
                 >

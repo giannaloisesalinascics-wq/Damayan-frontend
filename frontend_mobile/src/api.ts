@@ -256,7 +256,7 @@ export async function getCheckInByQrCode(
 ): Promise<CheckInRecord | null> {
   const all = await request<CheckInRecord[]>("/site-manager/check-ins", {}, token);
   const match = all.find(
-    (r) => (r.evacueeId === qrCodeId || r.evacueeNumber === qrCodeId || r.qrCode === qrCodeId) && r.status === "checked-in"
+    (r: any) => (r.evacueeId === qrCodeId || r.evacueeNumber === qrCodeId || r.qrCodeId === qrCodeId) && r.status === "checked-in"
   );
   return match ?? null;
 }
@@ -471,6 +471,8 @@ export async function submitIncidentReport(token: string, payload: {
   return request<any>("/citizen/incident-report", {
     method: "POST",
     body: JSON.stringify(payload),
+  }, token);
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // ADD THESE to your existing frontend_mobile/src/api.ts
 // They use the existing `request` helper and API_BASE_URL already in that file.
