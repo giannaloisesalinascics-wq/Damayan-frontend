@@ -35,7 +35,6 @@ export function CitizenLoginScreen({
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-<<<<<<< HEAD
 
   // Forgot password states
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -65,8 +64,6 @@ export function CitizenLoginScreen({
       setForgotLoading(false);
     }
   };
-=======
->>>>>>> eadc92cc0f436645ec714abfdc257e73a1711ad1
 
   const handleLogin = async () => {
     setError(null);

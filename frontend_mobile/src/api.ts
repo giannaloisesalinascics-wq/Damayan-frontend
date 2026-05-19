@@ -402,12 +402,6 @@ export async function broadcastAdminWarning(
   }, token);
 }
 
-export async function getCitizenProfile(token: string) {
-  return request<any>("/citizen/profile", {
-    method: "GET",
-  }, token);
-}
-
 export async function registerCitizen(token: string, payload: {
   fullName: string;
   birthDate: string;

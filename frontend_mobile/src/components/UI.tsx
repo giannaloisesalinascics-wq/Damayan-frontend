@@ -81,6 +81,10 @@ export function Button({
 }
 
 export function Input({
+  label,
+  placeholder,
+  secureTextEntry,
+  onChangeText,
   value,
   keyboardType,
   autoCapitalize,

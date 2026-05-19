@@ -94,7 +94,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
   useEffect(() => {
     loadUserData();
   }, []);
-  }, []);
 
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications(userId, token);
 
@@ -188,15 +187,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             {/* Profile on the Right */}
             <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
               <View style={styles.profileTextContainer}>
-<<<<<<< HEAD
-                <Text style={styles.headerProfileName}>{citizenProfile?.fullName || (authUser ? `${authUser.firstName} ${authUser.lastName}` : "Elena Villacruz")}</Text>
-                <Text style={styles.headerProfileSub}>{citizenProfile?.address || authUser?.barangay || "BRGY. 102, DIST 4"}</Text>
-              </View>
-              <View style={styles.avatar}>
-                 <Image 
-                   source={{ uri: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" }} 
-                   style={styles.avatarImage} 
-                 />
                 <Text style={styles.headerProfileName}>{displayName}</Text>
                 <Text style={styles.headerProfileSub}>{citizenProfile?.registrationType?.toUpperCase() ?? 'CITIZEN'}</Text>
               </View>
