@@ -1844,7 +1844,7 @@ function toStructureDamageRecord(report: IncidentReport): StructureDamageRecord 
         {activeTab === "Dashboard" && (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* Main Action Card */}
-          <section className={`${phase === 'after' ? 'md:col-span-12' : 'md:col-span-8'} bg-white dark:bg-[#232622] rounded-3xl p-8 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm`}>
+          <section className="md:col-span-12 bg-white dark:bg-[#232622] rounded-3xl p-8 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-2xl font-bold">{phaseConfig.checklistTitle}</h3>
@@ -2691,26 +2691,6 @@ function toStructureDamageRecord(report: IncidentReport): StructureDamageRecord 
               </div>
             )}
           </section>
-
-          {/* Sidebar Area */}
-          {phase !== 'after' && (
-            <section className="md:col-span-4 space-y-6">
-              <button 
-                onClick={() => setActiveTab("SiteMap")}
-                className="w-full text-left bg-white dark:bg-[#232622] rounded-3xl p-6 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm relative overflow-hidden group min-h-[200px] cursor-pointer"
-              >
-                <div className="absolute inset-0 opacity-40 group-hover:opacity-80 transition-opacity">
-                  <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpSvAOIIisjz13eQiOCstFnz3vVDhXSLsC2wkcR0gzF0aE74mgQ4wHIUPQxpjnjM9rNALymOt0yzw4BUqDzXDmvL68DiBEHgtwXcoRktsaAjW4XF8rQ9xFDqsWjQVCUV3lpc9WdLCHcs9vEn68r458YriOvYDyAOpkuQmDaQXPWqqt7wAiApmtFpPyTHIgyKDI39znTvbgGnTysMQr1Ezpxs0enh_BMJvFIA9nVdUBqndsA8qbD84JSmQa6tncbOhO9dg-xTC8Mwxc" alt="Map" />
-                </div>
-                <div className="relative z-10 flex flex-col justify-end h-full">
-                  <div className="bg-white/90 p-4 rounded-2xl shadow-lg">
-                    <h4 className="font-bold text-sm">Interactive Site Map</h4>
-                    <p className="text-[10px] text-[#444743] uppercase tracking-widest">Real-time zone activity monitor</p>
-                  </div>
-                </div>
-              </button>
-            </section>
-          )}
 
           {/* Inventory Table Section (After Phase Specific) */}
           {phase === 'after' ? (
