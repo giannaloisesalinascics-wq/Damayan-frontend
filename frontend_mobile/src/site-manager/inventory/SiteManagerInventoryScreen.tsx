@@ -1,7 +1,10 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from "react-native";
+import { Alert, View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { fonts, lightTheme, darkTheme } from "../../theme";
+import { createInventoryBatch, getInventory } from "../../api";
+import { loadSession } from "../../session";
+import type { AuthSession, InventoryItem as ApiInventoryItem } from "../../types";
 
 interface InventoryItem {
   id: string;
@@ -22,6 +25,67 @@ const MOCK_INVENTORY: InventoryItem[] = [
 export function SiteManagerInventoryScreen({ isDarkMode }: { isDarkMode?: boolean }) {
   const theme = isDarkMode ? darkTheme : lightTheme;
   const styles = getStyles(theme);
+  const [session, setSession] = React.useState<AuthSession | null>(null);
+  const [inventoryItems, setInventoryItems] = React.useState<ApiInventoryItem[]>([]);
+
+  const loadInventory = React.useCallback(async () => {
+    const stored = await loadSession();
+    setSession(stored);
+    if (stored?.accessToken) {
+      const items = await getInventory("site-manager", stored.accessToken);
+      setInventoryItems(items);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadInventory().catch(() => {
+      setSession(null);
+      setInventoryItems([]);
+    });
+  }, [loadInventory]);
+
+  const handleNewBatch = async () => {
+    if (!session?.accessToken) {
+      Alert.alert("Session expired", "Please sign in again.");
+      return;
+    }
+
+    const firstItem = inventoryItems[0];
+    if (!firstItem) {
+      Alert.alert("No inventory", "No inventory item available for batching.");
+      return;
+    }
+
+    try {
+      await createInventoryBatch(session.accessToken, {
+        name: `Mobile Batch ${new Date().toISOString().slice(0, 10)}`,
+        items: [{ itemId: firstItem.id, quantity: 10 }],
+      });
+      await loadInventory();
+      Alert.alert("Success", "New inventory batch created.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create batch";
+      Alert.alert("Batch failed", message);
+    }
+  };
+
+  const displayItems: InventoryItem[] =
+    inventoryItems.length > 0
+      ? inventoryItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          units: `${item.quantity.toLocaleString()} ${item.unit}`,
+          status:
+            item.status.toLowerCase().includes("low") || item.status.toLowerCase().includes("critical")
+              ? "CRITICALLY LOW"
+              : "SECURE",
+          icon: "cube",
+          color:
+            item.status.toLowerCase().includes("low") || item.status.toLowerCase().includes("critical")
+              ? "#EF9A9A"
+              : "#81C784",
+        }))
+      : MOCK_INVENTORY;
 
   return (
     <ScrollView 
@@ -76,7 +140,7 @@ export function SiteManagerInventoryScreen({ isDarkMode }: { isDarkMode?: boolea
             <TouchableOpacity style={styles.actionBtnGhost}>
               <Text style={styles.actionBtnTextGhost}>Export CSV</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionBtnSolid}>
+            <TouchableOpacity style={styles.actionBtnSolid} onPress={handleNewBatch}>
               <Ionicons name="add" size={16} color="#fff" style={{ marginRight: 4 }} />
               <Text style={styles.actionBtnTextSolid}>New Batch</Text>
             </TouchableOpacity>
@@ -84,7 +148,7 @@ export function SiteManagerInventoryScreen({ isDarkMode }: { isDarkMode?: boolea
         </View>
 
         <View style={styles.ledgerList}>
-          {MOCK_INVENTORY.map((item) => (
+          {displayItems.map((item) => (
             <View key={item.id} style={styles.inventoryCard}>
               <View style={[styles.iconBox, { backgroundColor: item.color + "15" }]}>
                 <Ionicons name={item.icon} size={20} color={item.color} />

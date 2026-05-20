@@ -2,6 +2,11 @@ import { StyleSheet } from "react-native";
 import { theme, fonts } from "../theme";
 
 export const styles = StyleSheet.create({
+  errorCopy: {
+    color: theme.danger,
+    ...fonts.bold,
+    marginBottom: -4,
+  },
   kpiGrid: {
     gap: 12,
   },
@@ -26,6 +31,30 @@ export const styles = StyleSheet.create({
     color: theme.text,
     marginBottom: 14,
   },
+  liveAlertCard: {
+    gap: 12,
+  },
+  liveAlertHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  liveAlertRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.line,
+  },
+  liveAlertMeta: {
+    marginTop: 6,
+    color: theme.textMuted,
+    fontSize: 12,
+    ...fonts.semibold,
+  },
   listCard: {
     backgroundColor: "#f8faf7",
     borderWidth: 1,
@@ -43,6 +72,10 @@ export const styles = StyleSheet.create({
     marginTop: 4,
     color: theme.textMuted,
   },
+  emptyCopy: {
+    color: theme.textMuted,
+    ...fonts.semibold,
+  },
   actionGroup: {
     gap: 8,
   },
@@ -51,5 +84,62 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 10,
+  },
+  disasterCard: {
+    backgroundColor: "#f8faf7",
+    borderWidth: 1,
+    borderColor: theme.line,
+    borderRadius: 18,
+    padding: 14,
+    gap: 8,
+    marginBottom: 12,
+  },
+  disasterHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  phaseActionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  formGroup: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  formLabel: {
+    ...fonts.extrabold,
+    fontSize: 12,
+    color: theme.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  formInput: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.line,
+    backgroundColor: "#f8faf7",
+    color: theme.text,
+    paddingHorizontal: 12,
+    ...fonts.semibold,
+  },
+  formTextarea: {
+    minHeight: 104,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.line,
+    backgroundColor: "#f8faf7",
+    color: theme.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    ...fonts.semibold,
+  },
+  channelRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
   },
 });
