@@ -1,14 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
+import { NotificationBell } from "../components/NotificationBell";
+import { useNotifications } from "../hooks/useNotifications";
+import { loadSession } from "../session";
+import { getProfile, getCitizenProfile, getFileViewUrl, ApiError, type CitizenProfile } from "../api";
 import { CitizenBeforeScreen } from "./beforecalamity/screens/CitizenBeforeScreen";
 import { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 import CitizenAfterScreen from "./aftercalamity/CitizenAfterScreen";
 import { CitizenIndividualRegistrationScreen } from "./beforecalamity/screens/CitizenIndividualRegistrationScreen";
 import { CitizenHouseholdRegistrationScreen } from "./beforecalamity/screens/CitizenHouseholdRegistrationScreen";
 import { CitizenProfileEditScreen } from "./CitizenProfileEditScreen";
+import { CitizenFamilyGroupScreen } from "./familygroup/CitizenFamilyGroupScreen";
+import { useSystemPhase } from "../context/SystemPhaseContext";
+import type { AuthSession } from "../types";
 
 export type Phase = "before" | "during" | "after";
 export type NavDestination = "Overview" | "Family & ID" | "Safety Map" | "Relief Status";
@@ -18,10 +25,78 @@ interface CitizenDashboardScreenProps {
 }
 
 export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardScreenProps) {
-  const [phase, setPhase] = useState<Phase>("before");
+  // Phase is driven by the global system state, but can be locally overridden via bottom tabs
+  const { citizenPhase: systemPhase } = useSystemPhase();
+  const [phaseOverride, setPhaseOverride] = useState<Phase | null>(null);
+  const phase = phaseOverride || systemPhase;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [citizenProfile, setCitizenProfile] = useState<CitizenProfile | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+
+  async function loadUserData() {
+    try {
+      setLoading(true);
+      const activeSession = await loadSession();
+      if (!activeSession) {
+        onSignOut();
+        return;
+      }
+
+      setSession(activeSession);
+      setAuthUser(activeSession.user);
+      setToken(activeSession.accessToken);
+      setUserId(activeSession.user.authUserId ?? activeSession.user.id);
+
+      // Fetch latest details from `/auth/me`
+      try {
+        const latestProfile = await getProfile(activeSession.accessToken);
+        if (latestProfile?.user) {
+          setAuthUser(latestProfile.user);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch fresh user profile:", err);
+      }
+
+      // Fetch citizen profile details
+      try {
+        const profile = await getCitizenProfile(activeSession.accessToken);
+        setCitizenProfile(profile);
+        if (profile?.profilePhotoKey) {
+          try {
+            const url = await getFileViewUrl(activeSession.accessToken, "government-ids", profile.profilePhotoKey);
+            setProfilePhotoUrl(url);
+          } catch (photoErr) {
+            console.warn("Failed to fetch profile photo url:", photoErr);
+          }
+        }
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          console.log("Citizen registration profile not found. User is unregistered.");
+          setCitizenProfile(null);
+        } else {
+          console.error("Failed to fetch citizen profile:", err);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading citizen session:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications(userId, token);
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
@@ -37,42 +112,58 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
   const handleNavigate = (dest: NavDestination) => {
     setActiveNav(dest);
     setIsDrawerOpen(false);
-    
+
     switch (dest) {
       case "Overview":
         setTargetStep("dashboard");
+        setPhaseOverride(null);
         break;
       case "Family & ID":
-        setPhase("before");
-        setTargetStep("registration");
+        setTargetStep("family_group");
         break;
       case "Safety Map":
-        setPhase("during");
         setTargetStep("map");
+        setPhaseOverride("during");
         break;
       case "Relief Status":
-        setPhase("after");
         setTargetStep("relief_claim");
+        setPhaseOverride("after");
         break;
     }
   };
 
   const isEditingProfile = targetStep === "edit_profile";
+  const isViewingFamilyGroup = targetStep === "family_group";
 
   const styles = getStyles(theme);
+
+  const displayName = citizenProfile?.fullName
+    || (citizenProfile?.firstName && citizenProfile?.lastName ? `${citizenProfile.firstName} ${citizenProfile.lastName}` : null)
+    || (session?.user ? `${session.user.firstName || ''} ${session.user.lastName || ''}`.trim() || null : null)
+    || session?.user?.email
+    || 'Citizen';
+  const initials = displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
 
   return (
     <View style={styles.container}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
-      
+
       {/* Background Decoration */}
       <View style={[styles.orb, styles.orb1, { backgroundColor: phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info }]} />
       <View style={[styles.orb, styles.orb2]} />
 
-      {/* Header - Hidden when editing profile */}
-      {!isEditingProfile && (
+      {/* Header - Hidden when editing profile or viewing family group */}
+      {!isEditingProfile && !isViewingFamilyGroup && (
         <SafeAreaView style={styles.headerSafe}>
           <View style={styles.headerInner}>
+            {/* Notification Bell */}
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
+            />
+
             {/* Logo / Brand Centered */}
             <View style={styles.headerCenter}>
               <Text style={styles.brandText}>DAMAYAN</Text>
@@ -97,14 +188,17 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             {/* Profile on the Right */}
             <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
               <View style={styles.profileTextContainer}>
-                <Text style={styles.headerProfileName}>Elena Villacruz</Text>
-                <Text style={styles.headerProfileSub}>BRGY. 102, DIST 4</Text>
+                <Text style={styles.headerProfileName}>{displayName}</Text>
+                <Text style={styles.headerProfileSub}>{citizenProfile?.registrationType?.toUpperCase() ?? 'CITIZEN'}</Text>
               </View>
               <View style={styles.avatar}>
-                 <Image 
-                   source={{ uri: "file:///C:/Users/Administrator/.gemini/antigravity/brain/431eeb09-324f-4f13-a725-90119334481f/citizen_profile_avatar_1777474769780.png" }} 
-                   style={styles.avatarImage} 
-                 />
+                {profilePhotoUrl ? (
+                  <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarInitials}>
+                    <Text style={styles.avatarInitialsText}>{initials}</Text>
+                  </View>
+                )}
               </View>
             </Pressable>
           </View>
@@ -114,62 +208,81 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       {/* Main Content */}
       <View style={styles.content}>
         {isEditingProfile ? (
-          <CitizenProfileEditScreen 
-            onBack={() => setTargetStep("dashboard")} 
+          <CitizenProfileEditScreen
+            onBack={() => setTargetStep("dashboard")}
             onSave={(data) => {
-              console.log("Profile saved:", data);
               setTargetStep("dashboard");
             }}
+            citizenProfile={citizenProfile}
+            session={session}
           />
+        ) : isViewingFamilyGroup ? (
+          <CitizenFamilyGroupScreen onBack={() => setTargetStep("dashboard")} />
         ) : (
           <>
             {phase === "before" && (
               <View style={{ flex: 1 }}>
                 {targetStep === "individual_registration" ? (
-                  <CitizenIndividualRegistrationScreen 
-                    onBack={() => setTargetStep("dashboard")} 
+                  <CitizenIndividualRegistrationScreen
+                    onBack={() => setTargetStep("dashboard")}
                     onContinue={() => setTargetStep("dashboard")}
+                    session={session}
+                    authUser={authUser}
+                    onRefreshProfile={loadUserData}
+                    citizenProfile={citizenProfile}
+                    profilePhotoUrl={profilePhotoUrl}
+                    initials={initials}
                   />
                 ) : targetStep === "household_registration" ? (
                   <CitizenHouseholdRegistrationScreen 
                     onBack={() => setTargetStep("dashboard")} 
                     onContinue={() => setTargetStep("dashboard")}
+                    session={session}
+                    authUser={authUser}
+                    citizenProfile={citizenProfile}
+                    onRefreshProfile={loadUserData}
                   />
                 ) : (
-                  <CitizenBeforeScreen 
-                    onBack={onSignOut} 
-                    onOpenResponse={() => setPhase("during")} 
+                  <CitizenBeforeScreen
+                    onBack={onSignOut}
+                    onOpenResponse={() => { setPhaseOverride("during"); setActiveNav("Safety Map"); setTargetStep("decision"); }}
                     onRegisterIndividual={() => setTargetStep("individual_registration")}
                     onRegisterHousehold={() => setTargetStep("household_registration")}
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
-                    isDarkMode={isDarkMode}
+                    citizenProfile={citizenProfile}
+                    authUser={authUser}
+                    citizenName={displayName !== 'Citizen' ? displayName : undefined}
+                    qrCodeId={citizenProfile?.qrCodeId}
+                    registrationType={citizenProfile?.registrationType}
+                    profilePhotoUrl={profilePhotoUrl ?? undefined}
                   />
                 )}
               </View>
             )}
             {phase === "during" && (
-              <CitizenDuringScreen 
-                onBack={() => setPhase("before")} 
+              <CitizenDuringScreen
+                onBack={() => setTargetStep("dashboard")}
                 initialStep={targetStep === "map" ? "map" : "decision"}
-                isDarkMode={isDarkMode}
+                session={session}
+                authUser={authUser}
+                qrCodeId={citizenProfile?.qrCodeId}
               />
             )}
             {phase === "after" && (
-              <CitizenAfterScreen 
+              <CitizenAfterScreen
                 onBack={() => {
-                  setPhase("before");
                   setActiveNav("Overview");
                   setTargetStep("dashboard");
+                  setPhaseOverride(null);
                 }}
-                isDarkMode={isDarkMode}
               />
             )}
           </>
         )}
       </View>
 
-      {/* Premium Bottom Navigation - Hidden when editing profile */}
-      {!isEditingProfile && (
+      {/* Premium Bottom Navigation - Hidden when editing profile or family group */}
+      {!isEditingProfile && !isViewingFamilyGroup && (
         <View style={styles.bottomNavWrapper}>
           <View style={styles.bottomNavInner}>
             {[
@@ -184,10 +297,10 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                   key={item.id}
                   onPress={() => {
                     setActiveNav(item.id as NavDestination);
-                    if (item.id === "Family & ID") { setPhase("before"); setTargetStep("registration"); }
-                    else if (item.id === "Safety Map") { setPhase("during"); setTargetStep("map"); }
-                    else if (item.id === "Relief Status") { setPhase("after"); setTargetStep("relief_claim"); }
-                    else { setPhase("before"); setTargetStep("dashboard"); }
+                    if (item.id === "Family & ID") { setTargetStep("family_group"); }
+                    else if (item.id === "Safety Map") { setPhaseOverride("during"); setTargetStep("map"); }
+                    else if (item.id === "Relief Status") { setPhaseOverride("after"); setTargetStep("relief_claim"); }
+                    else { setPhaseOverride(null); setTargetStep("dashboard"); }
                   }}
                   style={styles.navTab}
                 >
@@ -211,8 +324,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         <Pressable style={styles.modalOverlay} onPress={() => setIsProfileOpen(false)}>
           <View style={styles.profileDropdown}>
             <View style={styles.profileHeader}>
-              <Text style={styles.profileName}>Elena Villacruz</Text>
-              <Text style={styles.profileSub}>Brgy. 102, Dist 4</Text>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileSub}>{session?.user?.email ?? 'Citizen'}</Text>
             </View>
             <View style={styles.profileActions}>
               <Pressable style={styles.profileActionItem} onPress={() => setIsDarkMode(!isDarkMode)}>
@@ -224,7 +337,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
               
               <Pressable style={styles.profileActionItem} onPress={() => {
                 setIsProfileOpen(false);
-                setPhase("before");
                 setActiveNav("Overview");
                 setTargetStep("dashboard");
               }}>
@@ -255,13 +367,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.bg,
-    ...Platform.select({
-      web: {
-        height: "100%",
-        minHeight: 0,
-        overflow: "hidden",
-      } as any,
-    }),
   },
   headerSafe: {
     backgroundColor: theme.surface + "CC", // 80% opacity
@@ -358,14 +463,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  avatarInitials: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: theme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitialsText: {
+    color: "#fff",
+    fontWeight: "900",
+    fontSize: 16,
+  },
   content: {
     flex: 1,
-    ...Platform.select({
-      web: {
-        height: "100%",
-        minHeight: 0,
-      } as any,
-    }),
   },
   // Modal Styles
   modalOverlay: {

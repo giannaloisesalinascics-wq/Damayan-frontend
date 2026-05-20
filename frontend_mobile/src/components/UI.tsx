@@ -9,6 +9,7 @@ import {
   View,
   ViewStyle,
   Platform,
+  StatusBar,
 } from "react-native";
 import { theme, fonts } from "../theme";
 
@@ -23,17 +24,15 @@ export function Screen({
 }) {
   const content = <View style={styles.screenInner}>{children}</View>;
 
-  if (!scroll) {
-    return <View style={[styles.screen, style]}>{content}</View>;
-  }
-
   return (
-    <ScrollView
-      style={[styles.screen, style]}
-      contentContainerStyle={styles.scrollContent}
-    >
-      {content}
-    </ScrollView>
+    <View style={[styles.screen, style, { paddingTop: Platform.OS !== 'web' ? (StatusBar.currentHeight || 45) : 0 }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {content}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -86,21 +85,33 @@ export function Input({
   placeholder,
   secureTextEntry,
   onChangeText,
+  value,
+  keyboardType,
+  autoCapitalize,
+  ...props
 }: {
-  label: string;
+  label?: string;
   placeholder: string;
   secureTextEntry?: boolean;
   onChangeText?: (text: string) => void;
+  value?: string;
+  keyboardType?: "default" | "email-address" | "numeric" | "phone-pad";
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  [key: string]: any;
 }) {
   return (
     <View style={styles.inputWrap}>
-      <Text style={styles.inputLabel}>{label}</Text>
+      {label ? <Text style={styles.inputLabel}>{label}</Text> : null}
       <TextInput
         placeholder={placeholder}
         placeholderTextColor={theme.textLight}
         secureTextEntry={secureTextEntry}
         onChangeText={onChangeText}
+        value={value}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
         style={styles.input}
+        {...props}
       />
     </View>
   );

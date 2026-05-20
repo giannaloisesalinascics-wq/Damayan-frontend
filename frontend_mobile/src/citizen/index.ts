@@ -6,3 +6,5 @@ export { CitizenDuringScreen } from "./duringcalamity/CitizenDuringScreen";
 export { CitizenSignupScreen } from "./signup/CitizenSignupScreen";
 export { default as CitizenDashboardScreen } from "./CitizenDashboardScreen";
 export * from "./login/CitizenLoginScreen";
+export { CitizenFamilyGroupScreen } from "./familygroup/CitizenFamilyGroupScreen";
+export { CitizenFamilyGroupScannerScreen } from "./familygroup/CitizenFamilyGroupScannerScreen";

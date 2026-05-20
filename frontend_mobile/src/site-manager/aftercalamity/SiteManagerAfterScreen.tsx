@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { Alert, View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { theme, fonts, lightTheme, darkTheme, AppTheme } from "../../theme";
+import { closeOperations, generateSiteReport, getInventory, receiveInventory } from "../../api";
+import { loadSession } from "../../session";
+import type { AuthSession, InventoryItem } from "../../types";
 
 export function SiteManagerAfterScreen({ 
   onBack,
@@ -16,6 +19,127 @@ export function SiteManagerAfterScreen({
 }) {
   const currentTheme = isDarkMode ? darkTheme : lightTheme;
   const localStyles = getStyles(currentTheme);
+   const [session, setSession] = useState<AuthSession | null>(null);
+   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+   const [selectedItemId, setSelectedItemId] = useState("");
+   const [aidQuantity, setAidQuantity] = useState("1");
+   const [intakeQuantity, setIntakeQuantity] = useState("10");
+
+   React.useEffect(() => {
+      loadSession()
+         .then(async (stored) => {
+            setSession(stored);
+            if (stored?.accessToken) {
+               const items = await getInventory("site-manager", stored.accessToken);
+               setInventoryItems(items);
+               if (items.length > 0) {
+                  setSelectedItemId(items[0].id);
+               }
+            }
+         })
+         .catch(() => {
+            setSession(null);
+            setInventoryItems([]);
+         });
+   }, []);
+
+   const handleVerifyLogAid = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      const selectedItem = inventoryItems.find((item) => item.id === selectedItemId) ?? inventoryItems[0];
+      const parsedAidQuantity = Number(aidQuantity);
+      if (!selectedItem) {
+         Alert.alert("No inventory", "No inventory items available for aid logging.");
+         return;
+      }
+
+      if (!Number.isFinite(parsedAidQuantity) || parsedAidQuantity <= 0) {
+         Alert.alert("Invalid quantity", "Please set a valid aid quantity greater than 0.");
+         return;
+      }
+
+      try {
+         await receiveInventory(session.accessToken, {
+            itemIds: [selectedItem.id],
+            quantities: [parsedAidQuantity],
+            arrivalTerminal: "Recovery Terminal",
+            waybillNumber: "AID-VERIFY",
+            condition: "Intact",
+         });
+         Alert.alert("Success", "Aid verification logged.");
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to log aid verification";
+         Alert.alert("Action failed", message);
+      }
+   };
+
+   const handleInitiateCheckout = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      try {
+         const result = await closeOperations(session.accessToken);
+         Alert.alert("Operations updated", `Checked out ${result?.checkedOutCount ?? 0} active records.`);
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to close operations";
+         Alert.alert("Action failed", message);
+      }
+   };
+
+   const handleGenerateSummary = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      try {
+         await generateSiteReport(session.accessToken);
+         Alert.alert("Success", "Site summary report generated.");
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to generate report";
+         Alert.alert("Action failed", message);
+      }
+   };
+
+   const handleReceiveGoods = async () => {
+      if (!session?.accessToken) {
+         Alert.alert("Session expired", "Please sign in again.");
+         return;
+      }
+
+      const selectedItem = inventoryItems.find((item) => item.id === selectedItemId) ?? inventoryItems[0];
+      const parsedIntakeQuantity = Number(intakeQuantity);
+      if (!selectedItem) {
+         Alert.alert("No inventory", "No inventory items available for intake.");
+         return;
+      }
+
+      if (!Number.isFinite(parsedIntakeQuantity) || parsedIntakeQuantity <= 0) {
+         Alert.alert("Invalid quantity", "Please set a valid intake quantity greater than 0.");
+         return;
+      }
+
+      try {
+         await receiveInventory(session.accessToken, {
+            itemIds: [selectedItem.id],
+            quantities: [parsedIntakeQuantity],
+            arrivalTerminal: "Main Terminal",
+            waybillNumber: `WB-${Date.now()}`,
+            condition: "Intact",
+         });
+         const refreshed = await getInventory("site-manager", session.accessToken);
+         setInventoryItems(refreshed);
+         Alert.alert("Success", "Goods intake logged.");
+      } catch (error) {
+         const message = error instanceof Error ? error.message : "Failed to receive goods";
+         Alert.alert("Action failed", message);
+      }
+   };
 
   return (
     <ScrollView 
@@ -64,7 +188,30 @@ export function SiteManagerAfterScreen({
                </View>
                <Text style={localStyles.checkTitle}>Final Aid Dispensing</Text>
                <Text style={localStyles.checkDesc}>Verify citizen relief ID for recovery kit distribution.</Text>
-               <TouchableOpacity style={localStyles.logStatusBtn}>
+                     <TouchableOpacity
+                        style={localStyles.selectorButton}
+                        onPress={() => {
+                           if (inventoryItems.length === 0) {
+                              return;
+                           }
+                           const currentIndex = inventoryItems.findIndex((item) => item.id === selectedItemId);
+                           const next = inventoryItems[(currentIndex + 1 + inventoryItems.length) % inventoryItems.length];
+                           setSelectedItemId(next.id);
+                        }}
+                     >
+                        <Text style={localStyles.selectorButtonText}>
+                           Item: {inventoryItems.find((item) => item.id === selectedItemId)?.name ?? "No item"}
+                        </Text>
+                     </TouchableOpacity>
+                     <TextInput
+                        value={aidQuantity}
+                        onChangeText={setAidQuantity}
+                        placeholder="Aid quantity"
+                        placeholderTextColor={currentTheme.textLight}
+                        keyboardType="numeric"
+                        style={localStyles.quantityInput}
+                     />
+               <TouchableOpacity style={localStyles.logStatusBtn} onPress={handleVerifyLogAid}>
                   <Text style={localStyles.logStatusText}>Verify & Log Aid</Text>
                </TouchableOpacity>
             </View>
@@ -150,7 +297,7 @@ export function SiteManagerAfterScreen({
               </View>
               <Text style={{ fontSize: 11, ...fonts.medium, color: 'rgba(255,255,255,0.5)', marginBottom: 20 }}>Finalize day-of operations and prepare site handover documentation.</Text>
               
-              <TouchableOpacity style={localStyles.closingBtn}>
+              <TouchableOpacity style={localStyles.closingBtn} onPress={handleInitiateCheckout}>
                  <View style={localStyles.closingIcon}>
                     <Ionicons name="lock-closed" size={18} color="#fff" />
                  </View>
@@ -160,7 +307,7 @@ export function SiteManagerAfterScreen({
                  </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[localStyles.closingBtn, { marginTop: 12 }]}>
+              <TouchableOpacity style={[localStyles.closingBtn, { marginTop: 12 }]} onPress={handleGenerateSummary}> 
                  <View style={[localStyles.closingIcon, { backgroundColor: 'rgba(255,179,0,0.1)' }]}>
                     <Ionicons name="stats-chart" size={18} color="#FFB300" />
                  </View>
@@ -199,11 +346,37 @@ export function SiteManagerAfterScreen({
               <Text style={localStyles.sectionTitle}>Inventory Recovery & Intake</Text>
               <Text style={localStyles.sectionSub}>Managing physical relief goods arriving from regional terminals.</Text>
             </View>
-            <TouchableOpacity style={localStyles.receiveBtn}>
+            <TouchableOpacity style={localStyles.receiveBtn} onPress={handleReceiveGoods}>
                <Ionicons name="cube" size={14} color="#fff" />
                <Text style={localStyles.receiveBtnText}>Receive Goods</Text>
             </TouchableOpacity>
          </View>
+
+             <View style={localStyles.receiveControlsRow}>
+                <TouchableOpacity
+                   style={localStyles.selectorButton}
+                   onPress={() => {
+                      if (inventoryItems.length === 0) {
+                         return;
+                      }
+                      const currentIndex = inventoryItems.findIndex((item) => item.id === selectedItemId);
+                      const next = inventoryItems[(currentIndex + 1 + inventoryItems.length) % inventoryItems.length];
+                      setSelectedItemId(next.id);
+                   }}
+                >
+                   <Text style={localStyles.selectorButtonText}>
+                      Item: {inventoryItems.find((item) => item.id === selectedItemId)?.name ?? "No item"}
+                   </Text>
+                </TouchableOpacity>
+                <TextInput
+                   value={intakeQuantity}
+                   onChangeText={setIntakeQuantity}
+                   placeholder="Intake qty"
+                   placeholderTextColor={currentTheme.textLight}
+                   keyboardType="numeric"
+                   style={localStyles.quantityInput}
+                />
+             </View>
 
          <View style={localStyles.inventoryList}>
             {[
@@ -282,6 +455,28 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
   checkIconWrap: { width: 64, height: 64, borderRadius: 24, backgroundColor: "rgba(46, 125, 50, 0.05)", alignItems: "center", justifyContent: "center" },
   checkTitle: { fontSize: 18, ...fonts.black, color: theme.text },
   checkDesc: { fontSize: 12, ...fonts.medium, color: theme.textMuted, textAlign: "center", lineHeight: 18 },
+   selectorButton: {
+      width: "100%",
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.line,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+   },
+   selectorButtonText: { fontSize: 12, ...fonts.black, color: theme.text },
+   quantityInput: {
+      width: "100%",
+      backgroundColor: theme.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.line,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      color: theme.text,
+      fontSize: 13,
+      ...fonts.medium,
+   },
   logStatusBtn: { backgroundColor: "#2E7D32", paddingHorizontal: 20, paddingVertical: 14, borderRadius: 16, width: "100%", alignItems: "center", marginTop: 12 },
   logStatusText: { color: "#fff", ...fonts.black, fontSize: 12, letterSpacing: 0.5 },
 
@@ -319,6 +514,7 @@ const getStyles = (theme: AppTheme) => StyleSheet.create({
   inventorySection: { backgroundColor: theme.surface, borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
   receiveBtn: { backgroundColor: "#2E7D32", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   receiveBtnText: { color: "#fff", ...fonts.black, fontSize: 11 },
+   receiveControlsRow: { marginTop: 14, gap: 10 },
 
   inventoryList: { marginTop: 32, gap: 16 },
   inventoryCard: { backgroundColor: theme.surfaceAlt, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: theme.line },

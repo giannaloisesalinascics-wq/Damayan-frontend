@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
+import { SystemPhaseProvider } from "./src/context/SystemPhaseContext";
+import * as Font from "expo-font";
+import { Ionicons } from "@expo/vector-icons";
 import {
   CitizenBeforeScreen,
   CitizenHouseholdMembersScreen,
@@ -19,9 +22,20 @@ import type { AppRoute } from "./src/types";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>("role-selector");
-  const [fontsReady, setFontsReady] = useState(true);
+  const [fontsReady, setFontsReady] = useState(false);
 
   useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync(Ionicons.font);
+      } catch (e) {
+        console.warn("Error loading fonts", e);
+      } finally {
+        setFontsReady(true);
+      }
+    }
+    loadFonts();
+
     // Load Google Fonts for web via dynamic link
     if (typeof document !== "undefined") {
       const link = document.createElement("link");
@@ -35,6 +49,20 @@ export default function App() {
     return <View style={{ flex: 1, backgroundColor: "#f8f9f8" }} />;
   }
 
+  return (
+    <SystemPhaseProvider>
+      <AppContent route={route} setRoute={setRoute} />
+    </SystemPhaseProvider>
+  );
+}
+
+function AppContent({
+  route,
+  setRoute,
+}: {
+  route: AppRoute;
+  setRoute: React.Dispatch<React.SetStateAction<AppRoute>>;
+}) {
   switch (route) {
     case "admin-login":
       return (

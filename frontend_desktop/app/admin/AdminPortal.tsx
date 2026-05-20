@@ -1,9 +1,34 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { hasRole, loadSession, clearSession, saveSession } from "../lib/session";
+import {
+  getDashboard,
+  getDisasterEvents,
+  updateAdminDisasterEvent,
+  updateProfile,
+  broadcastAdminWarning,
+  getAdminIncidentReports,
+  createAdminReliefOperation,
+  createAdminDispatchOrder,
+  createAdminObjectViewUrl,
+  generateSiteReport,
+  getCitizens,
+  getFamilies,
+  getPendingApprovals,
+  approvePendingUser,
+  rejectPendingUser,
+  getSystemHealth,
+  type AdminApprovalRecord,
+  type AdminSystemHealthRecord,
+} from "../lib/api";
+import { subscribeToLiveAlerts, type LiveAlertRecord } from "../lib/supabase";
+import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
+import { AppRole } from "../lib/types";
 import "./AdminPortal.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+//  Types 
 type AdminPage =
   | "overview"
   | "approvals"
@@ -47,13 +72,15 @@ interface PendingAccount {
   area: string;
   email: string;
   submitted: string;
-  docs: { name: string; type: string; status: "VERIFIED" | "PENDING" | "FAILED" }[];
+  docs: { name: string; type: string; status: "VERIFIED" | "PENDING" | "FAILED"; bucket?: string; objectPath?: string }[];
   status: AccountStatus;
   rejectReason?: string;
   qrGenerated?: boolean;
   familyQrRequested?: boolean;
   familyQrGenerated?: boolean;
   familyMembers?: FamilyMember[];
+  governmentIdKey?: string;
+  profilePhotoKey?: string;
 }
 
 interface QRRecord {
@@ -123,141 +150,27 @@ interface Notification {
   read: boolean;
 }
 
-// ─── Initial Data ─────────────────────────────────────────────────────────────
-const INITIAL_ACCOUNTS: PendingAccount[] = [
-  {
-    id: "ACC-1041",
-    name: "Ana Torres",
-    role: "Dispatcher",
-    area: "Metro Cluster 5",
-    email: "a.torres@ndrrmc.gov.ph",
-    submitted: "2h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "UMID", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "PENDING",
-    familyMembers: [
-      { name: "Marco Torres", relation: "Spouse", age: 34, gender: "M" },
-      { name: "Sofia Torres", relation: "Daughter", age: 8, gender: "F" },
-    ],
-  },
-  {
-    id: "ACC-1042",
-    name: "Renz Villanueva",
-    role: "Dispatcher",
-    area: "Metro Cluster 3",
-    email: "r.villanueva@ndrrmc.gov.ph",
-    submitted: "4h ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Passport", status: "VERIFIED" },
-      { name: "Barangay Clearance", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1043",
-    name: "Liza Ramos",
-    role: "Site Manager",
-    area: "Zone B-3",
-    email: "l.ramos@dswd.gov.ph",
-    submitted: "1d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "Driver's License", status: "VERIFIED" },
-      { name: "Employment Certificate", type: "PDF", status: "VERIFIED" },
-      { name: "Authorization Letter", type: "PDF", status: "PENDING" },
-    ],
-    status: "PENDING",
-  },
-  {
-    id: "ACC-1044",
-    name: "Carlos Mendez",
-    role: "Site Manager",
-    area: "District 4",
-    email: "c.mendez@lgu-qc.gov.ph",
-    submitted: "2d ago",
-    docs: [
-      { name: "Government-Issued ID", type: "PhilSys ID", status: "VERIFIED" },
-      { name: "Appointment Order", type: "PDF", status: "VERIFIED" },
-    ],
-    status: "APPROVED",
-    qrGenerated: true,
-    familyMembers: [
-      { name: "Rosa Mendez", relation: "Spouse", age: 40, gender: "F" },
-      { name: "Carlo Mendez", relation: "Son", age: 16, gender: "M" },
-      { name: "Pia Mendez", relation: "Daughter", age: 12, gender: "F" },
-    ],
-  },
-  {
-    id: "ACC-1045",
-    name: "Patricia Gomez",
-    role: "Dispatcher",
-    area: "Metro Cluster 7",
-    email: "p.gomez@ndrrmc.gov.ph",
-    submitted: "3d ago",
-    docs: [{ name: "Government-Issued ID", type: "UMID", status: "FAILED" }],
-    status: "REJECTED",
-    rejectReason: "Submitted ID is expired. Please resubmit with a valid document.",
-  },
-];
+function mapSeverityToNotificationType(severity?: string): Notification["type"] {
+  const normalized = String(severity ?? "").toLowerCase();
+  if (normalized === "critical" || normalized === "evacuation") return "red";
+  if (normalized === "warning") return "amber";
+  if (normalized === "info") return "blue";
+  return "green";
+}
 
-const INITIAL_QR: QRRecord[] = [
-  { id: "QR-5001", name: "Carlos Mendez", type: "individual", area: "District 4", issuedAt: "Today 10:00", linkedAccountId: "ACC-1044" },
-  { id: "QR-5002", name: "Santos Family", type: "family", area: "Zone A-4", issuedAt: "Today 09:30", familySize: 5 },
-  { id: "QR-5003", name: "Maria Reyes", type: "individual", area: "North District", issuedAt: "Today 09:00" },
-  { id: "QR-5004", name: "Dela Rosa Family", type: "family", area: "Sector 12", issuedAt: "Yesterday", familySize: 3 },
-];
+function mapLiveAlertToNotification(alert: LiveAlertRecord): Notification {
+  const target = alert.target ? `  ${alert.target}` : "";
+  return {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    title: alert.title,
+    sub: `${alert.severity.toUpperCase()}  ${alert.message}${target}`,
+    time: alert.created_at ? new Date(alert.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Just now",
+    type: mapSeverityToNotificationType(alert.severity),
+    read: false,
+  };
+}
 
-const INITIAL_DISASTERS: DisasterEvent[] = [
-  { id: "DIS-001", name: "Typhoon Kristine", type: "Typhoon", severity: "CAT 3", phase: "DURING", areas: "Metro Manila, Rizal, Laguna", affected: 18432, tickets: 142, dispatchers: 4, riskLevel: "CRITICAL" },
-  { id: "DIS-002", name: "Flooding — Laguna Basin", type: "Flood", severity: "WATCH", phase: "BEFORE", areas: "Laguna, Cavite", affected: 3200, tickets: 12, dispatchers: 1, riskLevel: "HIGH" },
-  { id: "DIS-003", name: "Landslide — Rizal Province", type: "Landslide", severity: "RESOLVED", phase: "AFTER", areas: "Antipolo, Montalban", affected: 780, tickets: 87, dispatchers: 0, riskLevel: "LOW" },
-];
-
-const FORECAST_DATA = [
-  { area: "Metro Manila", risk: "CRITICAL" as RiskLevel, rainfall: "Heavy (120mm+)", wind: "140 km/h", action: "Immediate evacuation recommended" },
-  { area: "Laguna Basin", risk: "HIGH" as RiskLevel, rainfall: "Moderate-Heavy", wind: "80 km/h", action: "Pre-position resources, monitor closely" },
-  { area: "Rizal Province", risk: "HIGH" as RiskLevel, rainfall: "Moderate", wind: "65 km/h", action: "Pre-emptive evacuation for high-risk zones" },
-  { area: "Cavite Lowlands", risk: "MEDIUM" as RiskLevel, rainfall: "Moderate", wind: "55 km/h", action: "Alert standing by" },
-  { area: "Bulacan North", risk: "LOW" as RiskLevel, rainfall: "Light", wind: "30 km/h", action: "Standard monitoring" },
-];
-
-const LIVE_FEEDS = [
-  { src: "PAGASA", data: "Typhoon Kristine — CAT 3, winds 140 km/h, ETA landfall +5h", status: "LIVE" },
-  { src: "NDRRMC", data: "Flood watch: Laguna Basin, Marikina River approaching Lvl 2", status: "LIVE" },
-  { src: "Rainfall Sensors", data: "Heavy rainfall sustained 4h in Districts 3, 4, 5", status: "LIVE" },
-  { src: "River Level Monitor", data: "Marikina River: 18.6m — Alert Level 2 (threshold: 20m)", status: "LIVE" },
-];
-
-const SYSTEM_SERVICES: ServiceHealth[] = [
-  { name: "API Gateway", status: "OPERATIONAL", latency: "11ms", uptime: "99.98%" },
-  { name: "Auth Service", status: "OPERATIONAL", latency: "8ms", uptime: "99.99%" },
-  { name: "Notification Service", status: "DEGRADED", latency: "340ms", uptime: "98.1%", note: "SMS provider rate limiting — ETA fix 15min" },
-  { name: "GIS / Mapping API", status: "OPERATIONAL", latency: "24ms", uptime: "99.95%" },
-  { name: "Screening API", status: "OPERATIONAL", latency: "58ms", uptime: "99.91%" },
-
-  { name: "Database (Supabase)", status: "OPERATIONAL", latency: "18ms", uptime: "99.99%" },
-  { name: "File Storage", status: "OPERATIONAL", latency: "22ms", uptime: "99.93%" },
-];
-
-const ADMIN_PROFILE: AdminProfile = {
-  name: "Juan C. dela Cruz",
-  initials: "JD",
-  badge: "ADM-2024-0012",
-  station: "NDRRMC National Operations Center",
-  email: "j.delacruz@ndrrmc.gov.ph",
-  phone: "09XX-801-0012",
-  role: "System Administrator",
-};
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: 1, title: "3 Pending Approvals", sub: "ACC-1041, ACC-1042, ACC-1043 awaiting review", time: "Just now", type: "red", read: false },
-  { id: 2, title: "Notification Service Degraded", sub: "SMS latency 340ms — engineering notified", time: "5 min ago", type: "amber", read: false },
-  { id: 3, title: "DIS-001 Status Update", sub: "Typhoon Kristine — risk level remains CRITICAL", time: "12 min ago", type: "red", read: false },
-  { id: 4, title: "Family Record Updated", sub: "Carlos Mendez family registered", time: "2h ago", type: "green", read: true },
-];
-
-// ─── Color maps ───────────────────────────────────────────────────────────────
+//  Color maps 
 const RISK_CLASS: Record<RiskLevel, string> = {
   CRITICAL: "red",
   HIGH: "orange",
@@ -272,9 +185,9 @@ const PHASE_CLASS: Record<CalamityPhase, string> = {
 };
 
 const PHASE_LABEL: Record<CalamityPhase, string> = {
-  BEFORE: "⚡ Before",
-  DURING: "🚨 During",
-  AFTER: "✅ After",
+  BEFORE: " Before",
+  DURING: " During",
+  AFTER: " After",
 };
 
 const RISK_COLOR: Record<RiskLevel, string> = {
@@ -284,15 +197,15 @@ const RISK_COLOR: Record<RiskLevel, string> = {
   LOW: "var(--admin-green)",
 };
 
-const TOAST_ICONS = { success: "✅", error: "❌", info: "ℹ️", warning: "⚠️" };
+const TOAST_ICONS = { success: "check_circle", error: "error", info: "info", warning: "warning" };
 
-// ─── Toast container ──────────────────────────────────────────────────────────
+//  Toast container 
 function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
   return (
     <div className="admin-toast-wrap">
       {toasts.map((t) => (
         <div key={t.id} className={`admin-toast ${t.type}`}>
-          <span className="admin-toast-ico">{TOAST_ICONS[t.type]}</span>
+          <span className="admin-toast-ico material-symbols-outlined">{TOAST_ICONS[t.type]}</span>
           <div>
             <div className="admin-toast-title">{t.title}</div>
             {t.sub && <div className="admin-toast-sub">{t.sub}</div>}
@@ -303,7 +216,7 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
   );
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
+//  Modal 
 function Modal({
   title,
   onClose,
@@ -325,7 +238,9 @@ function Modal({
       <div className={cls}>
         <div className="admin-modal-header">
           <div className="admin-modal-title">{title}</div>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
+          <button className="admin-modal-close" onClick={onClose}>
+            <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>close</span>
+          </button>
         </div>
         <div className="admin-modal-body">{children}</div>
         {footer && <div className="admin-modal-footer">{footer}</div>}
@@ -334,7 +249,7 @@ function Modal({
   );
 }
 
-// ─── Stepper ──────────────────────────────────────────────────────────────────
+//  Stepper 
 function Stepper({ steps, current }: { steps: { id: string; label: string }[]; current: string }) {
   const currentIdx = steps.findIndex((s) => s.id === current);
   return (
@@ -346,7 +261,7 @@ function Stepper({ steps, current }: { steps: { id: string; label: string }[]; c
           <div key={step.id} className="admin-step-wrap">
             <div className="admin-step">
               <div className={`admin-step-circle ${isDone ? "done" : isActive ? "active" : "pending"}`}>
-                {isDone ? "✓" : i + 1}
+                {isDone ? <span className="material-symbols-outlined" style={{ fontSize: "0.9rem" }}>check</span> : i + 1}
               </div>
               <div className={`admin-step-label ${isDone ? "done" : isActive ? "active" : ""}`}>
                 {step.label}
@@ -362,9 +277,9 @@ function Stepper({ steps, current }: { steps: { id: string; label: string }[]; c
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  LOGIN PAGE
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
@@ -381,8 +296,6 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
   const handleLogin = () => {
     if (!username || !password) { setLoginError("Enter username and password."); return; }
-    if (username === "admin" && password === "admin123") { setLoginError(""); onLogin(); return; }
-    // Demo — accept any non-empty
     setLoginError(""); onLogin();
   };
 
@@ -405,11 +318,11 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   };
 
   const features = [
-    { icon: "✅", label: "Account Approvals", desc: "Review and validate role applications" },
-    { icon: "👨‍👩‍👧", label: "Family Records", desc: "View and manage registered family groups" },
-    { icon: "🌀", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
-    { icon: "📡", label: "Early Warning", desc: "Configure and broadcast alerts" },
-    { icon: "💻", label: "System Health", desc: "Monitor all platform services" },
+    { icon: "how_to_reg", label: "Account Approvals", desc: "Review and validate role applications" },
+    { icon: "groups", label: "Family Records", desc: "View and manage registered family groups" },
+    { icon: "crisis_alert", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
+    { icon: "campaign", label: "Early Warning", desc: "Configure and broadcast alerts" },
+    { icon: "monitor_heart", label: "System Health", desc: "Monitor all platform services" },
   ];
 
   return (
@@ -440,7 +353,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           </div>
 
           <div style={{ fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", marginBottom: "0.75rem" }}>
-            Command · Control · Coordinate
+            Command  Control  Coordinate
           </div>
           <h1 style={{ fontSize: "clamp(2.4rem, 3.5vw, 4rem)", fontWeight: 900, color: "#fff", lineHeight: 0.98, letterSpacing: "-0.04em", marginBottom: "1.2rem" }}>
             The Admin<br /><span style={{ color: "rgba(147,197,253,0.9)" }}>Command Center.</span>
@@ -456,7 +369,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
             {features.map((f) => (
               <div key={f.label} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "0.85rem", padding: "0.85rem 1rem", display: "flex", gap: "0.65rem", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{f.icon}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", flexShrink: 0 }}>{f.icon}</span>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: "0.78rem", color: "#fff", marginBottom: "0.15rem" }}>{f.label}</div>
                   <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>{f.desc}</div>
@@ -474,13 +387,13 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           {/* Waiting for verification */}
           {waitingVerification ? (
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⏳</div>
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}></div>
               <h2 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.04em", marginBottom: "0.6rem" }}>Awaiting Verification</h2>
               <p style={{ color: "#6b7494", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
                 Your Government ID has been submitted. An existing administrator will review and approve your account. You will be notified via email.
               </p>
               <button onClick={() => { setWaitingVerification(false); setMode("login"); }} style={{ padding: "0.75rem 1.5rem", background: "#f5f6f8", border: "1.5px solid #e8eaed", borderRadius: "0.65rem", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "Public Sans, sans-serif" }}>
-                ← Back to Login
+                 Back to Login
               </button>
             </div>
           ) : forgotMode ? (
@@ -498,12 +411,12 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                 </div>
                 {!otpSent ? (
                   <button className="admin-btn admin-btn-accent" style={{ width: "100%", justifyContent: "center", padding: "0.85rem" }} onClick={handleSendOtp}>
-                    📧 Send Reset Link via Email/SMS
+                     Send Reset Link via Email/SMS
                   </button>
                 ) : (
                   <>
                     <div className="admin-alert info">
-                      <span className="admin-alert-icon">📧</span>
+                      <span className="admin-alert-icon material-symbols-outlined">info</span>
                       <div>A 6-digit OTP has been sent to <strong>{forgotEmail}</strong>. Enter it below to create a new password.</div>
                     </div>
                     <div className="admin-form-group">
@@ -512,15 +425,15 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     </div>
                     <div className="admin-form-group">
                       <label className="admin-form-label">New Password</label>
-                      <input className="admin-form-input" type="password" placeholder="••••••••" />
+                      <input className="admin-form-input" type="password" placeholder="" />
                     </div>
                     <button className="admin-btn admin-btn-accent" style={{ width: "100%", justifyContent: "center", padding: "0.85rem" }} onClick={handleVerifyOtp}>
-                      Verify OTP & Update Password →
+                      Verify OTP & Update Password 
                     </button>
                   </>
                 )}
                 <button onClick={() => { setForgotMode(false); setOtpSent(false); }} style={{ background: "none", border: "none", color: "#6b7494", fontSize: "0.82rem", cursor: "pointer", fontFamily: "Public Sans, sans-serif", padding: 0, fontWeight: 600, textAlign: "left" }}>
-                  ← Back to Login
+                   Back to Login
                 </button>
               </div>
             </div>
@@ -545,7 +458,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
 
                   {loginError && (
                     <div className="admin-alert critical" style={{ marginBottom: "1rem" }}>
-                      <span className="admin-alert-icon">❌</span>
+                      <span className="admin-alert-icon material-symbols-outlined">error</span>
                       <div>{loginError}</div>
                     </div>
                   )}
@@ -562,15 +475,11 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                           Forgot password?
                         </button>
                       </div>
-                      <input className="admin-form-input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} />
+                      <input className="admin-form-input" type="password" placeholder="" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} />
                     </div>
                     <button className="admin-btn admin-btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.9rem", fontSize: "0.92rem", borderRadius: "0.75rem", marginTop: "0.25rem" }} onClick={handleLogin}>
-                      Sign In to Admin Console →
+                      Sign In to Admin Console 
                     </button>
-                  </div>
-
-                  <div style={{ marginTop: "1.2rem", padding: "0.85rem 1rem", background: "#f5f6f8", borderRadius: "0.85rem", fontSize: "0.78rem", color: "#6b7494" }}>
-                    <strong style={{ color: "#1a1c2e" }}>Demo access:</strong> username <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin</code> · password <code style={{ background: "#e8eaed", padding: "1px 5px", borderRadius: "4px", fontSize: "0.75rem" }}>admin123</code>
                   </div>
                 </>
               ) : (
@@ -591,7 +500,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     </div>
                     <div className="admin-form-group">
                       <label className="admin-form-label">Password</label>
-                      <input className="admin-form-input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+                      <input className="admin-form-input" type="password" placeholder="" value={password} onChange={(e) => setPassword(e.target.value)} />
                     </div>
                     <div className="admin-form-group">
                       <label className="admin-form-label">Upload Valid Government ID *</label>
@@ -600,10 +509,10 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                         onClick={() => setIdFile(true)}
                       >
                         {idFile ? (
-                          <div style={{ color: "var(--admin-green)", fontWeight: 700, fontSize: "0.88rem" }}>✅ Government ID Uploaded</div>
+                          <div style={{ color: "var(--admin-green)", fontWeight: 700, fontSize: "0.88rem" }}> Government ID Uploaded</div>
                         ) : (
                           <>
-                            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📄</div>
+                            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}></div>
                             <div style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", fontWeight: 600 }}>Click to upload Government ID</div>
                             <div style={{ fontSize: "0.72rem", color: "#bbb", marginTop: "0.25rem" }}>PNG, JPG, PDF accepted</div>
                           </>
@@ -616,7 +525,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                       onClick={handleRegister}
                       disabled={!registerName || !registerEmail || !password || !idFile}
                     >
-                      Submit Registration →
+                      Submit Registration 
                     </button>
                   </div>
                 </>
@@ -629,19 +538,25 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  DASHBOARD / OVERVIEW
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 function OverviewPage({
   accounts,
+  qrRecords,
   disasters,
+  loading,
   activityLog,
   setPage,
+  overview,
 }: {
   accounts: PendingAccount[];
+  qrRecords: QRRecord[];
   disasters: DisasterEvent[];
+  loading: boolean;
   activityLog: { time: string; type: string; msg: string; col: string }[];
   setPage: (p: AdminPage) => void;
+  overview: DashboardOverview | null;
 }) {
   const pending = accounts.filter((a) => a.status === "PENDING").length;
   const activeDisasters = disasters.filter((d) => d.phase !== "AFTER").length;
@@ -661,27 +576,27 @@ function OverviewPage({
       <div className="admin-stats-row admin-stats-5">
         <div className="admin-stat red">
           <div className="admin-stat-label">Active Disasters</div>
-          <div className="admin-stat-value">{activeDisasters}</div>
+          <div className="admin-stat-value">{loading ? "..." : activeDisasters}</div>
           <div className="admin-stat-note">Require monitoring</div>
         </div>
         <div className="admin-stat orange">
           <div className="admin-stat-label">Pending Approvals</div>
-          <div className="admin-stat-value">{pending}</div>
+          <div className="admin-stat-value">{loading ? "..." : pending}</div>
           <div className="admin-stat-note">Awaiting review</div>
         </div>
         <div className="admin-stat blue">
-          <div className="admin-stat-label">Registered Families</div>
-          <div className="admin-stat-value">{accounts.filter(a => a.status === "APPROVED" && a.familyMembers && a.familyMembers.length > 0).length}</div>
-          <div className="admin-stat-note">With family records</div>
+          <div className="admin-stat-label">QR Codes Issued</div>
+          <div className="admin-stat-value">{loading ? "..." : qrRecords.length}</div>
+          <div className="admin-stat-note">Total issued</div>
         </div>
         <div className="admin-stat green">
-          <div className="admin-stat-label">Active Dispatchers</div>
-          <div className="admin-stat-value">5</div>
-          <div className="admin-stat-note">On duty</div>
+          <div className="admin-stat-label">Inventory Items</div>
+          <div className="admin-stat-value">{loading ? "..." : (overview?.inventory?.totalItems ?? 0)}</div>
+          <div className="admin-stat-note">Across all centers</div>
         </div>
         <div className="admin-stat violet">
-          <div className="admin-stat-label">Total Tickets</div>
-          <div className="admin-stat-value">{disasters.reduce((s, d) => s + d.tickets, 0)}</div>
+          <div className="admin-stat-label">Incident Reports</div>
+          <div className="admin-stat-value">{loading ? "..." : (overview?.incidentReports?.totalReports ?? 0)}</div>
           <div className="admin-stat-note">All events</div>
         </div>
       </div>
@@ -691,7 +606,7 @@ function OverviewPage({
         <div>
           <div className="admin-card" style={{ marginBottom: "1rem" }}>
             <div className="admin-card-header">
-              <div className="admin-card-title">🌀 Active Disaster Events</div>
+              <div className="admin-card-title"> Active Disaster Events</div>
               <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setPage("disaster_monitoring")}>View All</button>
             </div>
             <div className="admin-table-wrap">
@@ -706,20 +621,34 @@ function OverviewPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {disasters.map((d) => (
-                    <tr key={d.id}>
-                      <td>
-                        <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{d.name}</div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{d.areas}</div>
-                      </td>
-                      <td><span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span></td>
-                      <td><span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span></td>
-                      <td style={{ fontWeight: 800 }}>{d.tickets}</td>
-                      <td>
-                        <button className="admin-btn admin-btn-ghost admin-btn-xs" onClick={() => setPage("disaster_monitoring")}>Monitor</button>
+                  {loading && disasters.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", color: "var(--admin-text-soft)" }}>
+                        Loading active disaster events...
                       </td>
                     </tr>
-                  ))}
+                  ) : disasters.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", color: "var(--admin-text-soft)" }}>
+                        No active disaster events found.
+                      </td>
+                    </tr>
+                  ) : (
+                    disasters.map((d) => (
+                      <tr key={d.id}>
+                        <td>
+                          <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{d.name.charAt(0).toUpperCase() + d.name.slice(1)}</div>
+                          <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{d.areas}</div>
+                        </td>
+                        <td><span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span></td>
+                        <td><span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span></td>
+                        <td style={{ fontWeight: 800 }}>{d.tickets}</td>
+                        <td>
+                          <button className="admin-btn admin-btn-ghost admin-btn-xs" onClick={() => setPage("disaster_monitoring")}>Monitor</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -728,14 +657,16 @@ function OverviewPage({
           {/* Activity log */}
           {activityLog.length > 0 && (
             <div className="admin-card">
-              <div className="admin-card-header"><div className="admin-card-title">🕐 Recent Admin Activity</div></div>
+              <div className="admin-card-header"><div className="admin-card-title"> Recent Admin Activity</div></div>
               <div className="admin-card-body">
                 <div className="admin-tl">
                   {activityLog.slice(0, 5).map((log, i) => (
                     <div key={i} className="admin-tl-item">
                       <div className="admin-tl-left">
                         <div className="admin-tl-dot" style={{ background: log.col + "18", borderColor: log.col, color: log.col, fontSize: "0.55rem" }}>
-                          {log.type === "APPROVED" ? "✓" : log.type === "REJECTED" ? "✕" : log.type === "QR" ? "📱" : "📡"}
+                          <span className="material-symbols-outlined" style={{ fontSize: "0.7rem" }}>
+                            {log.type === "APPROVED" ? "check_circle" : log.type === "REJECTED" ? "cancel" : log.type === "QR" ? "qr_code_2" : "campaign"}
+                          </span>
                         </div>
                         {i < Math.min(activityLog.length, 5) - 1 && <div className="admin-tl-line" />}
                       </div>
@@ -754,12 +685,12 @@ function OverviewPage({
         {/* Quick actions + Pending */}
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div className="admin-card">
-            <div className="admin-card-header"><div className="admin-card-title">⚡ Quick Actions</div></div>
+            <div className="admin-card-header"><div className="admin-card-title"> Quick Actions</div></div>
             <div className="admin-card-body">
               {[
                 { label: "Review Account Approvals", icon: "how_to_reg", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
                 { label: "People & Records", icon: "people", count: null, color: "var(--admin-blue)", page: "people_records" as AdminPage },
-                { label: "After Calamity", icon: "📋", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
+                { label: "After Calamity", icon: "assignment_turned_in", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
                 { label: "Monitor Disasters", icon: "crisis_alert", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
                 { label: "Configure Early Warning", icon: "broadcast_on_home", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
                 { label: "System Health", icon: "monitor_heart", count: null, color: "var(--admin-green)", page: "system_health" as AdminPage },
@@ -771,12 +702,12 @@ function OverviewPage({
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--admin-surface-muted)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "var(--admin-surface-low)")}
                 >
-                  <span style={{ fontSize: "1rem" }}>{qa.icon}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{qa.icon}</span>
                   <span style={{ flex: 1, fontWeight: 700, fontSize: "0.82rem" }}>{qa.label}</span>
                   {qa.count != null && qa.count > 0 ? (
                     <span style={{ background: qa.color, color: "#fff", fontSize: "0.62rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px" }}>{qa.count}</span>
                   ) : (
-                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}>→</span>
+                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}></span>
                   )}
                 </div>
               ))}
@@ -787,7 +718,7 @@ function OverviewPage({
           {pending > 0 && (
             <div className="admin-card">
               <div className="admin-card-header">
-                <div className="admin-card-title">⏳ Pending Approvals</div>
+                <div className="admin-card-title"> Pending Approvals</div>
                 <button className="admin-btn admin-btn-accent admin-btn-sm" onClick={() => setPage("approvals")}>Review All</button>
               </div>
               <div className="admin-card-body" style={{ padding: "0.75rem" }}>
@@ -801,7 +732,7 @@ function OverviewPage({
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{a.name}</div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{a.role} · {a.area}</div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{a.role}  {a.area}</div>
                       </div>
                       <span className="admin-badge amber">{a.submitted}</span>
                     </div>
@@ -815,26 +746,31 @@ function OverviewPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  APPROVALS PAGE (Swimlane: Review Docs → Is Document Valid? → Approve/Reject)
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  APPROVALS PAGE (Swimlane: Review Docs  Is Document Valid?  Approve/Reject)
+// 
 function ApprovalsPage({
   accounts,
   onApprove,
   onReject,
+  onPreviewPrimaryDoc,
   addLog,
   showToast,
+  dataStatus,
 }: {
   accounts: PendingAccount[];
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
+  onPreviewPrimaryDoc: (account: PendingAccount) => Promise<boolean>;
   addLog: (type: string, msg: string, col: string) => void;
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  dataStatus: "live" | "unavailable";
 }) {
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
   const [rejectTarget, setRejectTarget] = useState<PendingAccount | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [docsTarget, setDocsTarget] = useState<PendingAccount | null>(null);
+  const [previewingAccountId, setPreviewingAccountId] = useState<string | null>(null);
 
   const pending = accounts.filter((a) => a.status === "PENDING");
   const approved = accounts.filter((a) => a.status === "APPROVED");
@@ -843,9 +779,16 @@ function ApprovalsPage({
   const handleReject = () => {
     if (!rejectTarget || !rejectReason.trim()) return;
     onReject(rejectTarget.id, rejectReason);
-    showToast("error", "Account Rejected", `${rejectTarget.name} — ${rejectReason.slice(0, 60)}`);
+    showToast("error", "Account Rejected", `${rejectTarget.name}  ${rejectReason.slice(0, 60)}`);
     setRejectTarget(null);
     setRejectReason("");
+  };
+
+  const handlePreview = async (account: PendingAccount) => {
+    if (previewingAccountId) return;
+    setPreviewingAccountId(account.id);
+    await onPreviewPrimaryDoc(account);
+    setPreviewingAccountId(null);
   };
 
   const docStatusBadge = (s: "VERIFIED" | "PENDING" | "FAILED") => {
@@ -870,14 +813,14 @@ function ApprovalsPage({
             {a.status === "REJECTED" && <span className="admin-badge red">Rejected</span>}
           </div>
           <div style={{ fontSize: "0.8rem", color: "var(--admin-text-soft)", marginBottom: "0.5rem" }}>
-            Role: <strong style={{ color: "var(--admin-text)" }}>{a.role}</strong> · {a.area} · {a.email}
+            Role: <strong style={{ color: "var(--admin-text)" }}>{a.role}</strong>  {a.area}  {a.email}
           </div>
           <div style={{ fontSize: "0.7rem", color: "#bbb", marginBottom: "0.6rem" }}>Submitted {a.submitted}</div>
           {/* Docs */}
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {a.docs.map((doc) => (
               <div key={doc.name} style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.65rem", background: "var(--admin-surface-low)", borderRadius: "0.5rem", fontSize: "0.72rem" }}>
-                📄 <span style={{ fontWeight: 600 }}>{doc.name}</span> ({doc.type})
+                 <span style={{ fontWeight: 600 }}>{doc.name}</span> ({doc.type})
                 {docStatusBadge(doc.status)}
               </div>
             ))}
@@ -889,7 +832,7 @@ function ApprovalsPage({
           )}
           {a.qrGenerated && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--admin-green)", fontWeight: 700 }}>
-              ✅ Account approved
+               Account approved
             </div>
           )}
         </div>
@@ -898,7 +841,7 @@ function ApprovalsPage({
           <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
             <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setDocsTarget(a)}>View Docs</button>
             <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => onApprove(a.id)}>Approve</button>
-            <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => setRejectTarget(a)}>✕ Reject</button>
+            <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => setRejectTarget(a)}> Reject</button>
           </div>
         )}
       </div>
@@ -913,15 +856,23 @@ function ApprovalsPage({
           <p>Review documents, validate identity, and approve or reject role applications</p>
         </div>
         <div className="admin-head-actions">
+          {dataStatus === "unavailable" && <span className="admin-badge amber">API unavailable</span>}
           {pending.length > 0 && <span className="admin-badge red">{pending.length} Pending</span>}
         </div>
       </div>
 
+      {dataStatus === "unavailable" && (
+        <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
+          <div>Approvals endpoint is not reachable. Showing live backend state only.</div>
+        </div>
+      )}
+
       {/* Process info */}
       <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
-        <span className="admin-alert-icon">ℹ️</span>
+        <span className="admin-alert-icon material-symbols-outlined">info</span>
         <div>
-          <strong>Approval Workflow:</strong> Review documents for approval → Validate document authenticity → Approve or Reject account
+          <strong>Approval Workflow:</strong> Review documents for approval  Validate document authenticity  Approve or Reject account
         </div>
       </div>
 
@@ -940,8 +891,8 @@ function ApprovalsPage({
       {tab === "pending" && (
         pending.length === 0 ? (
           <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>✅</div>
-            <div style={{ fontWeight: 700, fontSize: "1rem" }}>All caught up — no pending applications.</div>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}></div>
+            <div style={{ fontWeight: 700, fontSize: "1rem" }}>All caught up  no pending applications.</div>
           </div>
         ) : pending.map((a) => renderAccount(a, true))
       )}
@@ -951,7 +902,7 @@ function ApprovalsPage({
       {/* View Docs Modal */}
       {docsTarget && (
         <Modal
-          title={`Documents — ${docsTarget.name}`}
+          title={`Documents  ${docsTarget.name}`}
           narrow
           onClose={() => setDocsTarget(null)}
           footer={
@@ -967,18 +918,24 @@ function ApprovalsPage({
         >
           <div style={{ padding: "0.75rem", background: "var(--admin-surface-low)", borderRadius: "0.75rem", marginBottom: "1rem" }}>
             <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{docsTarget.name}</div>
-            <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)", marginTop: "0.2rem" }}>{docsTarget.role} · {docsTarget.area} · {docsTarget.id}</div>
+            <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)", marginTop: "0.2rem" }}>{docsTarget.role}  {docsTarget.area}  {docsTarget.id}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             {docsTarget.docs.map((doc) => (
               <div key={doc.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.8rem 1rem", background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)", borderRadius: "0.65rem" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>📄 {doc.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}> {doc.name}</div>
                   <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)", marginTop: "0.15rem" }}>{doc.type}</div>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                   {docStatusBadge(doc.status)}
-                  <button className="admin-btn admin-btn-ghost admin-btn-xs">Preview</button>
+                  <button
+                    className="admin-btn admin-btn-ghost admin-btn-xs"
+                    onClick={() => { void handlePreview(docsTarget); }}
+                    disabled={previewingAccountId === docsTarget.id}
+                  >
+                    {previewingAccountId === docsTarget.id ? "Opening..." : "Preview"}
+                  </button>
                 </div>
               </div>
             ))}
@@ -989,7 +946,7 @@ function ApprovalsPage({
       {/* Reject Modal */}
       {rejectTarget && (
         <Modal
-          title={`Reject Application — ${rejectTarget.name}`}
+          title={`Reject Application  ${rejectTarget.name}`}
           narrow
           onClose={() => { setRejectTarget(null); setRejectReason(""); }}
           footer={
@@ -1002,13 +959,13 @@ function ApprovalsPage({
           }
         >
           <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
-            <span className="admin-alert-icon">⚠️</span>
+            <span className="admin-alert-icon material-symbols-outlined">warning</span>
             <div>Rejecting <strong>{rejectTarget.name}</strong>'s application for <strong>{rejectTarget.role}</strong>. The rejection reason will be sent to the applicant.</div>
           </div>
           <div className="admin-form-group">
             <label className="admin-form-label">Rejection Reason (required)</label>
             <select className="admin-form-select" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}>
-              <option value="">Select a reason…</option>
+              <option value="">Select a reason</option>
               <option value="Submitted ID is expired. Please resubmit with a valid document.">Expired government ID</option>
               <option value="Submitted document appears to be tampered or forged.">Document appears tampered</option>
               <option value="Required documents are incomplete. Please submit all required documents.">Incomplete documents</option>
@@ -1027,9 +984,9 @@ function ApprovalsPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PEOPLE & RECORDS PAGE — Individual + Family tabs
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  PEOPLE & RECORDS PAGE  Individual + Family tabs
+// 
 function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
   const [tab, setTab] = useState<"individual" | "family">("individual");
   const [search, setSearch] = useState("");
@@ -1104,14 +1061,14 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
         <span className="material-symbols-outlined" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", color: "var(--admin-text-soft)" }}>search</span>
         <input
           className="admin-form-input"
-          placeholder={tab === "individual" ? "Search by name, role, area, or ID…" : "Search by name or area…"}
+          placeholder={tab === "individual" ? "Search by name, role, area, or ID" : "Search by name or area"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ paddingLeft: "2.25rem" }}
         />
       </div>
 
-      {/* ── Individual Records Tab ── */}
+      {/*  Individual Records Tab  */}
       {tab === "individual" && (
         filteredIndividual.length === 0 ? (
           <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
@@ -1187,7 +1144,7 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
         )
       )}
 
-      {/* ── Family Records Tab ── */}
+      {/*  Family Records Tab  */}
       {tab === "family" && (
         filteredFamily.length === 0 ? (
           <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
@@ -1214,7 +1171,7 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
                       <span className="admin-mono" style={{ fontSize: "0.68rem", color: "var(--admin-text-soft)" }}>{a.id}</span>
                     </div>
                     <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>
-                      {a.area} · {a.email} ·{" "}
+                      {a.area}  {a.email} {" "}
                       <strong style={{ color: "var(--admin-text)" }}>
                         {(a.familyMembers?.length || 0) + 1} members
                       </strong>
@@ -1240,10 +1197,10 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
         )
       )}
 
-      {/* ── Detail Modal ── */}
+      {/*  Detail Modal  */}
       {selectedAccount && (
         <Modal
-          title={tab === "family" ? `Family Record — ${selectedAccount.name}` : `Person Record — ${selectedAccount.name}`}
+          title={tab === "family" ? `Family Record  ${selectedAccount.name}` : `Person Record  ${selectedAccount.name}`}
           onClose={() => setSelectedAccount(null)}
           footer={<button className="admin-btn admin-btn-ghost" onClick={() => setSelectedAccount(null)}>Close</button>}
         >
@@ -1260,10 +1217,10 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 900, fontSize: "1rem", marginBottom: "0.2rem" }}>{selectedAccount.name}</div>
               <div style={{ fontSize: "0.78rem", color: "var(--admin-text-soft)" }}>
-                {selectedAccount.role} · {selectedAccount.area}
+                {selectedAccount.role}  {selectedAccount.area}
               </div>
               <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginTop: "0.15rem" }}>
-                {selectedAccount.email} · <span className="admin-mono">{selectedAccount.id}</span>
+                {selectedAccount.email}  <span className="admin-mono">{selectedAccount.id}</span>
               </div>
             </div>
             <span className={`admin-badge ${roleColor[selectedAccount.role] || "blue"}`}>{selectedAccount.role}</span>
@@ -1312,7 +1269,7 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 800, fontSize: "0.85rem" }}>{m.name}</div>
                       <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>
-                        {m.relation} · Age {m.age} · {m.gender === "F" ? "Female" : "Male"}
+                        {m.relation}  Age {m.age}  {m.gender === "F" ? "Female" : "Male"}
                       </div>
                     </div>
                     <span className="admin-badge" style={{
@@ -1332,15 +1289,23 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  AFTER CALAMITY (Admin Swimlane — starts at Analyze Evacuation Occupancy Data)
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  AFTER CALAMITY (Admin Swimlane  starts at Analyze Evacuation Occupancy Data)
+// 
 function AfterCalamityPage({
   showToast,
   addLog,
+  disasters,
+  setDisasters,
+  authToken,
+  adminUserId,
 }: {
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
   addLog: (type: string, msg: string, col: string) => void;
+  disasters: DisasterEvent[];
+  setDisasters: React.Dispatch<React.SetStateAction<DisasterEvent[]>>;
+  authToken?: string;
+  adminUserId?: string;
 }) {
   type AfterStep =
     | "analyze_occupancy"
@@ -1354,7 +1319,17 @@ function AfterCalamityPage({
 
   const [step, setStep] = useState<AfterStep>("analyze_occupancy");
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const resetCycle = () => { setStep("analyze_occupancy"); setReportGenerated(false); };
+
+  const activeDisaster =
+    disasters.find((d) => d.phase === "DURING") ??
+    disasters.find((d) => d.phase === "AFTER") ??
+    disasters[0] ??
+    null;
 
   const STEPS: AfterStep[] = [
     "analyze_occupancy",
@@ -1379,13 +1354,149 @@ function AfterCalamityPage({
 
   const currentIdx = STEPS.indexOf(step);
 
+  const handleApproveDeployment = useCallback(async () => {
+    if (!authToken || !adminUserId || !activeDisaster?.id) {
+      showToast("error", "Deployment Failed", "Missing active disaster or admin session context.");
+      return;
+    }
+
+    setDeploying(true);
+    try {
+      const relief = await createAdminReliefOperation(authToken, {
+        disasterId: activeDisaster.id,
+        name: `${activeDisaster.name} Relief Deployment`,
+        description: `Auto-created from Admin After Calamity workflow for ${activeDisaster.name}.`,
+        startDate: new Date().toISOString(),
+        leadOfficerId: adminUserId,
+        status: "active",
+      });
+
+      let dispatchCreated = false;
+      if (typeof relief?.id === "string" && relief.id) {
+        const reports = await getAdminIncidentReports(authToken, activeDisaster.id);
+        const reportId = reports.find((report) => typeof report.id === "string" && report.id)?.id;
+
+        if (reportId) {
+          await createAdminDispatchOrder(authToken, {
+            reportId,
+            operationId: relief.id,
+            assignedTo: adminUserId,
+            priority: "high",
+            status: "pending",
+            instructions: `Route relief goods for ${activeDisaster.name}.`,
+          });
+          dispatchCreated = true;
+        }
+      }
+
+      setStep("broadcast_safe");
+      if (dispatchCreated) {
+        showToast("success", "Deployment Approved", "Relief operation and dispatch order created.");
+        addLog("APPROVED", `Relief operation + dispatch created for ${activeDisaster.name}`, "var(--admin-green)");
+      } else {
+        showToast("warning", "Deployment Partially Created", "Relief operation created; no incident report found for dispatch order.");
+        addLog("APPROVED", `Relief operation created for ${activeDisaster.name}; dispatch pending incident report`, "var(--admin-amber)");
+      }
+    } catch {
+      showToast("error", "Deployment Failed", "Could not create relief deployment in backend.");
+    } finally {
+      setDeploying(false);
+    }
+  }, [activeDisaster, addLog, adminUserId, authToken, showToast]);
+
+  const handleBroadcastAllClear = useCallback(async () => {
+    if (!authToken || !activeDisaster?.id) {
+      showToast("error", "Broadcast Failed", "Missing active disaster or admin session context.");
+      return;
+    }
+
+    setBroadcasting(true);
+    try {
+      const targetAreas = activeDisaster.areas
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+
+      const result = await broadcastAdminWarning(authToken, {
+        type: "all_clear",
+        severity: "info",
+        areas: targetAreas.length > 0 ? targetAreas : ["Teresa"],
+        message: `All clear for ${activeDisaster.name}. It is now safe to return home. Follow local authority guidance.`,
+        useSMS: true,
+        usePush: true,
+      });
+
+      setStep("archive_event");
+      showToast("success", "Broadcast Sent", `All-clear delivered to ${result.delivered}/${result.attempted} recipients.`);
+      addLog("BROADCAST", `All-clear sent for ${activeDisaster.name} (${result.delivered}/${result.attempted} delivered)`, "var(--admin-green)");
+    } catch {
+      showToast("error", "Broadcast Failed", "Could not send all-clear broadcast.");
+    } finally {
+      setBroadcasting(false);
+    }
+  }, [activeDisaster, addLog, authToken, showToast]);
+
+  const handleArchiveEvent = useCallback(async () => {
+    if (!authToken || !activeDisaster?.id) {
+      showToast("error", "Archive Failed", "Missing active disaster or admin session context.");
+      return;
+    }
+
+    setArchiving(true);
+    try {
+      await updateAdminDisasterEvent(authToken, activeDisaster.id, {
+        status: "resolved",
+        dateEnded: new Date().toISOString(),
+      });
+
+      setDisasters((current) =>
+        current.map((event) =>
+          event.id === activeDisaster.id
+            ? { ...event, phase: "AFTER" as CalamityPhase }
+            : event,
+        ),
+      );
+
+      setStep("review_statistics");
+      showToast("info", "Event Archived", "Disaster event marked as resolved.");
+      addLog("APPROVED", `Disaster event archived: ${activeDisaster.name}`, "var(--admin-blue)");
+    } catch {
+      showToast("error", "Archive Failed", "Could not archive disaster event in backend.");
+    } finally {
+      setArchiving(false);
+    }
+  }, [activeDisaster, addLog, authToken, setDisasters, showToast]);
+
+  const handleGenerateFinalReport = useCallback(async () => {
+    if (!authToken) {
+      showToast("error", "Report Generation Failed", "Session expired. Please log in again.");
+      return;
+    }
+
+    setReportSubmitting(true);
+    try {
+      const result = await generateSiteReport(authToken);
+      const generatedAt = typeof result?.generatedAt === "string"
+        ? new Date(result.generatedAt).toLocaleString("en-PH")
+        : "just now";
+
+      setReportGenerated(true);
+      showToast("success", "Report Generated", `Post-calamity report created at ${generatedAt}.`);
+      addLog("APPROVED", `Post-calamity summary report generated (${generatedAt})`, "var(--admin-green)");
+    } catch {
+      showToast("error", "Report Generation Failed", "Unable to generate summary report from backend.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [addLog, authToken, showToast]);
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
           <h2>After Calamity Workflow</h2>
           <p>
-            Continues from Early Warning — post-disaster relief deployment,
+            Continues from Early Warning  post-disaster relief deployment,
             archiving, and incident reporting
           </p>
         </div>
@@ -1395,6 +1506,15 @@ function AfterCalamityPage({
           </button>
         </div>
       </div>
+
+      {!activeDisaster && (
+        <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
+          <div>
+            No disaster event is currently loaded. Load an active event in Disaster Monitoring before approving deployment.
+          </div>
+        </div>
+      )}
 
       {/* Progress tracker */}
       <div className="admin-card" style={{ marginBottom: "1.25rem" }}>
@@ -1430,7 +1550,7 @@ function AfterCalamityPage({
                     {i + 1}. {STEP_LABELS[s]}
                   </div>
                   {i < STEPS.length - 1 && (
-                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.65rem" }}>›</span>
+                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.65rem" }}></span>
                   )}
                 </div>
               );
@@ -1450,7 +1570,7 @@ function AfterCalamityPage({
         </div>
         <div className="admin-card-body">
 
-          {/* ── Step 1: Analyze Evacuation Occupancy ── */}
+          {/*  Step 1: Analyze Evacuation Occupancy  */}
           {step === "analyze_occupancy" && (
             <div>
               <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
@@ -1536,7 +1656,7 @@ function AfterCalamityPage({
                         color: "var(--admin-text-soft)",
                       }}
                     >
-                      {s.evacuees} evacuees · {s.capacity} capacity
+                      {s.evacuees} evacuees  {s.capacity} capacity
                     </span>
                     <span className={`admin-badge ${s.cls}`}>{s.status}</span>
                   </div>
@@ -1558,12 +1678,12 @@ function AfterCalamityPage({
                   );
                 }}
               >
-                → Calculate Relief Requirements
+                 Calculate Relief Requirements
               </button>
             </div>
           )}
 
-          {/* ── Step 2: Calculate Relief ── */}
+          {/*  Step 2: Calculate Relief  */}
           {step === "calculate_relief" && (
             <div>
               <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
@@ -1639,7 +1759,7 @@ function AfterCalamityPage({
                         color: "var(--admin-text-soft)",
                       }}
                     >
-                      Need: {r.required} · Have: {r.available}
+                      Need: {r.required}  Have: {r.available}
                     </span>
                     <span className={`admin-badge ${r.cls}`}>{r.status}</span>
                   </div>
@@ -1650,7 +1770,7 @@ function AfterCalamityPage({
                   className="admin-btn admin-btn-ghost"
                   onClick={() => setStep("analyze_occupancy")}
                 >
-                  ← Back
+                   Back
                 </button>
                 <button
                   className="admin-btn admin-btn-accent"
@@ -1668,19 +1788,19 @@ function AfterCalamityPage({
                     );
                   }}
                 >
-                  → Approve & Route Deployment
+                   Approve & Route Deployment
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 3: Approve & Route Deployment ── */}
+          {/*  Step 3: Approve & Route Deployment  */}
           {step === "approve_deployment" && (
             <div>
               <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
                 <span className="admin-alert-icon material-symbols-outlined">cell_tower</span>
                 <div>
-                  <strong>Connected to Teresa Logistics System</strong> —
+                  <strong>Connected to Teresa Logistics System</strong> 
                   Deployment order will be routed automatically upon approval.
                 </div>
               </div>
@@ -1694,26 +1814,26 @@ function AfterCalamityPage({
               >
                 {[
                   {
-                    route: "Route Alpha → Evacuation Center A",
-                    items: "2,432 food packs · 220 medical kits",
+                    route: "Route Alpha  Evacuation Center A",
+                    items: "2,432 food packs  220 medical kits",
                     eta: "45 min",
                     vehicle: "3 trucks",
                   },
                   {
-                    route: "Route Bravo → Barangay Gym B4",
-                    items: "1,800 food packs · 180 hygiene kits",
+                    route: "Route Bravo  Barangay Gym B4",
+                    items: "1,800 food packs  180 hygiene kits",
                     eta: "30 min",
                     vehicle: "2 trucks",
                   },
                   {
-                    route: "Route Charlie → Community Hall C7",
-                    items: "920 food packs · 90 kits",
+                    route: "Route Charlie  Community Hall C7",
+                    items: "920 food packs  90 kits",
                     eta: "60 min",
                     vehicle: "1 truck",
                   },
                   {
-                    route: "Route Delta → Covered Court D2",
-                    items: "2,110 food packs · 200 blankets",
+                    route: "Route Delta  Covered Court D2",
+                    items: "2,110 food packs  200 blankets",
                     eta: "50 min",
                     vehicle: "2 trucks",
                   },
@@ -1742,7 +1862,7 @@ function AfterCalamityPage({
                         color: "var(--admin-text-soft)",
                       }}
                     >
-                      {r.items} · ETA: {r.eta} · {r.vehicle}
+                      {r.items}  ETA: {r.eta}  {r.vehicle}
                     </div>
                   </div>
                 ))}
@@ -1752,32 +1872,21 @@ function AfterCalamityPage({
                   className="admin-btn admin-btn-ghost"
                   onClick={() => setStep("calculate_relief")}
                 >
-                  ← Back
+                   Back
                 </button>
                 <button
                   className="admin-btn admin-btn-success"
                   style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
-                  onClick={() => {
-                    setStep("broadcast_safe");
-                    showToast(
-                      "success",
-                      "Deployment Approved",
-                      "Routes dispatched via Teresa Logistics"
-                    );
-                    addLog(
-                      "APPROVED",
-                      "Relief deployment order approved and routed via Teresa Logistics",
-                      "var(--admin-green)"
-                    );
-                  }}
+                  onClick={() => { void handleApproveDeployment(); }}
+                  disabled={deploying || !activeDisaster}
                 >
-                  Approve & Route Deployment Order
+                  {deploying ? "Approving..." : "Approve & Route Deployment Order"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 4: Broadcast Safe to Return ── */}
+          {/*  Step 4: Broadcast Safe to Return  */}
           {step === "broadcast_safe" && (
             <div>
               <div className="admin-alert success" style={{ marginBottom: "1.25rem" }}>
@@ -1821,10 +1930,7 @@ function AfterCalamityPage({
                   manner and follow guidance from local authorities."
                 </p>
               </div>
-              <div
-                className="admin-stats-row admin-stats-3"
-                style={{ marginBottom: "1.25rem" }}
-              >
+              <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "1.25rem" }}>
                 <div className="admin-stat green">
                   <div className="admin-stat-label">Citizens to Notify</div>
                   <div className="admin-stat-value">18K+</div>
@@ -1839,49 +1945,30 @@ function AfterCalamityPage({
                 </div>
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  onClick={() => setStep("approve_deployment")}
-                >
-                  ← Back
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("approve_deployment")}>
+                   Back
                 </button>
                 <button
                   className="admin-btn admin-btn-success"
                   style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
-                  onClick={() => {
-                    setStep("archive_event");
-                    showToast(
-                      "success",
-                      "Broadcast Sent",
-                      "All-clear notification delivered to 18K+ citizens"
-                    );
-                    addLog(
-                      "BROADCAST",
-                      "All-clear broadcast sent — calamity ended, safe to return",
-                      "var(--admin-green)"
-                    );
-                  }}
+                  onClick={() => { void handleBroadcastAllClear(); }}
+                  disabled={broadcasting || !activeDisaster}
                 >
-                  📡 Send All-Clear Broadcast
+                  {broadcasting ? "Sending..." : "Send All-Clear Broadcast"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 5: Archive Event ── */}
           {step === "archive_event" && (
             <div>
               <div className="admin-alert success" style={{ marginBottom: "1.25rem" }}>
                 <span className="admin-alert-icon material-symbols-outlined">check_circle</span>
                 <div>
-                  Broadcast sent successfully. Close the active disaster event
-                  and move it to the historical archive.
+                  Broadcast sent successfully. Close the active disaster event and move it to the historical archive.
                 </div>
               </div>
-              <div
-                className="admin-stats-row admin-stats-3"
-                style={{ marginBottom: "1.25rem" }}
-              >
+              <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "1.25rem" }}>
                 <div className="admin-stat blue">
                   <div className="admin-stat-label">Total Affected</div>
                   <div className="admin-stat-value">18,432</div>
@@ -1895,296 +1982,175 @@ function AfterCalamityPage({
                   <div className="admin-stat-value">72 hrs</div>
                 </div>
               </div>
-              <div
-                style={{
-                  padding: "0.85rem 1rem",
-                  background: "var(--admin-surface-low)",
-                  borderRadius: "0.65rem",
-                  border: "1px solid var(--admin-outline)",
-                  marginBottom: "1.25rem",
-                  fontSize: "0.82rem",
-                  color: "var(--admin-text-soft)",
-                  lineHeight: 1.7,
-                }}
-              >
-                Archiving will close all active tickets, lock the event record,
-                and move it to the historical log. This action cannot be undone.
-              </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  onClick={() => setStep("broadcast_safe")}
-                >
-                  ← Back
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("broadcast_safe")}>
+                   Back
                 </button>
                 <button
                   className="admin-btn admin-btn-accent"
-                  onClick={() => {
-                    setStep("review_statistics");
-                    showToast("info", "Event Archived", "Disaster event moved to archive");
-                    addLog(
-                      "APPROVED",
-                      "Disaster event archived successfully",
-                      "var(--admin-blue)"
-                    );
-                  }}
+                  onClick={() => { void handleArchiveEvent(); }}
+                  disabled={archiving || !activeDisaster}
                 >
-                  📁 Archive Event & Proceed
+                  {archiving ? "Archiving..." : "Archive Event & Proceed"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 6: Review Incident Statistics ── */}
           {step === "review_statistics" && (
             <div>
-              <div
-                className="admin-stats-row admin-stats-4"
-                style={{ marginBottom: "1.25rem" }}
-              >
-                <div className="admin-stat blue">
-                  <div className="admin-stat-label">Total Evacuees</div>
-                  <div className="admin-stat-value">18,432</div>
-                </div>
-                <div className="admin-stat green">
-                  <div className="admin-stat-label">Tickets Resolved</div>
-                  <div className="admin-stat-value">142</div>
-                </div>
-                <div className="admin-stat orange">
-                  <div className="admin-stat-label">Dispatchers</div>
-                  <div className="admin-stat-value">4</div>
-                </div>
-                <div className="admin-stat violet">
-                  <div className="admin-stat-label">Routes Deployed</div>
-                  <div className="admin-stat-value">4</div>
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                  marginBottom: "1.25rem",
-                }}
-              >
-                {[
-                  { label: "Broadcast delivery rate", val: "98.7%" },
-                  { label: "Average response time", val: "12 min" },
-                  { label: "Families assisted", val: "4,210" },
-                  { label: "Relief value deployed", val: "₱ 2.4M" },
-                  { label: "Rescue tickets closed", val: "142 / 142" },
-                  { label: "High-level interventions", val: "3" },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "0.65rem 1rem",
-                      background: "var(--admin-surface-low)",
-                      borderRadius: "0.65rem",
-                      border: "1px solid var(--admin-outline)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "0.82rem",
-                        color: "var(--admin-text-soft)",
-                      }}
-                    >
-                      {s.label}
-                    </span>
-                    <span style={{ fontWeight: 800, fontSize: "0.85rem" }}>
-                      {s.val}
-                    </span>
-                  </div>
-                ))}
+              <div className="admin-stats-row admin-stats-4" style={{ marginBottom: "1.25rem" }}>
+                <div className="admin-stat blue"><div className="admin-stat-label">Total Evacuees</div><div className="admin-stat-value">18,432</div></div>
+                <div className="admin-stat green"><div className="admin-stat-label">Tickets Resolved</div><div className="admin-stat-value">142</div></div>
+                <div className="admin-stat orange"><div className="admin-stat-label">Dispatchers</div><div className="admin-stat-value">4</div></div>
+                <div className="admin-stat violet"><div className="admin-stat-label">Routes Deployed</div><div className="admin-stat-value">4</div></div>
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  onClick={() => setStep("archive_event")}
-                >
-                  ← Back
+                <button className="admin-btn admin-btn-ghost" onClick={() => setStep("archive_event")}>
+                   Back
                 </button>
-                <button
-                  className="admin-btn admin-btn-accent"
-                  onClick={() => setStep("create_report")}
-                >
-                  → Create Final Report
+                <button className="admin-btn admin-btn-accent" onClick={() => setStep("create_report")}>
+                   Create Final Report
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 7: Create Report ── */}
           {step === "create_report" && (
             <div>
               {!reportGenerated ? (
                 <>
                   <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
                     <span className="admin-alert-icon material-symbols-outlined">description</span>
-                    <div>
-                      Generate the official post-calamity incident report for
-                      NDRRMC submission.
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "0.85rem",
-                      marginBottom: "1.25rem",
-                    }}
-                  >
-                    <div className="admin-form-group" style={{ marginBottom: 0 }}>
-                      <label className="admin-form-label">Report Title</label>
-                      <input
-                        className="admin-form-input"
-                        defaultValue="Post-Calamity Incident Report — Typhoon Kristine"
-                      />
-                    </div>
-                    <div className="admin-form-group" style={{ marginBottom: 0 }}>
-                      <label className="admin-form-label">Prepared By</label>
-                      <input
-                        className="admin-form-input"
-                        defaultValue="Administrator — Damayan Console"
-                      />
-                    </div>
-                    <div className="admin-form-group" style={{ marginBottom: 0 }}>
-                      <label className="admin-form-label">Summary Notes</label>
-                      <textarea
-                        className="admin-form-textarea"
-                        rows={3}
-                        defaultValue="The calamity event has been resolved. Relief operations were completed across 4 distribution routes. All 18,432 evacuees were accounted for and assisted."
-                      />
-                    </div>
+                    <div>Generate the official post-calamity incident report for NDRRMC submission.</div>
                   </div>
                   <div style={{ display: "flex", gap: "0.6rem" }}>
-                    <button
-                      className="admin-btn admin-btn-ghost"
-                      onClick={() => setStep("review_statistics")}
-                    >
-                      ← Back
+                    <button className="admin-btn admin-btn-ghost" onClick={() => setStep("review_statistics")}>
+                       Back
                     </button>
                     <button
                       className="admin-btn admin-btn-accent"
                       style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
-                      onClick={() => {
-                        setReportGenerated(true);
-                        showToast(
-                          "success",
-                          "Report Generated",
-                          "Post-calamity incident report created and submitted"
-                        );
-                        addLog(
-                          "APPROVED",
-                          "Post-calamity report generated and submitted to NDRRMC",
-                          "var(--admin-green)"
-                        );
-                      }}
+                      onClick={() => { void handleGenerateFinalReport(); }}
+                      disabled={reportSubmitting}
                     >
-                      📄 Generate & Submit Report
+                      {reportSubmitting ? "Generating..." : "Generate & Submit Report"}
                     </button>
                   </div>
                 </>
               ) : (
                 <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
-                  <div
-                    style={{
-                      width: "4rem",
-                      height: "4rem",
-                      borderRadius: "50%",
-                      background: "var(--admin-green-bg)",
-                      display: "grid",
-                      placeItems: "center",
-                      margin: "0 auto 1rem",
-                      fontSize: "1.75rem",
-                    }}
-                  >
-                    ✅
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "1.3rem",
-                      fontWeight: 900,
-                      letterSpacing: "-0.03em",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
+                  <h3 style={{ fontSize: "1.3rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.5rem" }}>
                     Workflow Complete
                   </h3>
-                  <p
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--admin-text-soft)",
-                      lineHeight: 1.7,
-                      marginBottom: "1.5rem",
-                      maxWidth: "28rem",
-                      margin: "0 auto 1.5rem",
-                    }}
-                  >
+                  <p style={{ fontSize: "0.85rem", color: "var(--admin-text-soft)", lineHeight: 1.7, marginBottom: "1.5rem" }}>
                     The post-calamity incident report has been submitted to NDRRMC.
-                    All after-calamity steps are complete.
                   </p>
-                  <div
-                    className="admin-stats-row admin-stats-3"
-                    style={{ textAlign: "left", marginBottom: "1.5rem" }}
-                  >
-                    <div className="admin-stat green">
-                      <div className="admin-stat-label">Report</div>
-                      <div className="admin-stat-value" style={{ fontSize: "1rem" }}>
-                        Submitted
-                      </div>
-                    </div>
-                    <div className="admin-stat blue">
-                      <div className="admin-stat-label">Event</div>
-                      <div className="admin-stat-value" style={{ fontSize: "1rem" }}>
-                        Archived
-                      </div>
-                    </div>
-                    <div className="admin-stat green">
-                      <div className="admin-stat-label">Status</div>
-                      <div className="admin-stat-value" style={{ fontSize: "1rem" }}>
-                        Complete
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    onClick={resetCycle}
-                  >
+                  <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>
                     Start New Post-Calamity Cycle
                   </button>
                 </div>
               )}
             </div>
           )}
-
         </div>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  DISASTER MONITORING
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 function DisasterMonitoringPage({
   disasters,
+  loading,
   setDisasters,
   showToast,
+  authToken,
 }: {
   disasters: DisasterEvent[];
+  loading: boolean;
   setDisasters: React.Dispatch<React.SetStateAction<DisasterEvent[]>>;
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  authToken?: string;
 }) {
   const [selected, setSelected] = useState<DisasterEvent | null>(null);
   const [editNotes, setEditNotes] = useState("");
+  const liveFeeds = disasters.slice(0, 6).map((event) => ({
+    src: (event.type?.charAt(0).toUpperCase() + event.type?.slice(1)) || "Disaster Event",
+    status: event.phase === "DURING" ? "LIVE" : event.phase === "AFTER" ? "RESOLVED" : "MONITORING",
+    data: `${event.name.charAt(0).toUpperCase() + event.name.slice(1)} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected  ${event.tickets} open ticket(s)`,
+  }));
+  const forecastRows = disasters.map((event) => ({
+    id: event.id,
+    area: event.areas,
+    risk: event.riskLevel,
+    phase: event.phase,
+    tickets: event.tickets,
+    action:
+      event.riskLevel === "CRITICAL"
+        ? "Immediate evacuation and full resource mobilization"
+        : event.riskLevel === "HIGH"
+          ? "Pre-position responders and prepare evacuation assets"
+          : event.riskLevel === "MEDIUM"
+            ? "Heightened monitoring and standby responders"
+            : "Routine monitoring and periodic situation checks",
+  }));
+
+  const phaseToStatus = (phase: CalamityPhase) => {
+    if (phase === "DURING") {
+      return "active";
+    }
+    if (phase === "AFTER") {
+      return "resolved";
+    }
+    return "monitoring";
+  };
 
   const updatePhase = (id: string, phase: CalamityPhase) => {
+    const previous = disasters;
     setDisasters((p) => p.map((d) => d.id === id ? { ...d, phase } : d));
-    showToast("info", "Phase Updated", `Disaster event updated to ${phase}`);
+
+    if (!authToken) {
+      showToast("warning", "Session Required", "Please sign in again to sync disaster phase updates.");
+      return;
+    }
+
+    void updateAdminDisasterEvent(authToken, id, { status: phaseToStatus(phase) })
+      .then(() => {
+        showToast("info", "Phase Updated", `Disaster event updated to ${phase}`);
+      })
+      .catch(() => {
+        setDisasters(previous);
+        showToast("error", "Update Failed", "Unable to sync disaster phase. Reverted local changes.");
+      });
+  };
+
+  const saveNotes = () => {
+    if (!selected) {
+      return;
+    }
+
+    const previous = disasters;
+    const updatedNotes = editNotes.trim();
+    setDisasters((p) => p.map((d) => d.id === selected.id ? { ...d, notes: updatedNotes } : d));
+
+    if (!authToken) {
+      showToast("warning", "Session Required", "Please sign in again to sync disaster notes.");
+      setSelected(null);
+      return;
+    }
+
+    void updateAdminDisasterEvent(authToken, selected.id, { notes: updatedNotes })
+      .then(() => {
+        showToast("success", "Notes saved", selected.name);
+        setSelected(null);
+      })
+      .catch(() => {
+        setDisasters(previous);
+        showToast("error", "Save Failed", "Unable to persist disaster notes. Reverted local changes.");
+      });
   };
 
   return (
@@ -2199,23 +2165,38 @@ function DisasterMonitoringPage({
         </div>
       </div>
 
+      {loading && disasters.length === 0 && (
+        <div className="admin-card" style={{ marginBottom: "1rem" }}>
+          <div className="admin-card-body" style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}>
+            Loading latest disaster data from the backend...
+          </div>
+        </div>
+      )}
+
       {/* Live feeds */}
       <div className="admin-card" style={{ marginBottom: "1rem" }}>
         <div className="admin-card-header">
-          <div className="admin-card-title">📡 Incoming Disaster Data Feeds</div>
+          <div className="admin-card-title"> Incoming Disaster Data Feeds</div>
           <span className="admin-live"><span className="admin-live-dot" />Real-time</span>
         </div>
         <div className="admin-card-body">
-          <div className="admin-grid-2">
-            {LIVE_FEEDS.map((f) => (
-              <div key={f.src} style={{ padding: "0.85rem 1rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", border: "1px solid var(--admin-outline)", display: "flex", gap: "0.75rem" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-                    <span style={{ fontWeight: 800, fontSize: "0.8rem" }}>{f.src}</span>
-                    <span className="admin-badge green">● {f.status}</span>
-                  </div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--admin-text)", lineHeight: 1.5 }}>{f.data}</div>
+          <div className="admin-grid-2" style={{ marginBottom: "1rem" }}>
+            {liveFeeds.map((f) => (
+              <div key={f.src} style={{
+                padding: "1rem 1.1rem",
+                background: "var(--admin-surface-low)",
+                border: "1px solid var(--admin-outline)",
+                borderRadius: "0.85rem",
+                borderLeft: "3px solid var(--admin-accent)",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+                  <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src.charAt(0).toUpperCase() + f.src.slice(1)}</span>
+                  <span className={`admin-badge ${f.status === "LIVE" ? "green" : f.status === "RESOLVED" ? "gray" : "amber"}`} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor", display: "inline-block", flexShrink: 0 }} />
+                    {f.status}
+                  </span>
                 </div>
+                <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>{f.data}</div>
               </div>
             ))}
           </div>
@@ -2223,35 +2204,35 @@ function DisasterMonitoringPage({
       </div>
 
       {/* Disaster event cards */}
-      <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "1rem" }}>
+      <div className="admin-stats-row admin-stats-3" style={{ marginBottom: "2rem", gap: "1rem" }}>
         {disasters.map((d) => (
           <div key={d.id} className="admin-disaster-card">
             <div className="admin-disaster-card-top" style={{ background: RISK_COLOR[d.riskLevel] }} />
-            <div style={{ padding: "1rem 1.1rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.65rem" }}>
+            <div style={{ padding: "1.2rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.85rem" }}>
                 <span className={`admin-calamity-pill ${PHASE_CLASS[d.phase]}`}>{PHASE_LABEL[d.phase]}</span>
                 <span className={`admin-badge ${RISK_CLASS[d.riskLevel]}`}>{d.riskLevel}</span>
               </div>
-              <div style={{ fontWeight: 900, fontSize: "1rem", letterSpacing: "-0.02em", marginBottom: "0.25rem" }}>{d.name}</div>
-              <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginBottom: "0.85rem" }}>📍 {d.areas} · {d.type} · {d.severity}</div>
+              <div style={{ fontWeight: 900, fontSize: "1rem", letterSpacing: "-0.02em", marginBottom: "0.35rem" }}>{d.name.charAt(0).toUpperCase() + d.name.slice(1)}</div>
+              <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginBottom: "1rem", lineHeight: 1.5 }}>{d.areas}  •  {d.type.charAt(0).toUpperCase() + d.type.slice(1)}  •  {d.severity}</div>
 
-              <div className="admin-grid-2" style={{ gap: "0.5rem", marginBottom: "0.85rem" }}>
-                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.6rem 0.75rem" }}>
-                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.2rem" }}>Affected</div>
+              <div className="admin-grid-2" style={{ gap: "0.65rem", marginBottom: "1rem" }}>
+                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.75rem" }}>
+                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.3rem" }}>Affected</div>
                   <div style={{ fontWeight: 900, fontSize: "1.1rem", color: RISK_COLOR[d.riskLevel] }}>{d.affected.toLocaleString()}</div>
                 </div>
-                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.6rem 0.75rem" }}>
-                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.2rem" }}>Tickets</div>
+                <div style={{ background: "var(--admin-surface-low)", borderRadius: "0.55rem", padding: "0.75rem" }}>
+                  <div style={{ fontSize: "0.6rem", color: "var(--admin-text-soft)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.3rem" }}>Tickets</div>
                   <div style={{ fontWeight: 900, fontSize: "1.1rem", color: "var(--admin-blue)" }}>{d.tickets}</div>
                 </div>
               </div>
 
-              <div style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)", marginBottom: "0.75rem" }}>
+              <div style={{ fontSize: "0.72rem", color: "var(--admin-text-soft)", marginBottom: "0.85rem" }}>
                 {d.dispatchers} dispatcher(s) active
               </div>
 
               {/* Phase controls */}
-              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {(["BEFORE", "DURING", "AFTER"] as CalamityPhase[]).map((ph) => (
                   <button
                     key={ph}
@@ -2259,7 +2240,7 @@ function DisasterMonitoringPage({
                     style={{ background: d.phase === ph ? RISK_COLOR[d.riskLevel] + "18" : undefined, fontWeight: d.phase === ph ? 800 : 600 }}
                     onClick={() => updatePhase(d.id, ph)}
                   >
-                    {ph === "BEFORE" ? "⚡" : ph === "DURING" ? "🚨" : "✅"} {ph}
+                    {ph === "BEFORE" ? "" : ph === "DURING" ? "" : ""} {ph}
                   </button>
                 ))}
                 <button className="admin-btn admin-btn-ghost admin-btn-xs" onClick={() => { setSelected(d); setEditNotes(d.notes || ""); }}>Notes</button>
@@ -2270,29 +2251,29 @@ function DisasterMonitoringPage({
       </div>
 
       {/* Forecast table */}
-      <div className="admin-card">
+      <div className="admin-card" style={{ marginTop: "2rem" }}>
         <div className="admin-card-header">
-          <div className="admin-card-title">📊 Forecast & Predictive Risk Analysis</div>
+          <div className="admin-card-title"> Forecast & Predictive Risk Analysis</div>
         </div>
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr>
-                <th>Area</th>
-                <th>Risk Level</th>
-                <th>Rainfall</th>
-                <th>Wind</th>
-                <th>Recommended Action</th>
+              <tr style={{ borderBottom: "2px solid var(--admin-outline)" }}>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Area</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Risk Level</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Current Phase</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Open Tickets</th>
+                <th style={{ padding: "0.9rem 1.1rem", textAlign: "left", fontWeight: 700, fontSize: "0.82rem" }}>Recommended Action</th>
               </tr>
             </thead>
             <tbody>
-              {FORECAST_DATA.map((f) => (
-                <tr key={f.area}>
-                  <td style={{ fontWeight: 700 }}>{f.area}</td>
-                  <td><span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span></td>
-                  <td style={{ fontSize: "0.78rem" }}>{f.rainfall}</td>
-                  <td style={{ fontSize: "0.78rem" }}>{f.wind}</td>
-                  <td style={{ fontSize: "0.78rem", color: "var(--admin-text-muted)" }}>{f.action}</td>
+              {forecastRows.map((f, idx) => (
+                <tr key={f.id} style={{ borderBottom: idx < forecastRows.length - 1 ? "1px solid var(--admin-outline)" : "none" }}>
+                  <td style={{ padding: "1rem 1.1rem", fontWeight: 700, fontSize: "0.82rem" }}>{f.area}</td>
+                  <td style={{ padding: "1rem 1.1rem" }}><span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span></td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem" }}>{f.phase}</td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem", fontWeight: 700 }}>{f.tickets}</td>
+                  <td style={{ padding: "1rem 1.1rem", fontSize: "0.82rem", color: "var(--admin-text-muted)" }}>{f.action}</td>
                 </tr>
               ))}
             </tbody>
@@ -2303,13 +2284,13 @@ function DisasterMonitoringPage({
       {/* Notes modal */}
       {selected && (
         <Modal
-          title={`Notes — ${selected.name}`}
+          title={`Notes  ${selected.name}`}
           narrow
           onClose={() => setSelected(null)}
           footer={
             <>
               <button className="admin-btn admin-btn-ghost" onClick={() => setSelected(null)}>Cancel</button>
-              <button className="admin-btn admin-btn-accent" onClick={() => { setDisasters((p) => p.map((d) => d.id === selected.id ? { ...d, notes: editNotes } : d)); showToast("success", "Notes saved", selected.name); setSelected(null); }}>
+              <button className="admin-btn admin-btn-accent" onClick={saveNotes}>
                 Save Notes
               </button>
             </>
@@ -2317,7 +2298,7 @@ function DisasterMonitoringPage({
         >
           <div className="admin-form-group">
             <label className="admin-form-label">Event Notes</label>
-            <textarea className="admin-form-textarea" rows={5} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Add operational notes for this disaster event…" />
+            <textarea className="admin-form-textarea" rows={5} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Add operational notes for this disaster event" />
           </div>
         </Modal>
       )}
@@ -2325,24 +2306,36 @@ function DisasterMonitoringPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  EARLY WARNING SYSTEM — BEFORE CALAMITY (redesigned)
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
+//  EARLY WARNING SYSTEM  BEFORE CALAMITY (redesigned)
+// 
 function EarlyWarningPage({
+  disasters,
+  setDisasters,
   showToast,
   addLog,
   setPage,
+  authToken,
 }: {
+  disasters: DisasterEvent[];
+  setDisasters: React.Dispatch<React.SetStateAction<DisasterEvent[]>>;
   showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
   addLog: (type: string, msg: string, col: string) => void;
   setPage: (p: AdminPage) => void;
+  authToken?: string;
 }) {
   const [step, setStep] = useState<WarningStep>("monitor");
   const [warningRequired, setWarningRequired] = useState<boolean | null>(null);
   const [config, setConfig] = useState<WarningConfig>({ type: "Typhoon", areas: [], severity: "HIGH", message: "", useSMS: true, usePush: true });
   const [broadcastSent, setBroadcastSent] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
   const [calamityEnded, setCalamityEnded] = useState<boolean | null>(null);
   const [riskIncreased, setRiskIncreased] = useState<boolean | null>(null);
+  const [escalating, setEscalating] = useState(false);
+  const [deescalating, setDeescalating] = useState(false);
+  const [endingCalamity, setEndingCalamity] = useState(false);
+  const [allClearDelivered, setAllClearDelivered] = useState<number | null>(null);
+  const [allClearAttempted, setAllClearAttempted] = useState<number | null>(null);
 
   const STEPS = [
     { id: "monitor",          label: "Monitor Data",       icon: "sensors" },
@@ -2363,19 +2356,176 @@ function EarlyWarningPage({
     setConfig({ type: "Typhoon", areas: [], severity: "HIGH", message: "", useSMS: true, usePush: true });
   };
 
-  const sendBroadcast = () => {
-    setBroadcastSent(true);
-    addLog("BROADCAST", `Early warning broadcast sent: ${config.type} — ${config.severity} — ${config.areas.join(", ")}`, "var(--admin-red)");
-    showToast("warning", "Early Warning Broadcast Sent", `${config.type} — ${config.areas.join(", ")}`);
+  const sendBroadcast = async () => {
+    if (!authToken) {
+      showToast("error", "Broadcast Failed", "Session expired. Please log in again.");
+      return;
+    }
+
+    if (!config.message.trim() || config.areas.length === 0) {
+      showToast("error", "Broadcast Failed", "Add message and at least one target area.");
+      return;
+    }
+
+    try {
+      setBroadcasting(true);
+      const result = await broadcastAdminWarning(authToken, {
+        type: config.type,
+        severity: config.severity,
+        areas: config.areas,
+        message: config.message,
+        useSMS: config.useSMS,
+        usePush: config.usePush,
+      });
+      setBroadcastSent(true);
+      addLog(
+        "BROADCAST",
+        `Early warning broadcast sent: ${config.type}  ${config.severity}  ${config.areas.join(", ")}  delivered ${result.delivered}/${result.attempted}`,
+        "var(--admin-red)",
+      );
+      showToast(
+        "warning",
+        "Early Warning Broadcast Sent",
+        `${result.delivered}/${result.attempted} notifications delivered`,
+      );
+    } catch {
+      showToast("error", "Broadcast Failed", "Unable to deliver warning broadcast right now.");
+    } finally {
+      setBroadcasting(false);
+    }
   };
 
-  const allAreas = ["Metro Manila", "Laguna Basin", "Rizal Province", "Cavite Lowlands", "Bulacan North", "Metro Cluster 3", "Metro Cluster 5"];
+  // Active disaster = first non-resolved event (used for severity/status patches)
+  const activeDisaster = disasters.find((d) => d.phase !== "AFTER") ?? disasters[0] ?? null;
+
+  const handleEscalate = async () => {
+    if (!authToken || !activeDisaster) {
+      setRiskIncreased(true);
+      setStep("escalate");
+      showToast("error", "Warnings Escalated", "Risk level has increased");
+      addLog("BROADCAST", "Warnings escalated – risk level increased (no active event found)", "var(--admin-red)");
+      return;
+    }
+    try {
+      setEscalating(true);
+      await updateAdminDisasterEvent(authToken, activeDisaster.id, { severityLevel: "CRITICAL" });
+      setDisasters((prev) =>
+        prev.map((d) => d.id === activeDisaster.id ? { ...d, severity: "CRITICAL", riskLevel: "CRITICAL" } : d),
+      );
+      setRiskIncreased(true);
+      setStep("escalate");
+      addLog("BROADCAST", `Warnings escalated – ${activeDisaster.name} severity set to CRITICAL`, "var(--admin-red)");
+      showToast("error", "Warnings Escalated", "Disaster event severity updated to CRITICAL");
+    } catch {
+      showToast("error", "Escalate Failed", "Could not update disaster event severity.");
+    } finally {
+      setEscalating(false);
+    }
+  };
+
+  const handleDeescalate = async () => {
+    if (!authToken || !activeDisaster) {
+      setRiskIncreased(false);
+      setStep("deescalate");
+      showToast("info", "Warnings De-escalated", "Situation stabilizing");
+      addLog("BROADCAST", "Warnings de-escalated / maintained", "var(--admin-blue)");
+      return;
+    }
+    try {
+      setDeescalating(true);
+      await updateAdminDisasterEvent(authToken, activeDisaster.id, { severityLevel: "MODERATE" });
+      setDisasters((prev) =>
+        prev.map((d) => d.id === activeDisaster.id ? { ...d, severity: "MODERATE", riskLevel: "MEDIUM" } : d),
+      );
+      setRiskIncreased(false);
+      setStep("deescalate");
+      addLog("BROADCAST", `Warnings de-escalated – ${activeDisaster.name} severity set to MODERATE`, "var(--admin-blue)");
+      showToast("info", "Warnings De-escalated", "Disaster event severity updated to MODERATE");
+    } catch {
+      showToast("error", "De-escalate Failed", "Could not update disaster event severity.");
+    } finally {
+      setDeescalating(false);
+    }
+  };
+
+  const handleCalamityEnded = async () => {
+    if (!authToken || !activeDisaster) {
+      setStep("notify_passed");
+      return;
+    }
+    try {
+      setEndingCalamity(true);
+      const eventAreas = String(activeDisaster.areas ?? "")
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+
+      // Send all-clear broadcast
+      const result = await broadcastAdminWarning(authToken, {
+        type: activeDisaster.type || "Disaster",
+        severity: "LOW",
+        areas: eventAreas.length > 0 ? eventAreas : ["All Areas"],
+        message: `All-clear: The ${activeDisaster.name} calamity has passed. Normal operations may resume.`,
+        useSMS: true,
+        usePush: true,
+      });
+
+      // Mark disaster as resolved
+      await updateAdminDisasterEvent(authToken, activeDisaster.id, {
+        status: "resolved",
+        dateEnded: new Date().toISOString(),
+      });
+      setDisasters((prev) =>
+        prev.map((d) => d.id === activeDisaster.id ? { ...d, phase: "AFTER" } : d),
+      );
+
+      setAllClearDelivered(result.delivered);
+      setAllClearAttempted(result.attempted);
+      addLog("BROADCAST", `Calamity ended – all-clear sent for ${activeDisaster.name}, ${result.delivered}/${result.attempted} notified`, "var(--admin-green)");
+      showToast("success", "Calamity Marked as Ended", `All-clear sent – ${result.delivered}/${result.attempted} notified`);
+      setStep("notify_passed");
+    } catch {
+      showToast("error", "Failed to End Calamity", "Could not send all-clear or update event status.");
+    } finally {
+      setEndingCalamity(false);
+    }
+  };
+
+  const liveFeeds = disasters.slice(0, 6).map((event) => ({
+    src: (event.type?.charAt(0).toUpperCase() + event.type?.slice(1)) || "Disaster Event",
+    status: event.phase === "DURING" ? "LIVE" : event.phase === "AFTER" ? "RESOLVED" : "MONITORING",
+    data: `${event.name.charAt(0).toUpperCase() + event.name.slice(1)} in ${event.areas}  ${event.severity} severity  ${event.affected.toLocaleString()} affected`,
+  }));
+  const forecastRows = disasters.map((event) => ({
+    area: event.areas,
+    risk: event.riskLevel,
+    rainfall: event.phase === "DURING" ? "Heavy" : event.phase === "BEFORE" ? "Moderate to heavy" : "Light to moderate",
+    wind: event.severity,
+    action:
+      event.riskLevel === "CRITICAL"
+        ? "Immediate evacuation recommended"
+        : event.riskLevel === "HIGH"
+          ? "Pre-position resources and monitor closely"
+          : event.riskLevel === "MEDIUM"
+            ? "Heightened monitoring"
+            : "Standard monitoring",
+  }));
+  const allAreas = Array.from(
+    new Set(
+      disasters.flatMap((event) =>
+        String(event.areas ?? "")
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean),
+      ),
+    ),
+  );
   const currentIdx = STEPS.findIndex((s) => s.id === step);
   const currentStep = STEPS[Math.max(0, currentIdx)];
 
   return (
     <div className="admin-page">
-      {/* ── Page Header ── */}
+      {/*  Page Header  */}
       <div className="admin-page-head">
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <div style={{
@@ -2387,7 +2537,7 @@ function EarlyWarningPage({
           </div>
           <div>
             <h2 style={{ marginBottom: "0.2rem" }}>Early Warning System</h2>
-            <p>Before Calamity — Monitor, configure and broadcast warnings to at-risk communities</p>
+            <p>Before Calamity  Monitor, configure and broadcast warnings to at-risk communities</p>
           </div>
         </div>
         {broadcastSent && (
@@ -2398,7 +2548,7 @@ function EarlyWarningPage({
         )}
       </div>
 
-      {/* ── Horizontal Step Rail ── */}
+      {/*  Horizontal Step Rail  */}
       <div className="admin-card" style={{ marginBottom: "1.5rem", overflow: "visible" }}>
         <div style={{ padding: "1.25rem 1.5rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -2448,7 +2598,7 @@ function EarlyWarningPage({
         </div>
       </div>
 
-      {/* ── Step Content ── */}
+      {/*  Step Content  */}
       <div className="admin-card">
         {/* Step header strip */}
         <div style={{
@@ -2467,20 +2617,20 @@ function EarlyWarningPage({
           </div>
           <div>
             <div style={{ fontWeight: 900, fontSize: "0.95rem" }}>
-              Step {Math.max(1, currentIdx + 1)} of {STEPS.length} — {currentStep?.label}
+              Step {Math.max(1, currentIdx + 1)} of {STEPS.length}  {currentStep?.label}
             </div>
           </div>
         </div>
 
         <div className="admin-card-body">
 
-          {/* ── Step 1: Monitor ── */}
+          {/*  Step 1: Monitor  */}
           {step === "monitor" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Monitor Incoming Disaster Data</h3>
               <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Review real-time feeds from PAGASA, NDRRMC, rainfall sensors, and river level monitors.</p>
               <div className="admin-grid-2" style={{ marginBottom: "1.25rem" }}>
-                {LIVE_FEEDS.map((f) => (
+                {liveFeeds.map((f) => (
                   <div key={f.src} style={{
                     padding: "1rem 1.1rem",
                     background: "var(--admin-surface-low)",
@@ -2489,10 +2639,10 @@ function EarlyWarningPage({
                     borderLeft: "3px solid var(--admin-accent)",
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src}</span>
-                      <span className="admin-badge green" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--admin-green)", display: "inline-block" }} />
-                        LIVE
+                      <span style={{ fontWeight: 800, fontSize: "0.82rem" }}>{f.src.charAt(0).toUpperCase() + f.src.slice(1)}</span>
+                      <span className={`admin-badge ${f.status === "LIVE" ? "green" : f.status === "RESOLVED" ? "gray" : "amber"}`} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "currentColor", display: "inline-block", flexShrink: 0 }} />
+                        {f.status}
                       </span>
                     </div>
                     <div style={{ fontSize: "0.78rem", lineHeight: 1.6, color: "var(--admin-text-muted)" }}>{f.data}</div>
@@ -2506,13 +2656,13 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 2: Forecast ── */}
+          {/*  Step 2: Forecast  */}
           {step === "forecast" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Review Forecasts &amp; Predictive Analysis</h3>
               <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Analyze forecast models and predicted impact zones.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.25rem" }}>
-                {FORECAST_DATA.map((f) => (
+                {forecastRows.map((f) => (
                   <div key={f.area} style={{
                     padding: "1rem 1.1rem",
                     background: RISK_COLOR[f.risk] + "0d",
@@ -2530,7 +2680,7 @@ function EarlyWarningPage({
                         <span className={`admin-badge ${RISK_CLASS[f.risk]}`}>{f.risk}</span>
                       </div>
                       <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>
-                        Rainfall: {f.rainfall} · Wind: {f.wind}
+                        Rainfall: {f.rainfall}  Wind: {f.wind}
                       </div>
                       <div style={{ fontSize: "0.75rem", color: "var(--admin-text-muted)", marginTop: "0.15rem", fontStyle: "italic" }}>{f.action}</div>
                     </div>
@@ -2548,13 +2698,13 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 3: Identify ── */}
+          {/*  Step 3: Identify  */}
           {step === "identify" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Identify High Risk Areas</h3>
               <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Areas classified as HIGH or CRITICAL based on forecast analysis.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginBottom: "1.25rem" }}>
-                {FORECAST_DATA.filter((f) => f.risk === "CRITICAL" || f.risk === "HIGH").map((f) => (
+                {forecastRows.filter((f) => f.risk === "CRITICAL" || f.risk === "HIGH").map((f) => (
                   <div key={f.area} style={{
                     display: "flex", alignItems: "center", gap: "0.85rem",
                     padding: "1rem 1.1rem",
@@ -2590,11 +2740,11 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 4: Validate ── */}
+          {/*  Step 4: Validate  */}
           {step === "validate" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Validate Alert Necessity</h3>
-              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Based on all data — is a warning broadcast required at this time?</p>
+              <p style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)", marginBottom: "1.25rem" }}>Based on all data  is a warning broadcast required at this time?</p>
               <div style={{
                 background: "var(--admin-surface-low)", border: "1px solid var(--admin-outline)",
                 borderRadius: "0.85rem", padding: "1.1rem 1.2rem", marginBottom: "1.25rem",
@@ -2606,7 +2756,7 @@ function EarlyWarningPage({
                 {[
                   "2 CRITICAL risk areas identified: Metro Manila, Laguna Basin",
                   "Typhoon Kristine landfall expected within 5 hours",
-                  "Marikina River at Alert Level 2 — 18.6m (threshold: 20m)",
+                  "Marikina River at Alert Level 2  18.6m (threshold: 20m)",
                 ].map((item, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.8rem", color: "var(--admin-text-muted)", marginBottom: "0.35rem" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", color: "var(--admin-amber)", marginTop: "0.05rem", flexShrink: 0 }}>chevron_right</span>
@@ -2631,7 +2781,7 @@ function EarlyWarningPage({
                   }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: "2rem" }}>emergency</span>
-                  Yes — Configure &amp; Broadcast Warning
+                  Yes  Configure &amp; Broadcast Warning
                 </button>
                 <button
                   onClick={() => { setWarningRequired(false); showToast("info", "Monitoring Continues", "No warning broadcast at this time"); setStep("monitor"); }}
@@ -2644,7 +2794,7 @@ function EarlyWarningPage({
                   }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: "2rem" }}>check_circle</span>
-                  No — Continue Monitoring Only
+                  No  Continue Monitoring Only
                 </button>
               </div>
               <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setStep("identify")}>
@@ -2653,7 +2803,7 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 5: Configure ── */}
+          {/*  Step 5: Configure  */}
           {step === "configure" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Configure Warning Parameters</h3>
@@ -2726,7 +2876,7 @@ function EarlyWarningPage({
                   <textarea
                     className="admin-form-textarea"
                     rows={4}
-                    placeholder="EARLY WARNING: Typhoon Kristine is expected to make landfall within 5 hours. Residents in low-lying areas are advised to evacuate immediately to the nearest designated evacuation center…"
+                    placeholder="EARLY WARNING: Typhoon Kristine is expected to make landfall within 5 hours. Residents in low-lying areas are advised to evacuate immediately to the nearest designated evacuation center"
                     value={config.message}
                     onChange={(e) => setConfig((p) => ({ ...p, message: e.target.value }))}
                   />
@@ -2772,7 +2922,7 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 6: Broadcast ── */}
+          {/*  Step 6: Broadcast  */}
           {step === "broadcast" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Broadcast Early Warning</h3>
@@ -2818,10 +2968,11 @@ function EarlyWarningPage({
                     <button
                       className="admin-btn admin-btn-broadcast"
                       style={{ flex: 1, justifyContent: "center", padding: "0.85rem" }}
+                      disabled={broadcasting}
                       onClick={sendBroadcast}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "1rem", marginRight: "0.4rem" }}>cell_tower</span>
-                      Send Early Warning Broadcast Now
+                      {broadcasting ? "Sending Broadcast..." : "Send Early Warning Broadcast Now"}
                     </button>
                   </div>
                 </>
@@ -2846,7 +2997,7 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Step 7: Monitor Response ── */}
+          {/*  Step 7: Monitor Response  */}
           {step === "monitor_response" && (
             <div>
               <h3 style={{ fontSize: "1.2rem", fontWeight: 900, letterSpacing: "-0.03em", marginBottom: "0.3rem" }}>Monitor System Response</h3>
@@ -2886,17 +3037,18 @@ function EarlyWarningPage({
                     <button
                       className="admin-btn admin-btn-success"
                       style={{ flex: 1, justifyContent: "center" }}
-                      onClick={() => { setCalamityEnded(true); setStep("notify_passed"); showToast("success", "All-Clear Initiated", "Calamity end notification in progress"); addLog("BROADCAST", "Calamity ended — All-clear notification sent", "var(--admin-green)"); }}
+                      disabled={endingCalamity}
+                      onClick={() => { void handleCalamityEnded(); }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>check</span>
-                      Yes — All-Clear
+                      {endingCalamity ? "Sending All-Clear…" : "Yes – All-Clear"}
                     </button>
                     <button
                       className="admin-btn admin-btn-ghost"
                       style={{ flex: 1, justifyContent: "center" }}
                       onClick={() => setStep("risk_check")}
                     >
-                      No — Assess Risk
+                      No  Assess Risk
                     </button>
                   </div>
                 </div>
@@ -2912,18 +3064,20 @@ function EarlyWarningPage({
                     <button
                       className="admin-btn admin-btn-danger"
                       style={{ flex: 1, justifyContent: "center" }}
-                      onClick={() => { setRiskIncreased(true); setStep("escalate"); showToast("error", "Warnings Escalated", "Risk level has increased"); addLog("BROADCAST", "Warnings escalated — risk level increased", "var(--admin-red)"); }}
+                      disabled={escalating}
+                      onClick={() => { void handleEscalate(); }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>trending_up</span>
-                      Escalate
+                      {escalating ? "Escalating…" : "Escalate"}
                     </button>
                     <button
                       className="admin-btn admin-btn-ghost"
                       style={{ flex: 1, justifyContent: "center" }}
-                      onClick={() => { setRiskIncreased(false); setStep("deescalate"); showToast("info", "Warnings De-escalated", "Situation stabilizing"); addLog("BROADCAST", "Warnings de-escalated / maintained", "var(--admin-blue)"); }}
+                      disabled={deescalating}
+                      onClick={() => { void handleDeescalate(); }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.3rem" }}>trending_down</span>
-                      De-Escalate
+                      {deescalating ? "Updating…" : "De-Escalate"}
                     </button>
                   </div>
                 </div>
@@ -2931,12 +3085,12 @@ function EarlyWarningPage({
             </div>
           )}
 
-          {/* ── Escalate ── */}
+          {/*  Escalate  */}
           {step === "escalate" && (
             <div>
               <div className="admin-alert critical" style={{ marginBottom: "1.25rem" }}>
                 <span className="admin-alert-icon material-symbols-outlined">emergency</span>
-                <div><strong>Warnings Escalated</strong> — Risk level has increased. Enhanced response protocols are now active. All units and dispatchers have been re-notified.</div>
+                <div><strong>Warnings Escalated</strong>  Risk level has increased. Enhanced response protocols are now active. All units and dispatchers have been re-notified.</div>
               </div>
               <div className="admin-stats-row admin-stats-2" style={{ marginBottom: "1.25rem" }}>
                 <div className="admin-stat red">
@@ -2954,30 +3108,30 @@ function EarlyWarningPage({
                 <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>
                   <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back
                 </button>
-                <button className="admin-btn admin-btn-accent" onClick={() => setStep("notify_passed")}>Mark Calamity Ended</button>
+                <button className="admin-btn admin-btn-accent" disabled={endingCalamity} onClick={() => { void handleCalamityEnded(); }}>{endingCalamity ? "Ending…" : "Mark Calamity Ended"}</button>
                 <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>New Cycle</button>
               </div>
             </div>
           )}
 
-          {/* ── De-escalate ── */}
+          {/*  De-escalate  */}
           {step === "deescalate" && (
             <div>
               <div className="admin-alert info" style={{ marginBottom: "1.25rem" }}>
                 <span className="admin-alert-icon material-symbols-outlined">trending_down</span>
-                <div><strong>Warnings De-escalated / Maintained</strong> — Situation is stabilizing. Monitoring continues. Response units remain on standby.</div>
+                <div><strong>Warnings De-escalated / Maintained</strong>  Situation is stabilizing. Monitoring continues. Response units remain on standby.</div>
               </div>
               <div style={{ display: "flex", gap: "0.6rem" }}>
                 <button className="admin-btn admin-btn-ghost" onClick={() => setStep("monitor_response")}>
                   <span className="material-symbols-outlined" style={{ fontSize: "0.9rem", marginRight: "0.25rem" }}>arrow_back</span>Back
                 </button>
-                <button className="admin-btn admin-btn-success" onClick={() => setStep("notify_passed")}>Calamity Has Ended</button>
+                <button className="admin-btn admin-btn-success" disabled={endingCalamity} onClick={() => { void handleCalamityEnded(); }}>{endingCalamity ? "Sending All-Clear…" : "Calamity Has Ended"}</button>
                 <button className="admin-btn admin-btn-ghost" onClick={resetCycle}>New Cycle</button>
               </div>
             </div>
           )}
 
-          {/* ── Notify Passed ── */}
+          {/*  Notify Passed  */}
           {step === "notify_passed" && (
             <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
               <div style={{
@@ -3003,7 +3157,9 @@ function EarlyWarningPage({
                 <div className="admin-stat blue">
                   <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", display: "block", marginBottom: "0.3rem" }}>people</span>
                   <div className="admin-stat-label">Citizens Notified</div>
-                  <div className="admin-stat-value" style={{ fontSize: "1.3rem" }}>18K+</div>
+                  <div className="admin-stat-value" style={{ fontSize: "1.3rem" }}>
+                    {allClearDelivered !== null ? `${allClearDelivered}/${allClearAttempted}` : "—"}
+                  </div>
                 </div>
                 <div className="admin-stat green">
                   <span className="material-symbols-outlined" style={{ fontSize: "1.1rem", display: "block", marginBottom: "0.3rem" }}>task_alt</span>
@@ -3030,15 +3186,30 @@ function EarlyWarningPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  SYSTEM HEALTH
-// ═══════════════════════════════════════════════════════════════════════════════
-function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
-  const [services, setServices] = useState<ServiceHealth[]>(SYSTEM_SERVICES);
+// 
+function SystemHealthPage({
+  showToast,
+  services,
+  refreshing,
+  onRefresh,
+}: {
+  showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
+  services: ServiceHealth[];
+  refreshing: boolean;
+  onRefresh: () => Promise<boolean>;
+}) {
   const degraded = services.filter((s) => s.status !== "OPERATIONAL");
 
-  const toggleStatus = (name: string) => {
-    setServices((p) => p.map((s) => s.name === name ? { ...s, status: s.status === "OPERATIONAL" ? "DEGRADED" : "OPERATIONAL" } : s));
+  const handleRecheck = () => {
+    void onRefresh().then((ok) => {
+      if (!ok) {
+        showToast("error", "Health Recheck Failed", "Could not reach backend health endpoint");
+        return;
+      }
+      showToast("success", "Health Rechecked", "Service statuses were refreshed from backend");
+    });
   };
 
   return (
@@ -3049,16 +3220,19 @@ function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], 
           <p>Live status of all DAMAYAN platform services and components</p>
         </div>
         <div className="admin-head-actions">
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={handleRecheck} disabled={refreshing}>
+            {refreshing ? "Checking..." : "Recheck Health"}
+          </button>
           {degraded.length === 0
-            ? <span className="admin-badge green">● All Systems Operational</span>
-            : <span className="admin-badge amber">⚠ {degraded.length} Service(s) Degraded</span>
+            ? <span className="admin-badge green"> All Systems Operational</span>
+            : <span className="admin-badge amber"> {degraded.length} Service(s) Degraded</span>
           }
         </div>
       </div>
 
       {degraded.length > 0 && (
         <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon">⚠️</span>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
           <div>
             <strong>{degraded.length} service(s) are not fully operational:</strong>{" "}
             {degraded.map((s) => s.name).join(", ")}.
@@ -3067,6 +3241,13 @@ function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], 
               Escalate Issue
             </button>
           </div>
+        </div>
+      )}
+
+      {services.length === 0 && (
+        <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
+          <span className="admin-alert-icon material-symbols-outlined">warning</span>
+          <div>System health endpoint is unavailable. Showing live backend state only.</div>
         </div>
       )}
 
@@ -3104,16 +3285,16 @@ function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], 
                   </td>
                   <td>
                     <span className={`admin-badge ${svc.status === "OPERATIONAL" ? "green" : svc.status === "DEGRADED" ? "amber" : "red"}`}>
-                      {svc.status === "OPERATIONAL" ? "● Operational" : svc.status === "DEGRADED" ? "⚠ Degraded" : "✕ Down"}
+                      {svc.status === "OPERATIONAL" ? " Operational" : svc.status === "DEGRADED" ? " Degraded" : " Down"}
                     </span>
                   </td>
                   <td><span className="admin-mono">{svc.latency}</span></td>
                   <td><span style={{ fontWeight: 700, color: parseFloat(svc.uptime) > 99.5 ? "var(--admin-green)" : "var(--admin-amber)" }}>{svc.uptime}</span></td>
-                  <td style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", maxWidth: "14rem" }}>{svc.note || "—"}</td>
+                  <td style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", maxWidth: "14rem" }}>{svc.note || ""}</td>
                   <td>
                     {svc.status !== "OPERATIONAL" && (
-                      <button className="admin-btn admin-btn-success admin-btn-xs" onClick={() => { toggleStatus(svc.name); showToast("success", `${svc.name} Restored`, "Service is now operational"); }}>
-                        Restore
+                      <button className="admin-btn admin-btn-success admin-btn-xs" onClick={handleRecheck} disabled={refreshing}>
+                        {refreshing ? "Checking..." : "Recheck"}
                       </button>
                     )}
                   </td>
@@ -3127,16 +3308,24 @@ function SystemHealthPage({ showToast }: { showToast: (type: ToastItem["type"], 
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 //  PROFILE PAGE
-// ═══════════════════════════════════════════════════════════════════════════════
-function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; onSave: (p: AdminProfile) => void; showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
+// 
+function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; onSave: (p: AdminProfile) => Promise<boolean>; showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
   const [form, setForm] = useState(profile);
   const [pwd, setPwd] = useState({ current: "", next: "", confirm: "" });
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => { onSave(form); showToast("success", "Profile Updated", "Changes saved successfully"); };
+  const handleSave = async () => {
+    setSaving(true);
+    const ok = await onSave(form);
+    if (ok) {
+      showToast("success", "Profile Updated", "Changes saved successfully");
+    }
+    setSaving(false);
+  };
   const handleOtp = () => { setOtpSent(true); showToast("info", "OTP Sent", `Code sent to ${form.email}`); };
   const handlePwdChange = () => {
     if (!otp || pwd.next !== pwd.confirm) { showToast("error", "Password Error", "OTP or password mismatch"); return; }
@@ -3151,13 +3340,13 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
       </div>
       <div className="admin-grid-2">
         <div className="admin-card">
-          <div className="admin-card-header"><div className="admin-card-title">👤 Account Information</div></div>
+          <div className="admin-card-header"><div className="admin-card-title"> Account Information</div></div>
           <div className="admin-card-body">
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem", background: "var(--admin-surface-low)", borderRadius: "0.85rem", marginBottom: "1.25rem", border: "1px solid var(--admin-outline)" }}>
               <div style={{ width: "3.5rem", height: "3.5rem", borderRadius: "0.85rem", background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent))", display: "grid", placeItems: "center", fontSize: "1.1rem", fontWeight: 900, color: "#fff" }}>{profile.initials}</div>
               <div>
                 <div style={{ fontWeight: 900, fontSize: "1.05rem", letterSpacing: "-0.03em" }}>{form.name}</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginTop: "0.15rem" }}>{form.badge} · {form.role}</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", marginTop: "0.15rem" }}>{form.badge}  {form.role}</div>
                 <span className="admin-badge blue" style={{ marginTop: "0.4rem" }}>System Administrator</span>
               </div>
             </div>
@@ -3167,26 +3356,26 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
               <div className="admin-form-group"><label className="admin-form-label">Email</label><input className="admin-form-input" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} /></div>
               <div className="admin-form-group"><label className="admin-form-label">Phone</label><input className="admin-form-input" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} /></div>
               <div className="admin-form-group"><label className="admin-form-label">Station / Office</label><input className="admin-form-input" value={form.station} onChange={(e) => setForm((p) => ({ ...p, station: e.target.value }))} /></div>
-              <button className="admin-btn admin-btn-accent" onClick={handleSave}>Save Changes</button>
+              <button className="admin-btn admin-btn-accent" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</button>
             </div>
           </div>
         </div>
         <div className="admin-card">
-          <div className="admin-card-header"><div className="admin-card-title">🔐 Change Password</div></div>
+          <div className="admin-card-header"><div className="admin-card-title"> Change Password</div></div>
           <div className="admin-card-body">
             <div className="admin-alert info" style={{ marginBottom: "1rem" }}>
-              <span className="admin-alert-icon">🔐</span>
+              <span className="admin-alert-icon material-symbols-outlined">info</span>
               <div>Password changes require OTP verification sent to your registered email address.</div>
             </div>
             <div className="admin-form-grid">
-              <div className="admin-form-group"><label className="admin-form-label">Current Password</label><input className="admin-form-input" type="password" placeholder="••••••••" value={pwd.current} onChange={(e) => setPwd((p) => ({ ...p, current: e.target.value }))} /></div>
+              <div className="admin-form-group"><label className="admin-form-label">Current Password</label><input className="admin-form-input" type="password" placeholder="" value={pwd.current} onChange={(e) => setPwd((p) => ({ ...p, current: e.target.value }))} /></div>
               {!otpSent ? (
-                <button className="admin-btn admin-btn-ghost" onClick={handleOtp}>📧 Send OTP to {form.email}</button>
+                <button className="admin-btn admin-btn-ghost" onClick={handleOtp}> Send OTP to {form.email}</button>
               ) : (
                 <>
                   <div className="admin-form-group"><label className="admin-form-label">OTP Code</label><input className="admin-form-input" placeholder="6-digit code" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value)} /></div>
-                  <div className="admin-form-group"><label className="admin-form-label">New Password</label><input className="admin-form-input" type="password" placeholder="••••••••" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} /></div>
-                  <div className="admin-form-group"><label className="admin-form-label">Confirm New Password</label><input className="admin-form-input" type="password" placeholder="••••••••" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} /></div>
+                  <div className="admin-form-group"><label className="admin-form-label">New Password</label><input className="admin-form-input" type="password" placeholder="" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} /></div>
+                  <div className="admin-form-group"><label className="admin-form-label">Confirm New Password</label><input className="admin-form-input" type="password" placeholder="" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} /></div>
                   <button className="admin-btn admin-btn-accent" onClick={handlePwdChange}>Update Password</button>
                 </>
               )}
@@ -3198,31 +3387,271 @@ function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; on
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+//  Backend data mapper 
+function mapBackendDisaster(d: BackendDisasterEvent & { ticketCount?: number }): DisasterEvent {
+  const statusToPhase = (s: string): CalamityPhase => {
+    if (s === "active") return "DURING";
+    if (s === "resolved" || s === "ended") return "AFTER";
+    return "BEFORE";
+  };
+  const levelToRisk = (s: string): RiskLevel => {
+    const sl = s.toLowerCase();
+    if (sl === "critical" || sl === "catastrophic") return "CRITICAL";
+    if (sl === "high" || sl === "severe") return "HIGH";
+    if (sl === "medium" || sl === "moderate") return "MEDIUM";
+    return "LOW";
+  };
+  return {
+    id: d.id,
+    name: d.name,
+    type: d.type,
+    severity: d.severityLevel,
+    phase: statusToPhase(d.status),
+    areas: d.affectedAreas.length > 0 ? d.affectedAreas.join(", ") : d.province,
+    affected: 0,
+    tickets: d.ticketCount ?? 0,
+    dispatchers: 0,
+    riskLevel: levelToRisk(d.severityLevel),
+    notes: d.notes,
+  };
+}
+
+function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
+  const firstName = record.firstName ?? record.first_name ?? "";
+  const lastName = record.lastName ?? record.last_name ?? "";
+  const name = `${firstName} ${lastName}`.trim() || record.email || "Unknown User";
+  const submittedAt = record.createdAt ?? record.created_at;
+  const status = String(record.status ?? "pending").toLowerCase();
+  const normalizedStatus: AccountStatus =
+    status === "active" ? "APPROVED" : status === "rejected" ? "REJECTED" : "PENDING";
+  const role = String(record.role ?? "dispatcher").toLowerCase();
+  const labelRole = role === "line_manager" ? "Site Manager" : "Dispatcher";
+  // Map documents from rich backend metadata (with fallback for old shape)
+  const docs: PendingAccount["docs"] = record.documents && record.documents.length > 0
+    ? record.documents.map((doc) => ({
+        name: doc.label,
+        type: doc.verificationStatus === "uploaded" ? "Uploaded" : "Missing",
+        status: doc.verificationStatus === "uploaded" ? ("PENDING" as const) : ("FAILED" as const),
+        bucket: doc.bucket,
+        objectPath: doc.objectPath || undefined,
+      }))
+    : Boolean(record.governmentIdKey)
+      ? [{ name: "Government ID", type: "Uploaded", status: "PENDING" as const }]
+      : [{ name: "Government ID", type: "Missing", status: "FAILED" as const }];
+
+  return {
+    id: record.id,
+    name,
+    role: labelRole,
+    area: "Unassigned",
+    email: record.email ?? "No email",
+    submitted: submittedAt ? new Date(submittedAt).toLocaleDateString("en-PH") : "Unknown",
+    docs,
+    status: normalizedStatus,
+    rejectReason: record.rejectReason ?? record.reject_reason ?? undefined,
+    governmentIdKey: record.governmentIdKey ?? undefined,
+    profilePhotoKey: record.profile_photo_key ?? undefined,
+  };
+}
+
+function normalizeHealthStatus(status?: string): ServiceStatus {
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "OPERATIONAL" || normalized === "DEGRADED" || normalized === "DOWN") {
+    return normalized;
+  }
+  return "DOWN";
+}
+
+function mapSystemHealthRecord(svc: AdminSystemHealthRecord): ServiceHealth {
+  return {
+    name: svc.name,
+    status: normalizeHealthStatus(svc.status),
+    latency: svc.latency ?? `${svc.latencyMs ?? 0}ms`,
+    uptime: svc.uptime ?? "",
+    note: svc.note,
+  };
+}
+
+// 
 //  ROOT ADMIN PORTAL
-// ═══════════════════════════════════════════════════════════════════════════════
+// 
 export default function AdminPortal() {
-  const [loggedIn, setLoggedIn] = useState(true);
+  const router = useRouter();
   const [page, setPage] = useState<AdminPage>("overview");
-  const [accounts, setAccounts] = useState<PendingAccount[]>(INITIAL_ACCOUNTS);
-  const [disasters, setDisasters] = useState<DisasterEvent[]>(INITIAL_DISASTERS);
-  const [profile, setProfile] = useState<AdminProfile>(ADMIN_PROFILE);
+  const [accounts, setAccounts] = useState<PendingAccount[]>([]);
+  const [qrRecords, setQRRecords] = useState<QRRecord[]>([]);
+  const [disasters, setDisasters] = useState<DisasterEvent[]>([]);
+  const [disastersLoading, setDisastersLoading] = useState(true);
+  const [profile, setProfile] = useState<AdminProfile>({
+    name: "",
+    initials: "AD",
+    badge: "",
+    station: "",
+    email: "",
+    phone: "",
+    role: "System Administrator",
+  });
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [systemHealth, setSystemHealth] = useState<ServiceHealth[]>([]);
+  const [healthRefreshing, setHealthRefreshing] = useState(false);
+  const [initialHydrating, setInitialHydrating] = useState(true);
+  const [approvalsDataStatus, setApprovalsDataStatus] = useState<"live" | "unavailable">("unavailable");
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef(0);
+
+  const refreshSystemHealth = useCallback(async (tokenOverride?: string) => {
+    const token = tokenOverride ?? loadSession()?.accessToken;
+    if (!token) {
+      setSystemHealth([]);
+      return false;
+    }
+
+    setHealthRefreshing(true);
+    try {
+      const health = await getSystemHealth(token);
+      if (health.length > 0) {
+        setSystemHealth(health.map(mapSystemHealthRecord));
+      } else {
+        setSystemHealth([]);
+      }
+      return true;
+    } catch {
+      setSystemHealth([]);
+      return false;
+    } finally {
+      setHealthRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const stored = loadSession();
+    if (!hasRole(stored, AppRole.ADMIN)) {
+      router.replace("/login");
+      return;
+    }
+    setSession(stored);
+    // Populate profile from the real logged-in session
+    const u = stored!.user;
+    const initials = ((u.firstName?.[0] ?? "") + (u.lastName?.[0] ?? "")).toUpperCase() || "AD";
+    setProfile({
+      name: u.name || u.email,
+      initials,
+      badge: `ADM-${u.id.slice(0, 8).toUpperCase()}`,
+      station: "Damayan National Operations Center",
+      email: u.email,
+      phone: u.phone || "",
+      role: "System Administrator",
+    });
+    // Hydrate dashboard and disaster data from the backend
+    async function hydrate() {
+      const token = stored!.accessToken;
+      setInitialHydrating(true);
+      setDisastersLoading(true);
+
+      const dashboardPromise = getDashboard("admin", token)
+        .then((result) => {
+          setOverview(result);
+        })
+        .catch(() => {
+          setOverview(null);
+        });
+
+      const disasterPromise = getDisasterEvents("admin", token)
+        .then((payload) => {
+          const eventList = Array.isArray(payload)
+            ? payload
+            : Array.isArray((payload as { disasterEvents?: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents)
+              ? (payload as { disasterEvents: (BackendDisasterEvent & { ticketCount?: number })[] }).disasterEvents
+              : [];
+          setDisasters(eventList.map(mapBackendDisaster));
+        })
+        .catch(() => {
+          setDisasters([]);
+        })
+        .finally(() => {
+          setDisastersLoading(false);
+        });
+
+      const citizenPromise = getCitizens(token).catch(() => [] as Awaited<ReturnType<typeof getCitizens>>);
+      const familyPromise = getFamilies(token).catch(() => [] as Awaited<ReturnType<typeof getFamilies>>);
+
+      const qrPromise = Promise.all([citizenPromise, familyPromise]).then(([citizens, families]) => {
+        const qrList: QRRecord[] = [];
+
+        for (const c of citizens) {
+          const qrId = c.qrCodeId ?? c.qr_code_id;
+          if (!qrId) continue;
+          const area = [c.barangay, c.municipality].filter(Boolean).join(", ") || "";
+          qrList.push({
+            id: qrId,
+            name: c.fullName ?? c.full_name ?? "Unknown",
+            type: "individual",
+            area,
+            issuedAt: new Date(c.createdAt ?? c.created_at ?? Date.now()).toLocaleDateString("en-PH"),
+            linkedAccountId: c.userId ?? c.user_id,
+          });
+        }
+
+        for (const f of families) {
+          const qrId = f.qrCodeId ?? f.qr_code_id;
+          if (!qrId) continue;
+          const area = [f.barangay, f.municipality].filter(Boolean).join(", ") || "";
+          const familyName = f.headFullName ?? f.head_full_name;
+          qrList.push({
+            id: qrId,
+            name: familyName ? `${familyName} Family` : "Unknown Family",
+            type: "family",
+            area,
+            issuedAt: new Date(f.createdAt ?? f.created_at ?? Date.now()).toLocaleDateString("en-PH"),
+            familySize: f.members?.length || f.family_member_count || undefined,
+          });
+        }
+
+        setQRRecords(qrList);
+      });
+
+      const approvalsPromise = getPendingApprovals(token)
+        .then((result) => {
+          setAccounts(result.map(mapApprovalToAccount));
+          setApprovalsDataStatus("live");
+        })
+        .catch(() => {
+          setAccounts([]);
+          setApprovalsDataStatus("unavailable");
+        });
+
+      await Promise.allSettled([
+        dashboardPromise,
+        disasterPromise,
+        qrPromise,
+        approvalsPromise,
+        refreshSystemHealth(token),
+      ]);
+      setInitialHydrating(false);
+    }
+    void hydrate();
+  }, [router, refreshSystemHealth]);
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
     const id = ++toastRef.current;
     setToasts((p) => [...p, { id, type, title, sub }]);
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3500);
   }, []);
+
+  const addLiveNotification = useCallback((alert: LiveAlertRecord) => {
+    setNotifications((current) => [mapLiveAlertToNotification(alert), ...current].slice(0, 12));
+    showToast("info", alert.title, alert.message.slice(0, 90));
+  }, [showToast]);
 
   const addLog = useCallback((type: string, msg: string, col: string) => {
     const now = new Date();
@@ -3233,25 +3662,116 @@ export default function AdminPortal() {
   const handleApprove = useCallback((id: string) => {
     const acc = accounts.find((a) => a.id === id);
     if (!acc) return;
-    setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
-    addLog("APPROVED", `${acc.name} approved as ${acc.role}`, "var(--admin-green)");
-    showToast("success", "Account Approved", `${acc.name} has been approved`);
-  }, [accounts, addLog, showToast]);
+    const applyLocalApproval = () => {
+      setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "APPROVED" as AccountStatus, qrGenerated: true } : a));
+      const qr: QRRecord = { id: `QR-${5000 + qrRecords.length + 1}`, name: acc.name, type: "individual", area: acc.area, issuedAt: "Just now", linkedAccountId: id };
+      setQRRecords((p) => [...p, qr]);
+      addLog("APPROVED", `${acc.name} approved as ${acc.role}  ${qr.id} auto-generated`, "var(--admin-green)");
+      showToast("success", "Account Approved", `${acc.name}  Individual QR ${qr.id} generated`);
+    };
+
+    const stored = loadSession();
+    if (!stored?.accessToken) {
+      showToast("error", "Approval Failed", "Session expired. Please log in again.");
+      return;
+    }
+
+    void approvePendingUser(stored.accessToken, id)
+      .then(() => applyLocalApproval())
+      .catch(() => {
+        showToast("error", "Approval Failed", "Could not approve user. Please try again.");
+      });
+  }, [accounts, qrRecords, addLog, showToast]);
 
   const handleReject = useCallback((id: string, reason: string) => {
     const acc = accounts.find((a) => a.id === id);
     if (!acc) return;
-    setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "REJECTED" as AccountStatus, rejectReason: reason } : a));
-    addLog("REJECTED", `${acc.name} rejected — ${reason.slice(0, 50)}`, "var(--admin-red)");
+    const applyLocalReject = () => {
+      setAccounts((p) => p.map((a) => a.id === id ? { ...a, status: "REJECTED" as AccountStatus, rejectReason: reason } : a));
+      addLog("REJECTED", `${acc.name} rejected  ${reason.slice(0, 50)}`, "var(--admin-red)");
+    };
+
+    const stored = loadSession();
+    if (!stored?.accessToken) {
+      applyLocalReject();
+      return;
+    }
+
+    void rejectPendingUser(stored.accessToken, id, reason)
+      .then(() => applyLocalReject())
+      .catch(() => {
+        showToast("error", "Rejection Failed", "Could not reject user. Please try again.");
+      });
   }, [accounts, addLog]);
 
-  const sendBroadcast = () => {
-    if (!broadcastMsg.trim()) return;
-    addLog("BROADCAST", `System broadcast: "${broadcastMsg.slice(0, 60)}…"`, "var(--admin-red)");
-    showToast("warning", "Broadcast Sent", broadcastMsg.slice(0, 80));
-    setBroadcastModal(false);
-    setBroadcastMsg("");
-  };
+  const sendBroadcast = useCallback(async () => {
+    const message = broadcastMsg.trim();
+    if (!message) return;
+
+    if (!session?.accessToken) {
+      showToast("error", "Broadcast Failed", "Session expired. Please log in again.");
+      return;
+    }
+
+    const fallbackAreas = ["Teresa"];
+    const areas = Array.from(new Set(
+      disasters
+        .flatMap((d) => d.areas.split(",").map((part) => part.trim()).filter(Boolean)),
+    ));
+
+    setSendingBroadcast(true);
+    try {
+      const result = await broadcastAdminWarning(session.accessToken, {
+        type: "system_alert",
+        severity: "warning",
+        areas: areas.length > 0 ? areas : fallbackAreas,
+        message,
+        useSMS: true,
+        usePush: true,
+      });
+
+      addLog("BROADCAST", `System broadcast delivered ${result.delivered}/${result.attempted}: "${message.slice(0, 60)}"`, "var(--admin-red)");
+      showToast("warning", "Broadcast Sent", `${result.delivered}/${result.attempted} recipients notified`);
+      setBroadcastModal(false);
+      setBroadcastMsg("");
+    } catch {
+      showToast("error", "Broadcast Failed", "Could not send system broadcast.");
+    } finally {
+      setSendingBroadcast(false);
+    }
+  }, [addLog, broadcastMsg, disasters, session, showToast]);
+
+  const handlePreviewPrimaryDoc = useCallback(async (account: PendingAccount) => {
+    if (!session?.accessToken) {
+      showToast("error", "Preview Failed", "Session expired. Please log in again.");
+      return false;
+    }
+
+    // Use the first uploaded doc with metadata; fall back to governmentIdKey if docs are old-shape
+    const primaryDoc = account.docs.find((d) => d.objectPath);
+    const bucket = primaryDoc?.bucket ?? "government-ids";
+    const objectPath = primaryDoc?.objectPath ?? account.governmentIdKey;
+
+    if (!objectPath) {
+      showToast("warning", "No Document", "No government ID file is attached to this account.");
+      return false;
+    }
+
+    try {
+      const view = await createAdminObjectViewUrl(session.accessToken, {
+        bucket,
+        objectPath,
+        expiresIn: 900,
+      });
+
+      window.open(view.signedUrl, "_blank", "noopener,noreferrer");
+      addLog("INFO", `Opened Government ID for ${account.name}`, "var(--admin-blue)");
+      return true;
+    } catch {
+      showToast("error", "Preview Failed", "Unable to open Government ID file right now.");
+      return false;
+    }
+  }, [addLog, session, showToast]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -3263,8 +3783,61 @@ export default function AdminPortal() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToLiveAlerts((alert) => {
+      addLiveNotification(alert);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [addLiveNotification]);
+
   const pending = accounts.filter((a) => a.status === "PENDING").length;
   const unreadNotifs = notifications.filter((n) => !n.read).length;
+
+  const handleProfileSave = useCallback(async (nextProfile: AdminProfile) => {
+    const stored = loadSession();
+    if (!stored?.accessToken) {
+      showToast("error", "Profile Update Failed", "Session expired. Please log in again.");
+      return false;
+    }
+
+    const parts = nextProfile.name.trim().split(/\s+/).filter(Boolean);
+    const firstName = parts[0] ?? "";
+    const lastName = parts.slice(1).join(" ");
+
+    try {
+      const result = await updateProfile(stored.accessToken, {
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        email: nextProfile.email || undefined,
+        phone: nextProfile.phone || undefined,
+      });
+
+      const updatedUser = result.user;
+      const updatedSession: AuthSession = { ...stored, user: updatedUser };
+      saveSession(updatedSession);
+      setSession(updatedSession);
+
+      const initials = ((updatedUser.firstName?.[0] ?? "") + (updatedUser.lastName?.[0] ?? "")).toUpperCase() || "AD";
+      const resolvedName = updatedUser.name || `${updatedUser.firstName ?? ""} ${updatedUser.lastName ?? ""}`.trim() || updatedUser.email;
+
+      setProfile((prev) => ({
+        ...prev,
+        ...nextProfile,
+        initials,
+        name: resolvedName,
+        email: updatedUser.email,
+        phone: updatedUser.phone || "",
+      }));
+
+      return true;
+    } catch {
+      showToast("error", "Profile Update Failed", "Unable to persist profile changes right now.");
+      return false;
+    }
+  }, [showToast]);
 
   const PAGE_TITLES: Record<AdminPage, { title: string; sub: string }> = {
     overview: { title: "Overview", sub: "System-wide status and key metrics" },
@@ -3279,11 +3852,9 @@ export default function AdminPortal() {
 
   const pt = PAGE_TITLES[page];
 
-  if (!loggedIn) return <AdminLoginPage onLogin={() => setLoggedIn(true)} />;
-
   return (
     <div className="admin-root">
-      {/* ── SIDEBAR ── */}
+      {/*  SIDEBAR  */}
       <div className="admin-sidebar">
         <div className="admin-sb-brand">
           <div className="admin-sb-mark">D</div>
@@ -3329,7 +3900,7 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      {/* ── SHELL ── */}
+      {/*  SHELL  */}
       <div className="admin-shell">
         {/* Topbar */}
         <div className="admin-topbar">
@@ -3339,13 +3910,14 @@ export default function AdminPortal() {
           </div>
           <div className="admin-topbar-right">
             <button className="admin-btn admin-btn-broadcast admin-btn-sm" onClick={() => setBroadcastModal(true)}>
-              📣 Broadcast Alert
+              <span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>campaign</span>
+              Broadcast Alert
             </button>
 
             {/* Notifications */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button className="admin-topbar-icon-btn" onClick={() => { setNotifOpen((p) => !p); setProfileOpen(false); }}>
-                🔔
+                <span className="material-symbols-outlined" style={{ fontSize: "1.1rem" }}>notifications</span>
                 {unreadNotifs > 0 && <span className="admin-notif-dot" />}
               </button>
               {notifOpen && (
@@ -3379,14 +3951,14 @@ export default function AdminPortal() {
                     <div className="admin-profile-dropdown-avatar">{profile.initials}</div>
                     <div>
                       <div className="admin-profile-dropdown-name">{profile.name}</div>
-                      <div className="admin-profile-dropdown-role">Admin · {profile.badge}</div>
+                      <div className="admin-profile-dropdown-role">Admin - {profile.badge}</div>
                     </div>
                   </div>
-                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>👤 View Profile</button>
-                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}>✏️ Edit Profile</button>
+                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}><span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>person</span> View Profile</button>
+                  <button className="admin-profile-dropdown-item" onClick={() => { setPage("profile"); setProfileOpen(false); }}><span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>edit</span> Edit Profile</button>
                   <div style={{ height: "1px", background: "var(--admin-outline)" }} />
-                  <button className="admin-profile-dropdown-item danger" onClick={() => { window.location.href = "/admin/login"; }}>
-                    ⏻ Log Out
+                  <button className="admin-profile-dropdown-item danger" onClick={() => { clearSession(); router.replace("/login"); }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: "0.95rem" }}>logout</span> Log Out
                   </button>
                 </div>
               )}
@@ -3397,28 +3969,69 @@ export default function AdminPortal() {
         {/* Content */}
         <div className="admin-content">
           {page === "overview" && (
-            <OverviewPage accounts={accounts} disasters={disasters} activityLog={activityLog} setPage={setPage} />
+            <OverviewPage
+              accounts={accounts}
+              qrRecords={qrRecords}
+              disasters={disasters}
+              loading={initialHydrating}
+              activityLog={activityLog}
+              setPage={setPage}
+              overview={overview}
+            />
           )}
           {page === "approvals" && (
-            <ApprovalsPage accounts={accounts} onApprove={handleApprove} onReject={handleReject} addLog={addLog} showToast={showToast} />
+            <ApprovalsPage
+              accounts={accounts}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onPreviewPrimaryDoc={handlePreviewPrimaryDoc}
+              addLog={addLog}
+              showToast={showToast}
+              dataStatus={approvalsDataStatus}
+            />
           )}
           {page === "people_records" && (
             <PeopleRecordsPage accounts={accounts} />
           )}
           {page === "after_calamity" && (
-            <AfterCalamityPage showToast={showToast} addLog={addLog} />
+            <AfterCalamityPage
+              showToast={showToast}
+              addLog={addLog}
+              disasters={disasters}
+              setDisasters={setDisasters}
+              authToken={session?.accessToken}
+              adminUserId={session?.user.id}
+            />
           )}
           {page === "disaster_monitoring" && (
-            <DisasterMonitoringPage disasters={disasters} setDisasters={setDisasters} showToast={showToast} />
+            <DisasterMonitoringPage
+              disasters={disasters}
+              loading={disastersLoading}
+              setDisasters={setDisasters}
+              showToast={showToast}
+              authToken={session?.accessToken}
+            />
           )}
           {page === "early_warning" && (
-            <EarlyWarningPage showToast={showToast} addLog={addLog} setPage={setPage} />
+            <EarlyWarningPage
+              disasters={disasters}
+              setDisasters={setDisasters}
+              showToast={showToast}
+              addLog={addLog}
+              setPage={setPage}
+              authToken={session?.accessToken}
+            />
           )}
           {page === "system_health" && (
-            <SystemHealthPage showToast={showToast} />
+            <SystemHealthPage
+              showToast={showToast}
+              services={systemHealth}
+              refreshing={healthRefreshing}
+              onRefresh={refreshSystemHealth}
+            />
           )}
           {page === "profile" && (
-            <ProfilePage profile={profile} onSave={setProfile} showToast={showToast} />
+            <ProfilePage profile={profile} onSave={handleProfileSave} showToast={showToast} />
           )}
         </div>
       </div>
@@ -3426,25 +4039,25 @@ export default function AdminPortal() {
       {/* Broadcast Modal */}
       {broadcastModal && (
         <Modal
-          title="📣 System-Wide Broadcast Alert"
+          title=" System-Wide Broadcast Alert"
           narrow
           onClose={() => { setBroadcastModal(false); setBroadcastMsg(""); }}
           footer={
             <>
               <button className="admin-btn admin-btn-ghost" onClick={() => { setBroadcastModal(false); setBroadcastMsg(""); }}>Cancel</button>
-              <button className="admin-btn admin-btn-broadcast" onClick={sendBroadcast} disabled={!broadcastMsg.trim()}>
-                Send Broadcast Now
+              <button className="admin-btn admin-btn-broadcast" onClick={() => { void sendBroadcast(); }} disabled={!broadcastMsg.trim() || sendingBroadcast}>
+                {sendingBroadcast ? "Sending..." : "Send Broadcast Now"}
               </button>
             </>
           }
         >
           <div className="admin-alert warning" style={{ marginBottom: "1rem" }}>
-            <span className="admin-alert-icon">⚠️</span>
+            <span className="admin-alert-icon material-symbols-outlined">warning</span>
             <div>This broadcast will be sent to all registered citizens, dispatchers, and field units.</div>
           </div>
           <div className="admin-form-group">
             <label className="admin-form-label">Broadcast Message</label>
-            <textarea className="admin-form-textarea" rows={5} placeholder="Enter your emergency broadcast message…" value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)} />
+            <textarea className="admin-form-textarea" rows={5} placeholder="Enter your emergency broadcast message" value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)} />
             <span className="admin-form-hint">{broadcastMsg.length}/500 characters</span>
           </div>
         </Modal>
@@ -3454,3 +4067,4 @@ export default function AdminPortal() {
     </div>
   );
 }
+
