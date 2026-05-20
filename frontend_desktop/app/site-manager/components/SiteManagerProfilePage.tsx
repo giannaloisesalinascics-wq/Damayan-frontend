@@ -107,11 +107,7 @@ export default function SiteManagerProfilePage({ onBack, primaryColor, session, 
     receiveZoneAlerts: true,
   });
 
-  // Mocked Field Teams for Role-Based Access User Story
-  const [fieldTeams, setFieldTeams] = useState([
-    { id: 1, name: "Juan Dela Cruz", role: "Medical Responder" },
-    { id: 2, name: "Maria Santos", role: "Logistics Coordinator" },
-  ]);
+  const [fieldTeams, setFieldTeams] = useState<{ id: number; name: string; role: string }[]>([]);
 
   // Load profile data on mount
   useEffect(() => {
@@ -383,7 +379,7 @@ export default function SiteManagerProfilePage({ onBack, primaryColor, session, 
           </div>
           
           <div className="space-y-4">
-            {fieldTeams.map((team) => (
+            {fieldTeams.length > 0 ? fieldTeams.map((team) => (
               <div key={team.id} className="flex items-center justify-between p-5 rounded-2xl border border-[#dadad5] dark:border-[#3b3b3b] bg-[#fdfefd] dark:bg-[#2a2d29] hover:border-gray-300 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-500 dark:text-gray-400">
@@ -409,7 +405,12 @@ export default function SiteManagerProfilePage({ onBack, primaryColor, session, 
                   />
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="p-5 rounded-2xl border border-dashed border-[#dadad5] dark:border-[#3b3b3b] bg-[#fdfefd] dark:bg-[#2a2d29] text-center">
+                <p className="font-bold text-[#1a1c19] dark:text-white">No field team records available</p>
+                <p className="text-xs text-[#5f6b5e] mt-1">This section will populate once team assignments are loaded from the database.</p>
+              </div>
+            )}
           </div>
           <p className="text-xs text-[#5f6b5e] mt-4 ml-1">Assigning specific roles ensures field teams perform tasks securely within their designated scope.</p>
         </div>
@@ -490,13 +491,13 @@ export default function SiteManagerProfilePage({ onBack, primaryColor, session, 
           <div className="bg-white dark:bg-[#232622] rounded-[2.5rem] p-8 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
             <div className="flex items-center gap-3 mb-6 border-b border-[#dadad5] dark:border-[#3b3b3b] pb-4">
               <span className="material-symbols-outlined text-red-500">emergency</span>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#444743] dark:text-[#a0a39f]">Emergency Contact</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#444743] dark:text-[#a0a39f]">Account Contact</h3>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-4">
                 <div>
-                  <p className="font-bold text-sm text-[#1a1c19] dark:text-white">Elena Reyes (Spouse)</p>
-                  <p className="text-xs text-[#707a6c]">+63 917 XXX XXXX</p>
+                  <p className="font-bold text-sm text-[#1a1c19] dark:text-white">{profileData.fullName || "Account holder"}</p>
+                  <p className="text-xs text-[#707a6c]">{profileData.phone || "No phone number on file"}</p>
                 </div>
                 <span className="material-symbols-outlined text-[#707a6c]">call</span>
               </div>
