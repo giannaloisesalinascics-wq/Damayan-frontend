@@ -13,8 +13,7 @@
     "types": [
       "react",
       "react-native"
-    ],
-    "baseUrl": "."
+    ]
   },
   "include": [
     "**/*.ts",
