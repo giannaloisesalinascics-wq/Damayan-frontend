@@ -94,6 +94,7 @@ export function CitizenBeforeScreen({
   onOpenResponse,
   onRegisterIndividual,
   onRegisterHousehold,
+  onReportIncident,
   initialStep = "dashboard",
   isDarkMode,
   citizenProfile,
@@ -107,6 +108,7 @@ export function CitizenBeforeScreen({
   onOpenResponse: () => void;
   onRegisterIndividual?: () => void;
   onRegisterHousehold?: () => void;
+  onReportIncident?: () => void;
   initialStep?: string;
   isDarkMode?: boolean;
   citizenProfile?: any;
@@ -196,6 +198,18 @@ export function CitizenBeforeScreen({
         <Text style={localStyles.heroTitle}>Safety Dashboard</Text>
         <Text style={localStyles.heroSub}>Complete your audit before the next advisory.</Text>
       </View>
+
+      {/* Report Incident Quick-Action */}
+      <TouchableOpacity style={localStyles.sosButton} onPress={onReportIncident} activeOpacity={0.85}>
+        <View style={localStyles.sosIconWrap}>
+          <Ionicons name="megaphone" size={22} color="#fff" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={localStyles.sosTitle}>Report an Incident</Text>
+          <Text style={localStyles.sosSub}>Request rescue or flag an emergency in your area</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
+      </TouchableOpacity>
 
       <View style={localStyles.mainRow}>
         {/* Ready-Check Audit Section */}
@@ -535,21 +549,25 @@ export function CitizenBeforeScreen({
 
 const getStyles = (theme: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.bg },
-  scrollContent: { padding: 24, paddingBottom: 120 },
+  scrollContent: { padding: 20, paddingBottom: 140 },
   
   // Dashboard Styles
-  heroBanner: { backgroundColor: "#2E7D32", borderRadius: 32, padding: 28, marginBottom: 24 },
+  heroBanner: { backgroundColor: "#2E7D32", borderRadius: 24, padding: 22, marginBottom: 16 },
   heroBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.2)", alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginBottom: 14 },
   pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#81C784", marginRight: 8 },
   heroBadgeText: { color: "#fff", fontSize: 10, ...fonts.black, letterSpacing: 1 },
   heroTitle: { fontSize: 30, ...fonts.black, color: "#fff", letterSpacing: -1 },
   heroSub: { fontSize: 14, ...fonts.medium, color: "rgba(255,255,255,0.8)", marginTop: 4 },
-  mainRow: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
-  auditSection: { flex: 2, minWidth: 350, backgroundColor: "#fff", borderRadius: 40, padding: 32, borderWidth: 1, borderColor: theme.line },
+  sosButton: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#BA1A1A", borderRadius: 20, padding: 16, marginBottom: 16, shadowColor: "#BA1A1A", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  sosIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  sosTitle: { fontSize: 16, ...fonts.black, color: "#fff", letterSpacing: -0.3 },
+  sosSub: { fontSize: 12, ...fonts.medium, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  mainRow: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  auditSection: { flex: 2, minWidth: 280, backgroundColor: "#fff", borderRadius: 32, padding: 20, borderWidth: 1, borderColor: theme.line },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  sectionTitle: { fontSize: 28, ...fonts.black, color: theme.text, letterSpacing: -0.5 },
+  sectionTitle: { fontSize: 22, ...fonts.black, color: theme.text, letterSpacing: -0.5 },
   progressText: { fontSize: 12, ...fonts.black, color: "#2E7D32", letterSpacing: 1 },
-  progressTrack: { height: 12, backgroundColor: "#E8F5E9", borderRadius: 6, marginBottom: 32, overflow: "hidden" },
+  progressTrack: { height: 8, backgroundColor: "#E8F5E9", borderRadius: 6, marginBottom: 20, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: "#81C784", borderRadius: 6 },
   auditGrid: { gap: 10 },
   auditCard: { backgroundColor: theme.surfaceAlt, padding: 16, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: theme.line },
@@ -580,8 +598,8 @@ const getStyles = (theme: any) => StyleSheet.create({
   auditModalStepText: { flex: 1, fontSize: 14, ...fonts.bold, color: theme.textMuted || "#4d544d", lineHeight: 21 },
   auditModalDoneBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 24, height: 58, borderRadius: 20, backgroundColor: "#2E7D32", shadowColor: "#2E7D32", shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   auditModalDoneBtnText: { fontSize: 15, ...fonts.black, color: "#fff", letterSpacing: 0.5 },
-  sideColumn: { flex: 1, minWidth: 300, gap: 24 },
-  identityCard: { backgroundColor: "#fff", borderRadius: 32, padding: 24, borderWidth: 1, borderColor: theme.line },
+  sideColumn: { flex: 1, minWidth: 280, gap: 16 },
+  identityCard: { backgroundColor: "#fff", borderRadius: 24, padding: 20, borderWidth: 1, borderColor: theme.line },
   sideLabel: { fontSize: 10, ...fonts.black, color: theme.textLight, letterSpacing: 1.5, marginBottom: 20 },
   identityContent: { flexDirection: "row", alignItems: "center" },
   qrBox: { width: 60, height: 60, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: theme.line, alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -590,7 +608,7 @@ const getStyles = (theme: any) => StyleSheet.create({
   verifiedBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#E8F5E9", alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 8 },
   smallGreenDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#2E7D32", marginRight: 6 },
   verifiedText: { fontSize: 9, ...fonts.black, color: "#2E7D32", letterSpacing: 0.5 },
-  alertCard: { backgroundColor: "#E65100", borderRadius: 32, padding: 32 },
+  alertCard: { backgroundColor: "#E65100", borderRadius: 24, padding: 20 },
   alertTitle: { fontSize: 24, ...fonts.black, color: "#fff" },
   alertMeta: { fontSize: 10, ...fonts.black, color: "rgba(255,255,255,0.7)", letterSpacing: 1, marginTop: 4, marginBottom: 12 },
   alertDesc: { fontSize: 14, ...fonts.medium, color: "rgba(255,255,255,0.9)", lineHeight: 20, marginBottom: 24 },

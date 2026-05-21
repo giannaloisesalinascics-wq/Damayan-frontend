@@ -251,6 +251,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                     onOpenResponse={() => { setPhaseOverride("during"); setActiveNav("Safety Map"); setTargetStep("decision"); }}
                     onRegisterIndividual={() => setTargetStep("individual_registration")}
                     onRegisterHousehold={() => setTargetStep("household_registration")}
+                    onReportIncident={() => { setPhaseOverride("during"); setTargetStep("report_incident"); }}
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
                     citizenProfile={citizenProfile}
                     authUser={authUser}
@@ -264,8 +265,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             )}
             {phase === "during" && (
               <CitizenDuringScreen
-                onBack={() => setTargetStep("dashboard")}
-                initialStep={targetStep === "map" ? "map" : "decision"}
+                onBack={() => { setPhaseOverride(null); setTargetStep("dashboard"); }}
+                initialStep={targetStep === "map" ? "map" : targetStep === "report_incident" ? "report_incident" : "decision"}
                 session={session}
                 authUser={authUser}
                 qrCodeId={citizenProfile?.qrCodeId}
