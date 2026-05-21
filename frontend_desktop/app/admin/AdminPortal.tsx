@@ -19,6 +19,11 @@ import {
   getPendingApprovals,
   approvePendingUser,
   rejectPendingUser,
+  getRegions,
+  getRegionsGeo,
+  upsertRegionPersonaPhaseControl,
+  getRegionPersonaPhaseAudience,
+  getRegionShelters,
   type AdminApprovalRecord,
 } from "../lib/api";
 import { subscribeToLiveAlerts, type LiveAlertRecord } from "../lib/supabase";
@@ -34,6 +39,7 @@ type AdminPage =
   | "after_calamity"
   | "disaster_monitoring"
   | "early_warning"
+  | "persona_controls"
   | "profile";
 
 type AccountStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -3412,6 +3418,330 @@ function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
 }
 
 // 
+//  Persona Phase Controls Page
+// 
+function MiniRegionMap({
+  regionsGeo,
+  shelters,
+  selectedRegionId,
+  onSelectRegion,
+}: {
+  regionsGeo: Array<{ id: string; name: string; geojson: any }>;
+  shelters: Array<{ id: string; name: string; lat: number; lng: number }>;
+  selectedRegionId?: string;
+  onSelectRegion: (id: string) => void;
+}) {
+  const mapRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const layersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (mapRef.current) return;
+
+    import('leaflet').then((L) => {
+      // Patch default icon
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      mapRef.current = L.map(containerRef.current, { zoomControl: false }).setView([14.5547, 121.0], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(mapRef.current);
+    });
+
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // clear previous layers
+    for (const l of layersRef.current) {
+      try { mapRef.current.removeLayer(l); } catch {}
+    }
+    layersRef.current = [];
+
+    import('leaflet').then((L) => {
+      // draw regions
+      const regionLayers: any[] = [];
+      for (const r of regionsGeo) {
+        try {
+          const layer = L.geoJSON(r.geojson, {
+            style: () => ({ color: r.id === selectedRegionId ? '#2563EB' : '#475569', weight: r.id === selectedRegionId ? 3 : 1, fillOpacity: r.id === selectedRegionId ? 0.12 : 0.06 }),
+          }).on('click', () => onSelectRegion(r.id));
+          layer.addTo(mapRef.current);
+          regionLayers.push(layer);
+        } catch (e) {
+          // ignore invalid geojson
+        }
+      }
+
+      // markers for shelters
+      const markerLayers: any[] = [];
+      for (const s of shelters) {
+        const m = L.marker([s.lat, s.lng]);
+        m.bindPopup(`<strong>${s.name}</strong>`);
+        m.on('click', () => onSelectRegion(selectedRegionId ?? ''));
+        m.addTo(mapRef.current);
+        markerLayers.push(m);
+      }
+
+      layersRef.current = [...regionLayers, ...markerLayers];
+
+      // fit bounds to selected region if available
+      const sel = regionLayers.find((rl) => (rl.feature && rl.feature.properties && rl.feature.properties.id) ? rl.feature.properties.id === selectedRegionId : false);
+      if (selectedRegionId && regionLayers.length > 0) {
+        try {
+          const group = L.featureGroup(regionLayers as any[]);
+          mapRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
+        } catch {}
+      } else if (regionLayers.length > 0) {
+        try { mapRef.current.fitBounds(L.featureGroup(regionLayers as any[]).getBounds(), { padding: [20, 20] }); } catch {}
+      }
+    });
+  }, [regionsGeo, shelters, selectedRegionId, onSelectRegion]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: 260, borderRadius: 8, overflow: 'hidden' }} />;
+}
+
+function RegionPersonaControlsPage({ authToken, showToast }: { authToken?: string | null; showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
+  const [regionId, setRegionId] = useState("");
+  const [regions, setRegions] = useState<Array<{ id: string; name: string; currentPhase: string }>>([]);
+  const [persona, setPersona] = useState<AppRole>(AppRole.CITIZEN);
+  const [phase, setPhase] = useState<"BEFORE" | "DURING" | "AFTER">("BEFORE");
+  const [visible, setVisible] = useState(true);
+  const [audience, setAudience] = useState<Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>>([]);
+  const [saving, setSaving] = useState(false);
+  const [loadingAudience, setLoadingAudience] = useState(false);
+
+  const handleSave = async () => {
+    if (!authToken) {
+      showToast("error", "Session expired", "Please re-login to continue.");
+      return;
+    }
+    if (!regionId.trim()) {
+      showToast("error", "Missing region", "Enter the region id first.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const res = await upsertRegionPersonaPhaseControl(authToken, regionId.trim(), {
+        personaRole: persona,
+        phase,
+        visibleToAssignedUsers: visible,
+      });
+
+      setAudience(res.audience ?? []);
+      showToast("success", "Saved", `${res.region.name}: ${res.control.personaRole} → ${res.control.phase} (${res.audience.length} users)`);
+    } catch (err: any) {
+      showToast("error", "Save failed", err?.message ?? "Unable to save regional control.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLoadAudience = async () => {
+    if (!authToken) {
+      showToast("error", "Session expired", "Please re-login to continue.");
+      return;
+    }
+    if (!regionId.trim()) {
+      showToast("error", "Missing region", "Enter the region id first.");
+      return;
+    }
+
+    try {
+      setLoadingAudience(true);
+      const list = await getRegionPersonaPhaseAudience(authToken, regionId.trim(), persona);
+      setAudience(list ?? []);
+      showToast("info", "Audience loaded", `${list.length} assigned user(s) found.`);
+    } catch (err: any) {
+      showToast("error", "Load failed", err?.message ?? "Unable to load audience.");
+    } finally {
+      setLoadingAudience(false);
+    }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRegions() {
+      if (!authToken) return;
+      try {
+        const list = await getRegions(authToken);
+        if (!cancelled) setRegions(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadRegions();
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  const [regionsGeo, setRegionsGeo] = useState<Array<{ id: string; name: string; geojson: any }>>([]);
+  const [shelters, setShelters] = useState<Array<{ id: string; name: string; lat: number; lng: number }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGeo() {
+      if (!authToken) return;
+      try {
+        const list = await getRegionsGeo(authToken);
+        if (!cancelled) setRegionsGeo(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadGeo();
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadShelters() {
+      if (!authToken || !regionId) {
+        setShelters([]);
+        return;
+      }
+      try {
+        const list = await getRegionShelters(authToken, regionId);
+        if (!cancelled) setShelters(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadShelters();
+    return () => { cancelled = true; };
+  }, [authToken, regionId]);
+
+  return (
+    <div className="admin-page">
+      <div className="admin-page-head">
+        <div>
+          <h2>Persona Phase Controls</h2>
+          <p>Set per-region calamity phase visibility for a specific persona.</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        <div>
+          <div style={{ maxWidth: '100%' }}>
+            <div className="admin-card">
+              <div className="admin-card-header">
+                <div className="admin-card-title">Region Persona Override</div>
+              </div>
+              <div className="admin-card-body">
+                <div className="admin-form-grid">
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Region</label>
+                    <select className="admin-form-input" value={regionId} onChange={(e) => setRegionId(e.target.value)}>
+                      <option value="">Select a region...</option>
+                      {regions.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name} {r.currentPhase ? `(${r.currentPhase})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Persona</label>
+                    <select className="admin-form-input" value={persona} onChange={(e) => setPersona(e.target.value as AppRole)}>
+                      <option value={AppRole.ADMIN}>admin</option>
+                      <option value={AppRole.DISPATCHER}>dispatcher</option>
+                      <option value={AppRole.LINE_MANAGER}>line_manager</option>
+                      <option value={AppRole.CITIZEN}>citizen</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Phase</label>
+                    <select className="admin-form-input" value={phase} onChange={(e) => setPhase(e.target.value as any)}>
+                      <option value="BEFORE">BEFORE</option>
+                      <option value="DURING">DURING</option>
+                      <option value="AFTER">AFTER</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Visible To Assigned Users</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                      <input id="visible-toggle" type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+                      <label htmlFor="visible-toggle" style={{ margin: 0, color: "var(--admin-text-soft)" }}>Show this phase state to users assigned to the region</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.85rem" }}>
+                  <button className="admin-btn admin-btn-accent" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Override"}</button>
+                  <button className="admin-btn admin-btn-ghost" onClick={handleLoadAudience} disabled={loadingAudience}>{loadingAudience ? "Loading..." : "Load Audience"}</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: "0.9rem" }}>
+              <div className="admin-card-header"><div className="admin-card-title">Audience</div></div>
+              <div className="admin-card-body">
+                {audience.length === 0 ? (
+                  <div style={{ color: "var(--admin-text-soft)" }}>No users loaded. Use "Load Audience" or save an override to populate the list.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: "0.5rem" }}>
+                    {audience.map((u) => (
+                      <div key={u.authUserId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.45rem", borderRadius: "0.5rem", background: "var(--admin-surface-low)" }}>
+                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                          <div style={{ width: "2rem", height: "2rem", borderRadius: "0.4rem", background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent))", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800 }}>{u.name?.[0] ?? "U"}</div>
+                          <div>
+                            <div style={{ fontWeight: 700 }}>{u.name}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>{u.role}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>{u.assignedRegionId ?? "-"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside>
+          <div className="admin-card">
+            <div className="admin-card-header"><div className="admin-card-title">Region Directory</div></div>
+            <div className="admin-card-body">
+              <MiniRegionMap regionsGeo={regionsGeo} shelters={shelters} selectedRegionId={regionId} onSelectRegion={(id) => setRegionId(id)} />
+              <div style={{ marginTop: 8, maxHeight: 120, overflowY: 'auto' }}>
+                {regions.length === 0 ? (
+                  <div style={{ color: 'var(--admin-text-soft)' }}>No regions found.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {regions.map((r) => (
+                      <button key={r.id} className="admin-btn admin-btn-ghost" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => setRegionId(r.id)}>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontWeight: 700 }}>{r.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-soft)' }}>{r.currentPhase ?? ''}</div>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-soft)' }}>Select</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+// 
 //  ROOT ADMIN PORTAL
 // 
 export default function AdminPortal() {
@@ -3758,6 +4088,7 @@ export default function AdminPortal() {
     after_calamity: { title: "After Calamity", sub: "Post-disaster response, relief deployment and reporting" },
     disaster_monitoring: { title: "Disaster Monitoring", sub: "Live feeds, event tracking, forecast analysis" },
     early_warning: { title: "Early Warning System", sub: "Configure and broadcast calamity warnings" },
+    persona_controls: { title: "Persona Phase Controls", sub: "Per-region phase overrides for specific personas" },
     profile: { title: "My Profile", sub: "Account settings and password management" },
   };
 
@@ -3777,14 +4108,15 @@ export default function AdminPortal() {
 
         <div className="admin-sb-section">Navigation</div>
         <nav className="admin-sb-nav">
-          {([
-            { id: "overview", icon: "grid_view", label: "Overview" },
-            { id: "approvals", icon: "how_to_reg", label: "Approvals", badge: pending },
-            { id: "people_records", icon: "people", label: "People & Records" },
-            { id: "after_calamity", icon: "assignment_turned_in", label: "After Calamity" },
-            { id: "disaster_monitoring", icon: "crisis_alert", label: "Disaster Monitor" },
-            { id: "early_warning", icon: "broadcast_on_home", label: "Early Warning" },
-          ] as { id: AdminPage; icon: string; label: string; badge?: number }[]).map((item) => (
+            {([
+              { id: "overview", icon: "grid_view", label: "Overview" },
+              { id: "approvals", icon: "how_to_reg", label: "Approvals", badge: pending },
+              { id: "people_records", icon: "people", label: "People & Records" },
+              { id: "after_calamity", icon: "assignment_turned_in", label: "After Calamity" },
+              { id: "disaster_monitoring", icon: "crisis_alert", label: "Disaster Monitor" },
+              { id: "early_warning", icon: "broadcast_on_home", label: "Early Warning" },
+              { id: "persona_controls", icon: "groups", label: "Persona Phase Controls" },
+            ] as { id: AdminPage; icon: string; label: string; badge?: number }[]).map((item) => (
             <button
               key={item.id}
               className={`admin-nav-item ${page === item.id ? "active" : ""}`}
@@ -3931,6 +4263,9 @@ export default function AdminPortal() {
               setPage={setPage}
               authToken={session?.accessToken}
             />
+          )}
+          {page === "persona_controls" && (
+            <RegionPersonaControlsPage authToken={session?.accessToken} showToast={showToast} />
           )}
           {page === "profile" && (
             <ProfilePage profile={profile} onSave={handleProfileSave} showToast={showToast} />

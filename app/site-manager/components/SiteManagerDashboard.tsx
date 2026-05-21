@@ -121,12 +121,6 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
     ]
   }[phase];
 
-  const nextPhase = {
-    before: "during",
-    during: "after",
-    after: "before",
-  }[phase];
-
   const inventoryTable = [
     { category: "First Aid Refill-A", stock: "15%", incoming: "450 Units", eta: "02:30h", status: "In Transit", icon: "medication", tone: "error" },
     { category: "Self-Heating Meals", stock: "82%", incoming: "--", eta: "--", status: "Stable", icon: "restaurant", tone: "secure" },
@@ -273,22 +267,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
           })}
         </nav>
 
-        <div className="space-y-4">
-          <Link 
-            href={`/site-manager/${nextPhase}calamity`}
-            className="w-full group relative overflow-hidden rounded-3xl p-px transition-all hover:scale-[1.02] active:scale-95 shadow-xl block"
-          >
-            <div className="absolute inset-0 opacity-10 animate-pulse" style={{ background: phaseConfig.primaryColor }}></div>
-            <div 
-              className="relative flex items-center justify-center gap-3 px-6 py-5 rounded-[1.4rem] transition-colors"
-              style={{ background: `linear-gradient(135deg, ${phaseConfig.primaryColor}, ${phaseConfig.primaryContainer})` }}
-            >
-               <span className="material-symbols-outlined text-white animate-pulse text-xl">arrow_forward</span>
-               <span className="text-white text-[11px] font-black uppercase tracking-[0.2em]">Next: {nextPhase}</span>
-            </div>
-          </Link>
-
-        </div>
+        <div className="space-y-4" />
       </aside>
 
 

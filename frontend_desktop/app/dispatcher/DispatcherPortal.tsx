@@ -1876,7 +1876,7 @@ function RescueMonitoringPage({
       <div className="dp-rescue-content-grid">
         <div className="dp-incidents-map">
           <div className="dp-map-header">
-            <span className="dp-map-header-title">🛡 Rescue Monitoring</span>
+            <span className="dp-map-header-title">Rescue Monitoring</span>
           </div>
           <div style={{ flex: selInc ? "0 0 45%" : "1", minHeight: 0 }}>
             <LiveMap
@@ -2513,7 +2513,7 @@ function RescueDetailPanel({
             type: "alert",
             time: addMins(dispatchTime, 8),
             from: "System Alert",
-            msg: `⚠ Situation escalated to CRITICAL at ${inc.location}. All nearby volunteers on standby.`,
+            msg: `Situation escalated to CRITICAL at ${inc.location}. All nearby volunteers on standby.`,
           },
         ]
       : []),
@@ -4970,7 +4970,7 @@ function ProfilePage({
               className="dp-alert dp-alert-amber"
               style={{ marginBottom: "1rem" }}
             >
-              ✏️ You are in edit mode. Make changes and click Save.
+              You are in edit mode. Make changes and click Save.
             </div>
           )}
           <div className="dp-profile-2col">
@@ -5414,7 +5414,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         <div className="dp-sidebar-top">
           <div className="dp-sidebar-brand">
             <div className="dp-sidebar-brand-mark">
-              <img src="/damayan-logo.png" alt="Damayan Logo" />
+              <img src="/damayan_logo.png" alt="Damayan Logo" />
             </div>
             <div>
               <div className="dp-sidebar-brand-name">Damayan</div>
@@ -5521,7 +5521,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                 setBroadcastModal(true);
               }}
             >
-              ⚠ Broadcast
+              Broadcast
             </button>
             <button
               className="dp-live-activity-btn"
@@ -5554,7 +5554,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                       setDropdown(false);
                     }}
                   >
-                    👤 View Profile
+                    View Profile
                   </button>
                   <button
                     className="dp-avatar-dropdown-item"
@@ -5563,7 +5563,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                       setDropdown(false);
                     }}
                   >
-                    ✏️ Edit Profile
+                    Edit Profile
                   </button>
                   <div className="dp-avatar-dropdown-divider" />
                   <button
@@ -5660,7 +5660,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       {/* Broadcast modal */}
       {broadcastModal && (
         <Modal
-          title="⚠ System-Wide Broadcast Alert"
+          title="System-Wide Broadcast Alert"
           onClose={() => {
             setBroadcastModal(false);
             setBroadcastMsg("");

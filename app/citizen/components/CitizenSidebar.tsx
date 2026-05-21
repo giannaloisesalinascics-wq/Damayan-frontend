@@ -7,12 +7,11 @@ export type NavDestination = "Overview" | "Family & ID" | "Safety Map" | "Relief
 
 interface CitizenSidebarProps {
   phase: "before" | "during" | "after";
-  setPhase: (phase: "before" | "during" | "after") => void;
   onNavigate?: (destination: NavDestination) => void;
   activeNav?: NavDestination;
 }
 
-const CitizenSidebar: React.FC<CitizenSidebarProps> = ({ phase, setPhase, onNavigate, activeNav = "Overview" }) => {
+const CitizenSidebar: React.FC<CitizenSidebarProps> = ({ phase, onNavigate, activeNav = "Overview" }) => {
   const phaseConfig = {
     before: {
       label: "Preparedness",
@@ -84,21 +83,6 @@ const CitizenSidebar: React.FC<CitizenSidebarProps> = ({ phase, setPhase, onNavi
             <span className="text-[10px] font-black uppercase tracking-widest text-[#707a6c] dark:text-[#c4c7c0]">Current Phase</span>
           </div>
           <div className="font-black text-sm" style={{ color: phaseConfig.color }}>{phaseConfig.label}</div>
-        </div>
-
-        {/* Phase Toggle (Simulated for Demo) */}
-        <div className="grid grid-cols-3 gap-1 p-1 bg-[#dadad5]/50 dark:bg-[#3b3b3b]/50 rounded-xl mb-4">
-          {(["before", "during", "after"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPhase(p)}
-              className={`py-1 text-[8px] font-black uppercase rounded-lg transition-all ${
-                phase === p ? "bg-white dark:bg-[#444743] shadow-sm text-[#1a1c19] dark:text-white" : "text-[#707a6c] dark:text-[#c4c7c0] hover:bg-white/30 dark:hover:bg-white/10"
-              }`}
-            >
-              {p[0]}
-            </button>
-          ))}
         </div>
 
       </div>

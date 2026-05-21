@@ -448,12 +448,6 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
   })();
 
   const displayName = session?.user.name?.trim() || "Site Manager";
-  const nextPhase = {
-    before: "during",
-    during: "after",
-    after: "before",
-  }[phase];
-
   const activeAlerts = overview?.incidentReports.highSeverityReports;
 
   return (
@@ -601,32 +595,7 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
           })}
         </nav>
 
-        <div className="space-y-4">
-          {phase !== "before" && (
-            <Link
-              href={`/site-manager/${phase === "after" ? "during" : "before"}calamity`}
-              className="w-full group relative overflow-hidden rounded-3xl p-px transition-all hover:scale-[1.02] active:scale-95 shadow-sm block"
-            >
-              <div className="relative flex items-center justify-center gap-3 px-6 py-4 rounded-[1.4rem] transition-colors border border-[#dadad5] dark:border-[#3b3b3b] bg-white dark:bg-[#232622] hover:bg-[#f4f4ef] dark:hover:bg-white/5">
-                <span className="material-symbols-outlined text-[#707a6c] transition-transform group-hover:-translate-x-1 text-xl">arrow_backward</span>
-                <span className="text-[#707a6c] text-[10px] font-black uppercase tracking-[0.2em]">Back: {phase === "after" ? "During" : "Before"}</span>
-              </div>
-            </Link>
-          )}
-
-          {phase !== "after" && (
-            <Link
-              href={`/site-manager/${nextPhase}calamity`}
-              className="w-full group relative overflow-hidden rounded-3xl p-px transition-all hover:scale-[1.02] active:scale-95 shadow-xl block"
-            >
-              <div className="absolute inset-0 opacity-10 animate-pulse" style={{ background: phaseConfig.primaryColor }}></div>
-              <div className="relative flex items-center justify-center gap-3 px-6 py-5 rounded-[1.4rem] transition-colors" style={{ background: `linear-gradient(135deg, ${phaseConfig.primaryColor}, ${phaseConfig.primaryContainer})` }}>
-                <span className="material-symbols-outlined text-white animate-pulse text-xl">arrow_forward</span>
-                <span className="text-white text-[11px] font-black uppercase tracking-[0.2em]">Next: {nextPhase}</span>
-              </div>
-            </Link>
-          )}
-        </div>
+        <div className="space-y-4" />
       </aside>
 
       <main className="md:ml-64 pt-28 px-6 pb-24 max-w-7xl mx-auto">

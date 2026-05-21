@@ -56,7 +56,6 @@ export default function CitizenDashboard({ initialPhase = "auth" }: Props) {
       {/* Persistent Sidebar */}
       <CitizenSidebar 
         phase={phase as any} 
-        setPhase={(p) => { setPhase(p as Phase); setActiveNav("Overview"); }} 
         onNavigate={handleNavigate}
         activeNav={activeNav}
       />

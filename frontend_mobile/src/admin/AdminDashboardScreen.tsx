@@ -5,7 +5,6 @@ import { Button, Pill, Screen, SectionCard } from "../components/UI";
 import { NotificationBell } from "../components/NotificationBell";
 import { useNotifications } from "../hooks/useNotifications";
 import {
-  type AdminDisasterEventsPayload,
   broadcastAdminWarning,
   ApiError,
   approvePendingUser,
@@ -13,7 +12,9 @@ import {
   getDisasterEvents,
   getPendingApprovals,
   getSystemHealth,
+  getRegionPersonaPhaseAudience,
   rejectPendingUser,
+  upsertRegionPersonaPhaseControl,
   updateAdminDisasterEvent,
   type AdminApprovalRecord,
   type AdminDisasterEventWithTickets,
@@ -25,6 +26,7 @@ import { subscribeToLiveAlerts, type LiveAlertRecord } from "../supabase";
 
 type HealthTone = "success" | "warning" | "danger";
 type CalamityPhase = "BEFORE" | "DURING" | "AFTER";
+type PersonaRole = "admin" | "dispatcher" | "line_manager" | "citizen";
 type MobileDisasterRecord = {
   id: string;
   name: string;
@@ -35,7 +37,7 @@ type MobileDisasterRecord = {
   ticketCount: number;
 };
 
-export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
+export function AdminDashboardScreen({ onBack }: { readonly onBack: () => void }) {
   const [active, setActive] = useState("Overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +56,12 @@ export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
   const [usePush, setUsePush] = useState(true);
   const [broadcasting, setBroadcasting] = useState(false);
   const [liveAlerts, setLiveAlerts] = useState<LiveAlertRecord[]>([]);
+  const [regionalPhaseRegionId, setRegionalPhaseRegionId] = useState("");
+  const [regionalPhasePersona, setRegionalPhasePersona] = useState<PersonaRole>("citizen");
+  const [regionalPhaseState, setRegionalPhaseState] = useState<CalamityPhase>("BEFORE");
+  const [regionalPhaseVisible, setRegionalPhaseVisible] = useState(true);
+  const [regionalPhaseAudience, setRegionalPhaseAudience] = useState<Array<{ authUserId: string; name: string; role: PersonaRole }>>([]);
+  const [regionalPhaseSaving, setRegionalPhaseSaving] = useState(false);
 
   const mapStatusToPhase = (status: string): CalamityPhase => {
     const normalized = status.toLowerCase();
@@ -79,9 +87,7 @@ export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
   const normalizeDisasters = (
     payload: Awaited<ReturnType<typeof getDisasterEvents>>,
   ): MobileDisasterRecord[] => {
-    const events = Array.isArray(payload)
-      ? payload
-      : (payload as AdminDisasterEventsPayload).disasterEvents;
+    const events = Array.isArray(payload) ? payload : payload.disasterEvents;
 
     return events.map((event) => {
       const item = event as AdminDisasterEventWithTickets;
@@ -262,6 +268,70 @@ export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
       setBroadcasting(false);
     }
   }, [broadcastAreas, broadcastMessage, broadcastSeverity, broadcastType, token, usePush, useSMS]);
+
+  const handleSaveRegionalPersonaPhase = useCallback(async () => {
+    if (!token) {
+      Alert.alert("Session expired", "Please log in again.");
+      return;
+    }
+
+    if (!regionalPhaseRegionId.trim()) {
+      Alert.alert("Missing region", "Enter the target region ID first.");
+      return;
+    }
+
+    try {
+      setRegionalPhaseSaving(true);
+      const result = await upsertRegionPersonaPhaseControl(token, regionalPhaseRegionId.trim(), {
+        personaRole: regionalPhasePersona,
+        phase: regionalPhaseState,
+        visibleToAssignedUsers: regionalPhaseVisible,
+      });
+      setRegionalPhaseAudience(result.audience);
+      Alert.alert(
+        "Regional phase saved",
+        `${result.region.name}: ${regionalPhasePersona} set to ${regionalPhaseState} for ${result.audience.length} assigned user(s).`,
+      );
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : "Unable to save the regional phase control.";
+      Alert.alert("Save failed", message);
+    } finally {
+      setRegionalPhaseSaving(false);
+    }
+  }, [regionalPhasePersona, regionalPhaseRegionId, regionalPhaseState, regionalPhaseVisible, token]);
+
+  const handleLoadRegionalPersonaAudience = useCallback(async () => {
+    if (!token) {
+      Alert.alert("Session expired", "Please log in again.");
+      return;
+    }
+
+    if (!regionalPhaseRegionId.trim()) {
+      Alert.alert("Missing region", "Enter the target region ID first.");
+      return;
+    }
+
+    try {
+      const audience = await getRegionPersonaPhaseAudience(token, regionalPhaseRegionId.trim(), regionalPhasePersona);
+      setRegionalPhaseAudience(audience);
+      Alert.alert("Audience loaded", `${audience.length} assigned user(s) can see this regional state.`);
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof ApiError
+          ? caughtError.message
+          : "Unable to load the regional audience.";
+      Alert.alert("Load failed", message);
+    }
+  }, [regionalPhasePersona, regionalPhaseRegionId, token]);
+
+  const disasterPhaseTone: Record<CalamityPhase, "danger" | "success" | "warning"> = {
+    BEFORE: "warning",
+    DURING: "danger",
+    AFTER: "success",
+  };
 
   const handleReject = useCallback(async (id: string) => {
     if (!token) {
@@ -445,7 +515,7 @@ export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
               <View key={disaster.id} style={styles.disasterCard}>
                 <View style={styles.disasterHead}>
                   <Text style={styles.rowTitle}>{disaster.name}</Text>
-                  <Pill label={disaster.phase} tone={disaster.phase === "DURING" ? "danger" : disaster.phase === "AFTER" ? "success" : "warning"} />
+                  <Pill label={disaster.phase} tone={disasterPhaseTone[disaster.phase]} />
                 </View>
                 <Text style={styles.rowCopy}>{disaster.type} • {disaster.severityLevel}</Text>
                 <Text style={styles.rowCopy}>Areas: {disaster.areas}</Text>
@@ -467,6 +537,88 @@ export function AdminDashboardScreen({ onBack }: { onBack: () => void }) {
                 </View>
               </View>
             ))
+          )}
+        </SectionCard>
+      )}
+
+      {active === "Overview" && (
+        <SectionCard>
+          <Text style={styles.sectionTitle}>Regional Persona Phase Control</Text>
+          <Text style={styles.emptyCopy}>
+            Set the effective phase for a persona inside a specific region, then review the assigned viewers.
+          </Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Region ID</Text>
+            <TextInput
+              value={regionalPhaseRegionId}
+              onChangeText={setRegionalPhaseRegionId}
+              placeholder="Enter region UUID"
+              style={styles.formInput}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Persona</Text>
+            <TextInput
+              value={regionalPhasePersona}
+              onChangeText={(value) => setRegionalPhasePersona((value.toLowerCase() as PersonaRole) || "citizen")}
+              placeholder="citizen"
+              style={styles.formInput}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.formLabel}>Phase</Text>
+            <View style={styles.channelRow}>
+              {(["BEFORE", "DURING", "AFTER"] as CalamityPhase[]).map((phase) => (
+                <Button
+                  key={phase}
+                  label={phase}
+                  tone={regionalPhaseState === phase ? "primary" : "ghost"}
+                  onPress={() => setRegionalPhaseState(phase)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.channelRow}>
+            <Button
+              label={regionalPhaseVisible ? "Visible to assigned users" : "Hidden from assigned users"}
+              tone={regionalPhaseVisible ? "primary" : "ghost"}
+              onPress={() => setRegionalPhaseVisible((current) => !current)}
+            />
+            <Button
+              label={regionalPhaseSaving ? "Saving..." : "Save Regional Phase"}
+              tone="danger"
+              onPress={() => {
+                if (!regionalPhaseSaving) {
+                  void handleSaveRegionalPersonaPhase();
+                }
+              }}
+            />
+          </View>
+
+          <Button
+            label="Load Assigned Audience"
+            tone="ghost"
+            onPress={() => {
+              void handleLoadRegionalPersonaAudience();
+            }}
+          />
+
+          {regionalPhaseAudience.length > 0 && (
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <Text style={styles.formLabel}>Assigned viewers</Text>
+              {regionalPhaseAudience.map((viewer) => (
+                <View key={viewer.authUserId} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#e6e9e5" }}>
+                  <Text style={styles.rowTitle}>{viewer.name}</Text>
+                  <Text style={styles.rowCopy}>{viewer.role}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </SectionCard>
       )}

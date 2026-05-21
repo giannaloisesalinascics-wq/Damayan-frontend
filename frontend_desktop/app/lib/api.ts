@@ -330,6 +330,36 @@ export async function geocodeAddress(token: string, address: string): Promise<Ge
   );
 }
 
+export async function reverseGeocodeNominatim(latitude: number, longitude: number): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+        },
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = (await response.json()) as { display_name?: string; name?: string };
+    return data.display_name ?? data.name ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  } catch {
+    clearTimeout(timeout);
+    return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  }
+}
+
 export async function getDisasterEvents(
   scope: "admin" | "site-manager",
   token: string,
@@ -363,6 +393,72 @@ export async function updateAdminDisasterEvent(
 
 export async function getOrganizations(token: string) {
   return request<Organization[]>("/admin/organizations", {}, token);
+}
+
+export type RegionPhaseState = "BEFORE" | "DURING" | "AFTER";
+
+export async function getRegionPersonaPhaseControls(token: string, regionId: string) {
+  return request<Array<{
+    id: string;
+    regionId: string;
+    personaRole: AppRole;
+    phase: RegionPhaseState;
+    visibleToAssignedUsers: boolean;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  }>>(`/admin/regions/${regionId}/persona-phase-controls`, {}, token);
+}
+
+export async function getRegions(token: string) {
+  return request<Array<{ id: string; name: string; currentPhase: string }>>(`/admin/regions`, {}, token);
+}
+
+export async function getRegionsGeo(token: string) {
+  return request<Array<{ id: string; name: string; geojson: any }>>(`/admin/regions/geo`, {}, token);
+}
+
+export async function getRegionShelters(token: string, regionId: string) {
+  return request<Array<{ id: string; name: string; lat: number; lng: number }>>(`/admin/regions/${regionId}/shelters`, {}, token);
+}
+
+export async function upsertRegionPersonaPhaseControl(
+  token: string,
+  regionId: string,
+  payload: {
+    personaRole: AppRole;
+    phase: RegionPhaseState;
+    visibleToAssignedUsers?: boolean;
+  },
+) {
+  return request<{
+    region: { id: string; name: string };
+    control: {
+      id: string;
+      regionId: string;
+      personaRole: AppRole;
+      phase: RegionPhaseState;
+      visibleToAssignedUsers: boolean;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+    };
+    audience: Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>;
+  }>(`/admin/regions/${regionId}/persona-phase-controls`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getRegionPersonaPhaseAudience(
+  token: string,
+  regionId: string,
+  personaRole?: AppRole,
+) {
+  const suffix = personaRole ? `?personaRole=${encodeURIComponent(personaRole)}` : "";
+  return request<Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>>(
+    `/admin/regions/${regionId}/persona-phase-controls/audience${suffix}`,
+    {},
+    token,
+  );
 }
 
 export async function getRecentCheckIns(token: string, limit = 8) {
