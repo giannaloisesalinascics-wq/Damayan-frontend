@@ -22,7 +22,7 @@ export default function MovementTab({
   session,
   checkIns,
   onRecordsRefreshed,
-}: MovementTabProps) {
+}: Readonly<MovementTabProps>) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [movementFilter, setMovementFilter] = useState<MovementFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");

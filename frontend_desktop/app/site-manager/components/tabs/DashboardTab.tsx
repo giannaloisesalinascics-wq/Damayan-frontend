@@ -58,7 +58,89 @@ interface IncidentFormState {
   location: string;
 }
 
-export default function DashboardTab({
+type EssentialTask = { t: string; s: string };
+
+function getCloseOperationsLabel(isClosingOperations: boolean, isCloseOperationsArmed: boolean): string {
+  if (isClosingOperations) {
+    return "Closing Shelter...";
+  }
+  if (isCloseOperationsArmed) {
+    return "Confirm Close Shelter Operations";
+  }
+  return "Close Shelter Operations";
+}
+
+function getOperationalLabel(openCenters: number, registeredCentersCount: number): string {
+  if (openCenters > 0) {
+    return "Operational";
+  }
+  if (registeredCentersCount === 0) {
+    return "No Centers";
+  }
+  return "Unavailable";
+}
+
+function getOccupancyColors(occupancyPct: number, primaryColor: string): { text: string; bar: string } {
+  if (occupancyPct >= 90) {
+    return { text: "#ba1a1a", bar: "#ba1a1a" };
+  }
+  if (occupancyPct >= 70) {
+    return { text: "#a16207", bar: "#FFB300" };
+  }
+  return { text: primaryColor, bar: primaryColor };
+}
+
+function getChecklistTone(statusText: string): { accent: string; badgeBg: string; badgeColor: string } {
+  const sl = statusText.toLowerCase();
+  const isGood = sl.includes("open") || sl.includes("stocked") || sl.includes("available") || sl.includes("slot") || (sl.includes("none") && sl.includes("full"));
+  const isBad = sl.includes("restock") || (sl.includes("full") && !sl.includes("none")) || sl.includes("closed") || sl.includes("none registered");
+
+  if (isBad) {
+    return { accent: "#ba1a1a", badgeBg: "#fee2e2", badgeColor: "#ba1a1a" };
+  }
+  if (isGood) {
+    return { accent: "#2E7D32", badgeBg: "#dcfce7", badgeColor: "#2E7D32" };
+  }
+  return { accent: "#FFB300", badgeBg: "#fef9c3", badgeColor: "#a16207" };
+}
+
+function getIncidentSeverityColor(normalized: string): string {
+  if (normalized.includes("critical")) {
+    return "#ba1a1a";
+  }
+  if (normalized.includes("high")) {
+    return "#d97706";
+  }
+  if (normalized.includes("moderate")) {
+    return "#FFB300";
+  }
+  return "#2E7D32";
+}
+
+function getInventoryCardColors(tone: "secure" | "warning" | "error"): { badgeClass: string; iconBg: string; bar: string } {
+  if (tone === "error") {
+    return {
+      badgeClass: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+      iconBg: "#b91c1c",
+      bar: "#b91c1c",
+    };
+  }
+  if (tone === "warning") {
+    return {
+      badgeClass: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+      iconBg: "#d97706",
+      bar: "#d97706",
+    };
+  }
+  return {
+    badgeClass: "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300",
+    iconBg: "#2E7D32",
+    bar: "#2E7D32",
+  };
+}
+
+// NOSONAR - Dashboard orchestrates multiple phase workflows; full decomposition is planned separately.
+export default function DashboardTab({ // NOSONAR
   phase,
   phaseConfig,
   session,
@@ -76,7 +158,7 @@ export default function DashboardTab({
   onIncidentReportsRefreshed,
   onInventoryRefreshed,
   onOpenActivityModal,
-}: DashboardTabProps) {
+}: Readonly<DashboardTabProps>) {
   const router = useRouter();
 
   // Local state
@@ -113,7 +195,7 @@ export default function DashboardTab({
           Math.min(
             2000,
             sortedQuantities[Math.floor(sortedQuantities.length * 0.75)] ||
-              sortedQuantities[sortedQuantities.length - 1],
+              sortedQuantities.at(-1),
           ),
         )
       : 1000;
@@ -360,50 +442,32 @@ export default function DashboardTab({
     return tone === "error" || tone === "warning";
   }).length;
 
-  const essentialTasks =
-    phase === "after"
-      ? [
-          {
-            t: "Evacuees Still Sheltered",
-            s: `${currentlyShelteredCount} Remaining`,
-          },
-          {
-            t: "Open Incident Follow-ups",
-            s: openIncidentCount > 0 ? `${openIncidentCount} Open` : "All Closed",
-          },
-          {
-            t: "Centers Ready to Close",
-            s: registeredCentersCount === 0 ? "No Centers" : `${readyToCloseCenters} Ready`,
-          },
-        ]
-      : phase === "before"
-      ? [
-          {
-            t: "Centers Ready",
-            s: registeredCentersCount === 0 ? "None Registered" : `${openCenters} Open`,
-          },
-          {
-            t: "Centers at Capacity",
-            s: fullCenters > 0 ? `${fullCenters} Full` : "None Full",
-          },
-          {
-            t: "Stocked Inventory Items",
-            s: inventoryItems.length === 0 ? "None Logged" : `${availableItems} Available`,
-          },
-          {
-            t: "Depleted Items",
-            s: depletedItems > 0 ? `${depletedItems} Need Restock` : "All Stocked",
-          },
-          {
-            t: "Free Shelter Slots",
-            s: totalCapacity === 0 ? "No Centers" : `${totalFreeSlots} Slots`,
-          },
-        ]
-      : [
-          { t: "Inventory Validation", s: inventoryTaskStatus },
-          { t: "Comms Stabilization", s: commsTaskStatus },
-          { t: "Volunteer Briefing", s: volunteerTaskStatus },
-        ];
+  let essentialTasks: EssentialTask[];
+  if (phase === "after") {
+    essentialTasks = [
+      { t: "Evacuees Still Sheltered", s: `${currentlyShelteredCount} Remaining` },
+      { t: "Open Incident Follow-ups", s: openIncidentCount > 0 ? `${openIncidentCount} Open` : "All Closed" },
+      { t: "Centers Ready to Close", s: registeredCentersCount === 0 ? "No Centers" : `${readyToCloseCenters} Ready` },
+    ];
+  } else if (phase === "before") {
+    essentialTasks = [
+      { t: "Centers Ready", s: registeredCentersCount === 0 ? "None Registered" : `${openCenters} Open` },
+      { t: "Centers at Capacity", s: fullCenters > 0 ? `${fullCenters} Full` : "None Full" },
+      { t: "Stocked Inventory Items", s: inventoryItems.length === 0 ? "None Logged" : `${availableItems} Available` },
+      { t: "Depleted Items", s: depletedItems > 0 ? `${depletedItems} Need Restock` : "All Stocked" },
+      { t: "Free Shelter Slots", s: totalCapacity === 0 ? "No Centers" : `${totalFreeSlots} Slots` },
+    ];
+  } else {
+    essentialTasks = [
+      { t: "Inventory Validation", s: inventoryTaskStatus },
+      { t: "Comms Stabilization", s: commsTaskStatus },
+      { t: "Volunteer Briefing", s: volunteerTaskStatus },
+    ];
+  }
+
+  const closeOperationsLabel = getCloseOperationsLabel(isClosingOperations, isCloseOperationsArmed);
+  const operationalLabel = getOperationalLabel(openCenters, registeredCentersCount);
+  const occupancyColors = getOccupancyColors(occupancyPct, phaseConfig.primaryColor);
 
   useEffect(() => {
     if (historicalDisasterReports.length === 0) {
@@ -523,8 +587,7 @@ export default function DashboardTab({
     }
   };
 
-  // JSX
-  return (
+  const renderDashboardLayout = () => ( // NOSONAR
     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Main Action Card */}
       <section className="md:col-span-12 bg-white dark:bg-[#232622] rounded-3xl p-8 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
@@ -641,7 +704,7 @@ export default function DashboardTab({
                   </button>
                   <button onClick={handleCloseOperations} disabled={isClosingOperations} className="w-full bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
                     <span className="material-symbols-outlined text-sm">cancel</span>
-                    {isClosingOperations ? "Closing Shelter..." : isCloseOperationsArmed ? "Confirm Close Shelter Operations" : "Close Shelter Operations"}
+                    {closeOperationsLabel}
                   </button>
                 </div>
 
@@ -680,7 +743,7 @@ export default function DashboardTab({
                 <div className="text-left">
                   <h4 className="text-lg font-black flex items-center gap-2 text-[#1a1c19] dark:text-white">
                     <span className="material-symbols-outlined" style={{ color: phaseConfig.primaryColor }}>home_work</span>
-                    Shelter Demobilization & Return Operations
+                    <span>Shelter Demobilization & Return Operations</span>
                   </h4>
                   <p className="text-xs text-[#707a6c] mt-1">Coordinate center closure readiness and evacuee return workflow using live occupancy and incident records.</p>
                 </div>
@@ -796,7 +859,7 @@ export default function DashboardTab({
                   <div>
                     <h4 className="text-lg font-black flex items-center gap-2 text-[#1a1c19] dark:text-white">
                       <span className="material-symbols-outlined" style={{ color: phaseConfig.primaryColor }}>history</span>
-                      System Auditing & Historical Incident Logs
+                      <span>System Auditing & Historical Incident Logs</span>
                     </h4>
                     <p className="text-xs text-[#707a6c] mt-1">Review live operational activity and historical disaster events already stored in the backend.</p>
                   </div>
@@ -887,7 +950,12 @@ export default function DashboardTab({
                         {historicalDisasterReports.filter((r) => r.name.toLowerCase().includes(historySearchQuery.toLowerCase())).map((rpt) => {
                           const isSelected = selectedReportId === rpt.id;
                           return (
-                            <div key={rpt.id} onClick={() => setSelectedReportId(rpt.id)} className={`p-4 rounded-xl border transition-all cursor-pointer ${isSelected ? "border-green-600 bg-green-50/20 dark:bg-green-950/10 shadow-sm" : "border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef]/30 dark:bg-[#232622]/30 hover:border-green-600/50"}`}>
+                            <button
+                              key={rpt.id}
+                              type="button"
+                              onClick={() => setSelectedReportId(rpt.id)}
+                              className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer ${isSelected ? "border-green-600 bg-green-50/20 dark:bg-green-950/10 shadow-sm" : "border-[#dadad5] dark:border-[#3b3b3b] bg-[#f4f4ef]/30 dark:bg-[#232622]/30 hover:border-green-600/50"}`}
+                            >
                               <div className="flex justify-between items-start gap-2">
                                 <p className="font-black text-xs text-[#1a1c19] dark:text-white leading-tight">{rpt.name}</p>
                                 <span className="text-[8px] font-black uppercase text-[#707a6c] shrink-0">{rpt.date}</span>
@@ -896,7 +964,7 @@ export default function DashboardTab({
                                 <div><p className="text-[8px] uppercase tracking-wider text-[#707a6c]">Severity</p><p className="font-black text-[#1a1c19] dark:text-white">{rpt.severity}</p></div>
                                 <div><p className="text-[8px] uppercase tracking-wider text-[#707a6c]">Affected Areas</p><p className="font-black text-[#1a1c19] dark:text-white">{rpt.affectedAreas}</p></div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -930,12 +998,12 @@ export default function DashboardTab({
                     <span className="material-symbols-outlined text-2xl text-white/90">home_work</span>
                     <div>
                       <h4 className="font-black text-white text-base leading-tight">Evacuation Centers</h4>
-                      <p className="text-white/60 text-[10px] uppercase tracking-wider mt-0.5">{registeredCentersCount} center{registeredCentersCount !== 1 ? "s" : ""} registered</p>
+                      <p className="text-white/60 text-[10px] uppercase tracking-wider mt-0.5">{registeredCentersCount} center{registeredCentersCount === 1 ? "" : "s"} registered</p>
                     </div>
                   </div>
                   <div className="rounded-full px-3 py-1" style={{ background: "rgba(255,255,255,0.15)" }}>
                     <span className="text-white text-[10px] font-black uppercase tracking-wider">
-                      {openCenters > 0 ? "Operational" : registeredCentersCount === 0 ? "No Centers" : "Unavailable"}
+                      {operationalLabel}
                     </span>
                   </div>
                 </div>
@@ -957,7 +1025,7 @@ export default function DashboardTab({
                 <div className="px-6 py-5 bg-[#f4f4ef] dark:bg-[#232622] border-t border-[#dadad5] dark:border-[#3a3d38]">
                   <div className="flex justify-between items-baseline mb-2">
                     <span className="text-[10px] font-black uppercase text-[#444743] tracking-wider">Total Occupancy</span>
-                    <span className="text-xs font-black" style={{ color: occupancyPct >= 90 ? "#ba1a1a" : occupancyPct >= 70 ? "#a16207" : phaseConfig.primaryColor }}>
+                    <span className="text-xs font-black" style={{ color: occupancyColors.text }}>
                       {totalCapacity > 0 ? `${totalOccupancy.toLocaleString()} / ${totalCapacity.toLocaleString()}` : "No capacity data"}
                     </span>
                   </div>
@@ -966,7 +1034,7 @@ export default function DashboardTab({
                       className="h-3 rounded-full transition-all duration-700"
                       style={{
                         width: `${occupancyPct}%`,
-                        background: occupancyPct >= 90 ? "#ba1a1a" : occupancyPct >= 70 ? "#FFB300" : phaseConfig.primaryColor,
+                        background: occupancyColors.bar,
                       }}
                     />
                   </div>
@@ -983,7 +1051,7 @@ export default function DashboardTab({
                     style={{ borderColor: phaseConfig.primaryColor, color: phaseConfig.primaryColor }}
                   >
                     <span className="material-symbols-outlined text-[18px]">map</span>
-                    View Site Map
+                    <span>View Site Map</span>
                   </button>
                 </div>
               </div>
@@ -1013,17 +1081,12 @@ export default function DashboardTab({
                   <h4 className="font-black text-base">Pre-Disaster Checklist</h4>
                 </div>
                 <ul className="space-y-2">
-                  {essentialTasks.map((task, i) => {
-                    const sl = task.s.toLowerCase();
-                    const isGood = sl.includes("open") || sl.includes("stocked") || sl.includes("available") || sl.includes("slot") || (sl.includes("none") && sl.includes("full"));
-                    const isBad = sl.includes("restock") || (sl.includes("full") && !sl.includes("none")) || sl.includes("closed") || sl.includes("none registered");
-                    const accentColor = isBad ? "#ba1a1a" : isGood ? "#2E7D32" : "#FFB300";
-                    const badgeBg = isBad ? "#fee2e2" : isGood ? "#dcfce7" : "#fef9c3";
-                    const badgeColor = isBad ? "#ba1a1a" : isGood ? "#2E7D32" : "#a16207";
+                  {essentialTasks.map((task) => {
+                    const tones = getChecklistTone(task.s);
                     return (
-                      <li key={i} className="flex justify-between items-center text-sm py-3 px-3 rounded-xl bg-white/50 dark:bg-white/5 border-l-4" style={{ borderLeftColor: accentColor }}>
+                      <li key={task.t} className="flex justify-between items-center text-sm py-3 px-3 rounded-xl bg-white/50 dark:bg-white/5 border-l-4" style={{ borderLeftColor: tones.accent }}>
                         <span className="font-medium text-[#1a1c19] dark:text-[#e2e3dd]">{task.t}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase ml-2 shrink-0" style={{ background: badgeBg, color: badgeColor }}>{task.s}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase ml-2 shrink-0" style={{ background: tones.badgeBg, color: tones.badgeColor }}>{task.s}</span>
                       </li>
                     );
                   })}
@@ -1067,13 +1130,7 @@ export default function DashboardTab({
                   {orderedIncidentSeverityButtons.map((severity) => {
                     const normalized = severity.toLowerCase();
                     const selected = incidentFormState.severity === severity;
-                    const activeColor = normalized.includes("critical")
-                      ? "#ba1a1a"
-                      : normalized.includes("high")
-                        ? "#d97706"
-                        : normalized.includes("moderate")
-                          ? "#FFB300"
-                          : "#2E7D32";
+                    const activeColor = getIncidentSeverityColor(normalized);
                     return (
                       <button key={severity} onClick={() => setIncidentFormState({ ...incidentFormState, severity })} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: selected ? activeColor : "#dadad5", color: selected ? "white" : "#444743" }}>
                         {severity}
@@ -1131,13 +1188,13 @@ export default function DashboardTab({
               {inventoryData.map((item) => (
                 <div key={`inventory-card-${item.name}`} className="p-5 rounded-2xl bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] group hover:scale-[1.02] transition-transform">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md" style={{ background: item.tone === "error" ? "#b91c1c" : item.tone === "warning" ? "#d97706" : "#2E7D32" }}>{item.name[0]}</div>
-                    <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded ${item.tone === "error" ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" : item.tone === "warning" ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" : "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300"}`}>{item.status}</span>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md" style={{ background: getInventoryCardColors(item.tone).iconBg }}>{item.name[0]}</div>
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded ${getInventoryCardColors(item.tone).badgeClass}`}>{item.status}</span>
                   </div>
                   <h4 className="font-bold text-sm mb-1">{item.name}</h4>
                   <p className="text-xs text-[#444743] dark:text-[#a0a39f] mb-4">{item.detail}</p>
                   <div className="w-full h-1.5 bg-[#dadad5] dark:bg-[#3b3b3b] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: item.percent, background: item.tone === "error" ? "#b91c1c" : item.tone === "warning" ? "#d97706" : "#2E7D32" }}></div>
+                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: item.percent, background: getInventoryCardColors(item.tone).bar }}></div>
                   </div>
                 </div>
               ))}
@@ -1208,4 +1265,6 @@ export default function DashboardTab({
       )}
     </div>
   );
+
+  return renderDashboardLayout();
 }

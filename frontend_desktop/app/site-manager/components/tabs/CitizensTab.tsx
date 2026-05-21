@@ -57,7 +57,7 @@ export default function CitizensTab({
   citizenSearchQuery,
   onCitizenSearchChange,
   onCheckInsRefreshed,
-}: CitizensTabProps) {
+}: Readonly<CitizensTabProps>) {
   const [checkInMode, setCheckInMode] = useState<"scan" | "manual">("scan");
   const [scanType, setScanType] = useState<ScanType>(phase === "after" ? "check-out" : "check-in");
   const [manualCheckInState, setManualCheckInState] = useState<ManualCheckInState>({
@@ -236,6 +236,85 @@ export default function CitizensTab({
     }
   };
 
+  const renderCheckInInputPanel = () => {
+    if (checkInMode === "scan") {
+      return (
+        <div className="w-full max-w-[360px] mx-auto aspect-square rounded-xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-[#dadad5] dark:border-[#3b3b3b]">
+          {isScanLookingUp ? (
+            <div className="w-full h-full bg-black flex items-center justify-center">
+              <span className="text-white text-sm font-bold animate-pulse">Looking up citizen...</span>
+            </div>
+          ) : (
+            <Scanner
+              onScan={handleQrScanned}
+              onError={() => setCheckInError("Camera error. Check browser permissions.")}
+              styles={{ container: { width: "100%", height: "100%" } }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (scanType === "check-out") {
+      return (
+        <div className="space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
+          <input
+            className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
+            placeholder="Citizen ID or QR Code..."
+            type="text"
+            value={manualCheckInState.citizenName}
+            onChange={(e) => setManualCheckInState({ ...manualCheckInState, citizenName: e.target.value })}
+          />
+          <button
+            onClick={handleSubmitManualCheckOut}
+            disabled={isSubmittingCheckIn}
+            className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg disabled:opacity-50"
+            style={{ background: phaseConfig.primaryColor }}
+          >
+            {isSubmittingCheckIn ? "Processing..." : "Confirm Manual Check-Out"}
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
+        <input
+          className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
+          placeholder="Citizen Name or ID..."
+          type="text"
+          value={manualCheckInState.citizenName}
+          onChange={(e) => setManualCheckInState({ ...manualCheckInState, citizenName: e.target.value })}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
+            placeholder="Zone"
+            type="text"
+            value={manualCheckInState.zone}
+            onChange={(e) => setManualCheckInState({ ...manualCheckInState, zone: e.target.value })}
+          />
+          <input
+            className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
+            placeholder="Group Size"
+            type="number"
+            min="0"
+            value={manualCheckInState.groupSize}
+            onChange={(e) => setManualCheckInState({ ...manualCheckInState, groupSize: e.target.value })}
+          />
+        </div>
+        <button
+          onClick={handleSubmitManualCheckIn}
+          disabled={isSubmittingCheckIn}
+          className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg disabled:opacity-50"
+          style={{ background: phaseConfig.primaryColor }}
+        >
+          {isSubmittingCheckIn ? "Processing..." : "Confirm Manual Check-In"}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -280,74 +359,7 @@ export default function CitizensTab({
               </button>
             </div>
 
-            {checkInMode === "scan" ? (
-              <div className="w-full max-w-[360px] mx-auto aspect-square rounded-xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-[#dadad5] dark:border-[#3b3b3b]">
-                {isScanLookingUp ? (
-                  <div className="w-full h-full bg-black flex items-center justify-center">
-                    <span className="text-white text-sm font-bold animate-pulse">Looking up citizen...</span>
-                  </div>
-                ) : (
-                  <Scanner
-                    onScan={handleQrScanned}
-                    onError={() => setCheckInError("Camera error. Check browser permissions.")}
-                    styles={{ container: { width: "100%", height: "100%" } }}
-                  />
-                )}
-              </div>
-            ) : scanType === "check-out" ? (
-              <div className="space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
-                <input
-                  className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
-                  placeholder="Citizen ID or QR Code..."
-                  type="text"
-                  value={manualCheckInState.citizenName}
-                  onChange={(e) => setManualCheckInState({ ...manualCheckInState, citizenName: e.target.value })}
-                />
-                <button
-                  onClick={handleSubmitManualCheckOut}
-                  disabled={isSubmittingCheckIn}
-                  className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg disabled:opacity-50"
-                  style={{ background: phaseConfig.primaryColor }}
-                >
-                  {isSubmittingCheckIn ? "Processing..." : "Confirm Manual Check-Out"}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
-                <input
-                  className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
-                  placeholder="Citizen Name or ID..."
-                  type="text"
-                  value={manualCheckInState.citizenName}
-                  onChange={(e) => setManualCheckInState({ ...manualCheckInState, citizenName: e.target.value })}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
-                    placeholder="Zone"
-                    type="text"
-                    value={manualCheckInState.zone}
-                    onChange={(e) => setManualCheckInState({ ...manualCheckInState, zone: e.target.value })}
-                  />
-                  <input
-                    className="w-full bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b] rounded-xl px-4 py-3 text-sm"
-                    placeholder="Group Size"
-                    type="number"
-                    min="0"
-                    value={manualCheckInState.groupSize}
-                    onChange={(e) => setManualCheckInState({ ...manualCheckInState, groupSize: e.target.value })}
-                  />
-                </div>
-                <button
-                  onClick={handleSubmitManualCheckIn}
-                  disabled={isSubmittingCheckIn}
-                  className="w-full text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-lg disabled:opacity-50"
-                  style={{ background: phaseConfig.primaryColor }}
-                >
-                  {isSubmittingCheckIn ? "Processing..." : "Confirm Manual Check-In"}
-                </button>
-              </div>
-            )}
+            {renderCheckInInputPanel()}
           </div>
 
           {checkInError && <p className="text-red-600 text-sm">{checkInError}</p>}

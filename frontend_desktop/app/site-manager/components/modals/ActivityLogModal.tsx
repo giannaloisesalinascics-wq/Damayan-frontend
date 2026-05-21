@@ -9,7 +9,35 @@ interface ActivityLogModalProps {
   onClose: () => void;
 }
 
-export default function ActivityLogModal({ phase, allAuditEntries, onClose }: ActivityLogModalProps) {
+function getPhaseActivityDescription(phase: "before" | "during" | "after"): string {
+  if (phase === "before") {
+    return "Operational preparations, inventory setups, and staging checks recorded on this site.";
+  }
+  if (phase === "during") {
+    return "Real-time records of citizen arrivals and active site incidents.";
+  }
+  return "Post-disaster safe check-outs, remaining inventory audits, and recovery actions.";
+}
+
+function getEntryStatusBadge(status?: string): string {
+  const normalized = status?.toLowerCase() ?? "";
+  if (
+    normalized === "resolved"
+    || normalized === "checked_in"
+    || normalized === "checked-in"
+    || normalized === "processed"
+  ) {
+    return "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300";
+  }
+  if (normalized === "checked-out") {
+    return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300";
+  }
+  return "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300";
+}
+
+export default function ActivityLogModal({ phase, allAuditEntries, onClose }: Readonly<ActivityLogModalProps>) {
+  const phaseDescription = getPhaseActivityDescription(phase);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
       <button
@@ -23,11 +51,7 @@ export default function ActivityLogModal({ phase, allAuditEntries, onClose }: Ac
           <div>
             <h3 className="text-3xl font-black mb-2">System Activity Log</h3>
             <p className="text-[#444743] dark:text-[#a0a39f] text-sm font-medium">
-              {phase === "before"
-                ? "Operational preparations, inventory setups, and staging checks recorded on this site."
-                : phase === "during"
-                  ? "Real-time records of citizen arrivals and active site incidents."
-                  : "Post-disaster safe check-outs, remaining inventory audits, and recovery actions."}
+              {phaseDescription}
             </p>
           </div>
           <button onClick={onClose} className="material-symbols-outlined p-2 hover:bg-[#f4f4ef] rounded-full">close</button>
@@ -57,13 +81,7 @@ export default function ActivityLogModal({ phase, allAuditEntries, onClose }: Ac
                     </span>
                   </td>
                   <td className="py-4 text-right">
-                    <span className={`text-[10px] px-2.5 py-1 rounded font-black uppercase ${
-                      entry.status?.toLowerCase() === "resolved" || entry.status?.toLowerCase() === "checked_in" || entry.status?.toLowerCase() === "processed" || entry.status?.toLowerCase() === "checked-in"
-                        ? "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300"
-                        : entry.status?.toLowerCase() === "checked-out"
-                          ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                          : "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                    }`}>
+                    <span className={`text-[10px] px-2.5 py-1 rounded font-black uppercase ${getEntryStatusBadge(entry.status)}`}>
                       {entry.status}
                     </span>
                   </td>

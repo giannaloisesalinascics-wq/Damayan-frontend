@@ -1,17 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import type { AuthSession, InventoryItem } from "../../../lib/types";
+import type { AuthSession, DashboardOverview, InventoryItem } from "../../../lib/types";
 import type { PhaseConfig } from "../utils/siteManagerUtils";
 import { buildInventoryTable } from "../utils/siteManagerUtils";
 import { getInventory, adjustInventoryItem, createInventoryBatch } from "../../../lib/api";
 import CustomSelect from "../CustomSelect";
 
+type CalamityPhase = "before" | "during" | "after";
+
 interface InventoryTabProps {
-  phase: "before" | "during" | "after";
+  phase: CalamityPhase;
   phaseConfig: PhaseConfig;
   session: AuthSession | null;
-  overview: import("../../../lib/types").DashboardOverview | null;
+  overview: DashboardOverview | null;
   inventoryItems: InventoryItem[];
   loadingData: boolean;
   onInventoryRefreshed: (items: InventoryItem[]) => void;
@@ -23,6 +25,147 @@ interface NewBatchState {
   quantity: string;
 }
 
+type InventoryFilter = "all" | "high" | "low";
+
+function getCardSource(kind: "total" | "critical", loadingData: boolean, overview: DashboardOverview | null): string {
+  if (loadingData) {
+    if (kind === "total") {
+      return "Counting all items in your site inventory...";
+    }
+    return "Checking which supplies are running low...";
+  }
+
+  if (overview) {
+    if (kind === "total") {
+      return "Counted from all inventory items currently recorded for this site";
+    }
+    return "Items marked low or critical based on the current recorded stock";
+  }
+
+  if (kind === "total") {
+    return "No inventory count was returned for this site";
+  }
+  return "No low-stock count was returned for this site";
+}
+
+async function submitInventoryUpdate(args: {
+  token: string;
+  mode: "add" | "distribute";
+  phase: CalamityPhase;
+  state: NewBatchState;
+  onInventoryRefreshed: (items: InventoryItem[]) => void;
+}): Promise<string> {
+  const selectedItemId = args.state.itemId;
+  const parsedQuantity = Number(args.state.quantity);
+  const defaultPrefix = args.mode === "add" ? "Add" : "Disp";
+  const fallbackRef = `${defaultPrefix}-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 1000)}`;
+  let refName = args.state.name.trim() || fallbackRef;
+
+  if (args.phase === "before" && args.mode === "add") {
+    const submittedBatchName = args.state.name.trim() || `Req-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 1000)}`;
+    const batchResult = await createInventoryBatch(args.token, {
+      name: submittedBatchName,
+      items: [{ itemId: selectedItemId, quantity: parsedQuantity }],
+    });
+    refName = batchResult?.batchName ?? submittedBatchName;
+
+    const freshInventory = await getInventory("site-manager", args.token);
+    args.onInventoryRefreshed(freshInventory);
+    return `Added ${parsedQuantity} units to shelter supplies. (Ref: ${refName})`;
+  }
+
+  const adjustment = args.mode === "add" ? parsedQuantity : -parsedQuantity;
+  await adjustInventoryItem(args.token, selectedItemId, adjustment);
+  const freshInventory = await getInventory("site-manager", args.token);
+  args.onInventoryRefreshed(freshInventory);
+
+  if (args.mode === "add") {
+    return `Added ${parsedQuantity} units to inventory. (Ref: ${refName})`;
+  }
+  return `Recorded distribution of ${parsedQuantity} units. (Ref: ${refName})`;
+}
+
+function getScaleMax(inventoryItems: InventoryItem[]): number {
+  const sortedQuantities = inventoryItems
+    .map((item) => item.quantity)
+    .slice()
+    .sort((a, b) => a - b);
+
+  if (sortedQuantities.length === 0) {
+    return 1000;
+  }
+
+  const q3 = sortedQuantities[Math.floor(sortedQuantities.length * 0.75)];
+  const fallback = sortedQuantities.at(-1) ?? 1000;
+  const anchor = q3 ?? fallback;
+
+  return Math.max(100, Math.min(2000, anchor));
+}
+
+function getTabTitle(phase: CalamityPhase): string {
+  if (phase === "before") {
+    return "Shelter Supplies";
+  }
+  if (phase === "during") {
+    return "Relief Goods Movement";
+  }
+  return "Inventory Management";
+}
+
+function getTabDescription(phase: CalamityPhase): string {
+  if (phase === "before") {
+    return "Add new deliveries or record distributions for pre-disaster staging.";
+  }
+  if (phase === "during") {
+    return "Record distributions to evacuees or add incoming stock during active operations.";
+  }
+  return "Add incoming stock or record distributions during recovery operations.";
+}
+
+function getSubmitLabel(isSubmitting: boolean, mode: "add" | "distribute"): string {
+  if (isSubmitting) {
+    return "Processing...";
+  }
+  if (mode === "add") {
+    return "Add Stock";
+  }
+  return "Record Distribution";
+}
+
+function getFilterLabel(filter: InventoryFilter): string {
+  if (filter === "all") {
+    return "All Items";
+  }
+  if (filter === "high") {
+    return "High Supply";
+  }
+  return "Low / Critical Stock";
+}
+
+function getFilterBackground(filter: InventoryFilter, phaseColor: string): string {
+  if (filter === "low") {
+    return "#ba1a1a";
+  }
+  if (filter === "high") {
+    return "#2E7D32";
+  }
+  return phaseColor;
+}
+
+function getToneColors(tone: "secure" | "warning" | "error"): {
+  icon: string;
+  badgeBg: string;
+  badgeText: string;
+} {
+  if (tone === "error") {
+    return { icon: "#ba1a1a", badgeBg: "#ffdad6", badgeText: "#ba1a1a" };
+  }
+  if (tone === "warning") {
+    return { icon: "#FFB300", badgeBg: "#fff3e0", badgeText: "#FFB300" };
+  }
+  return { icon: "#2E7D32", badgeBg: "#e8f5e9", badgeText: "#2E7D32" };
+}
+
 export default function InventoryTab({
   phase,
   phaseConfig,
@@ -31,10 +174,10 @@ export default function InventoryTab({
   inventoryItems,
   loadingData,
   onInventoryRefreshed,
-}: InventoryTabProps) {
+}: Readonly<InventoryTabProps>) {
   const [newBatchState, setNewBatchState] = useState<NewBatchState>({ name: "", itemId: "", quantity: "" });
   const [inventoryMode, setInventoryMode] = useState<"add" | "distribute">(phase === "before" ? "add" : "distribute");
-  const [inventoryFilter, setInventoryFilter] = useState<"all" | "high" | "low">("all");
+  const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>("all");
   const [isSubmittingNewBatch, setIsSubmittingNewBatch] = useState(false);
   const [newBatchError, setNewBatchError] = useState<string | null>(null);
   const [newBatchSuccess, setNewBatchSuccess] = useState<string | null>(null);
@@ -42,11 +185,7 @@ export default function InventoryTab({
   const [inventoryActionError, setInventoryActionError] = useState<string | null>(null);
   const [inventoryActionSuccess, setInventoryActionSuccess] = useState<string | null>(null);
 
-  const quantities = inventoryItems.map((item) => item.quantity);
-  const sortedQuantities = quantities.slice().sort((a, b) => a - b);
-  const scaleMax = sortedQuantities.length > 0
-    ? Math.max(100, Math.min(2000, sortedQuantities[Math.floor(sortedQuantities.length * 0.75)] || sortedQuantities[sortedQuantities.length - 1]))
-    : 1000;
+  const scaleMax = getScaleMax(inventoryItems);
 
   const inventoryTable = buildInventoryTable(inventoryItems, scaleMax);
   const filteredInventoryTable = inventoryTable.filter((row) => {
@@ -68,31 +207,30 @@ export default function InventoryTab({
     criticalLowsVal = String(overview.inventory.lowStockItems);
   }
 
+  const totalAssetsSource = getCardSource("total", loadingData, overview);
+  const criticalLowsSource = getCardSource("critical", loadingData, overview);
+
   const inventoryCards = [
     {
       label: "Total Assets",
       value: totalAssetsVal,
       trend: totalAssetsTrend,
-      source: loadingData
-        ? "Counting all items in your site inventory..."
-        : overview
-          ? "Counted from all inventory items currently recorded for this site"
-          : "No inventory count was returned for this site",
+      source: totalAssetsSource,
       color: "#2E7D32",
     },
     {
       label: "Critical Lows",
       value: criticalLowsVal,
       trend: "Needs attention",
-      source: loadingData
-        ? "Checking which supplies are running low..."
-        : overview
-          ? "Items marked low or critical based on the current recorded stock"
-          : "No low-stock count was returned for this site",
+      source: criticalLowsSource,
       color: "#ba1a1a",
     },
-  // 'In Transit' card permanently removed as requested
   ];
+
+  const tabTitle = getTabTitle(phase);
+  const tabDescription = getTabDescription(phase);
+  const submitLabel = getSubmitLabel(isSubmittingNewBatch, inventoryMode);
+  const itemCountLabel = filteredInventoryTable.length === 1 ? "item" : "items";
 
   const handleCreateNewBatch = async () => {
     if (!session?.accessToken) {
@@ -121,32 +259,15 @@ export default function InventoryTab({
     setNewBatchSuccess(null);
 
     try {
-      let successMsg = "";
-      let refName = "";
-
-      const defaultPrefix = inventoryMode === "add" ? "Add" : "Disp";
-      refName = newBatchState.name.trim() || `${defaultPrefix}-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 1000)}`;
-
-      if (phase === "before" && inventoryMode === "add") {
-        // Before + add: stage new supplies via batch
-        const submittedBatchName = newBatchState.name.trim() || `Req-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 1000)}`;
-        const batchResult = await createInventoryBatch(session.accessToken, {
-          name: submittedBatchName,
-          items: [{ itemId: selectedItemId, quantity: parsedQuantity }],
-        });
-        refName = batchResult?.batchName ?? submittedBatchName;
-        successMsg = `Added ${parsedQuantity} units to shelter supplies. (Ref: ${refName})`;
-      } else {
-        const adjustment = inventoryMode === "add" ? parsedQuantity : -parsedQuantity;
-        await adjustInventoryItem(session.accessToken, selectedItemId, adjustment);
-        successMsg = inventoryMode === "add"
-          ? `Added ${parsedQuantity} units to inventory. (Ref: ${refName})`
-          : `Recorded distribution of ${parsedQuantity} units. (Ref: ${refName})`;
-      }
+      const successMsg = await submitInventoryUpdate({
+        token: session.accessToken,
+        mode: inventoryMode,
+        phase,
+        state: newBatchState,
+        onInventoryRefreshed,
+      });
 
       setNewBatchState({ name: "", itemId: "", quantity: "" });
-      const freshInventory = await getInventory("site-manager", session.accessToken);
-      onInventoryRefreshed(freshInventory);
       setNewBatchSuccess(successMsg);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to process inventory update";
@@ -207,9 +328,9 @@ export default function InventoryTab({
       <div
         className={`grid grid-cols-1 ${inventoryCards.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"} gap-6`}
       >
-        {inventoryCards.map((stat, i) => (
+        {inventoryCards.map((stat) => (
           <div
-            key={i}
+            key={stat.label}
             className="bg-white dark:bg-[#232622] p-6 rounded-3xl border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm"
           >
             <p className="text-[10px] font-black uppercase tracking-widest text-[#444743] mb-1">{stat.label}</p>
@@ -230,10 +351,6 @@ export default function InventoryTab({
       </div>
 
       <div className="bg-white dark:bg-[#232622] rounded-3xl p-8 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h3 className="text-2xl font-black">
-
         {inventoryActionError && (
           <div className="mb-6 rounded-2xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-400">
             {inventoryActionError}
@@ -245,15 +362,11 @@ export default function InventoryTab({
             {inventoryActionSuccess}
           </div>
         )}
-              {phase === "before" ? "Shelter Supplies" : phase === "during" ? "Relief Goods Movement" : "Inventory Management"}
-            </h3>
-            <p className="text-[#444743] text-sm mt-1">
-              {phase === "before"
-                ? "Add new deliveries or record distributions for pre-disaster staging."
-                : phase === "during"
-                  ? "Record distributions to evacuees or add incoming stock during active operations."
-                  : "Add incoming stock or record distributions during recovery operations."}
-            </p>
+
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h3 className="text-2xl font-black">{tabTitle}</h3>
+            <p className="text-[#444743] text-sm mt-1">{tabDescription}</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -321,7 +434,7 @@ export default function InventoryTab({
             className="w-full text-white px-4 py-3 rounded-xl text-xs font-bold shadow-lg disabled:opacity-50"
             style={{ background: phaseConfig.primaryColor }}
           >
-            {isSubmittingNewBatch ? "Processing..." : inventoryMode === "add" ? "Add Stock" : "Record Distribution"}
+            {submitLabel}
           </button>
         </div>
 
@@ -336,50 +449,49 @@ export default function InventoryTab({
               className={`px-3 py-1.5 rounded-full font-bold text-xs transition-all ${
                 inventoryFilter === f ? "text-white shadow-sm scale-105" : "bg-[#f4f4ef] dark:bg-[#1a1c19] text-[#444743] hover:bg-[#dadad5]/50"
               }`}
-              style={inventoryFilter === f ? { background: f === "low" ? "#ba1a1a" : f === "high" ? "#2E7D32" : phaseConfig.primaryColor } : {}}
+              style={inventoryFilter === f ? { background: getFilterBackground(f, phaseConfig.primaryColor) } : {}}
             >
-              {f === "all" ? "All Items" : f === "high" ? "High Supply" : "Low / Critical Stock"}
+              {getFilterLabel(f)}
             </button>
           ))}
-          <span className="text-[10px] text-[#707a6c] ml-auto">{filteredInventoryTable.length} item{filteredInventoryTable.length !== 1 ? "s" : ""}</span>
+          <span className="text-[10px] text-[#707a6c] ml-auto">{filteredInventoryTable.length} {itemCountLabel}</span>
         </div>
 
         <div className="space-y-4">
-          {filteredInventoryTable.map((item) => (
-            <div
-              key={`receive-audit-item-${item.category}`}
-              className="flex items-center justify-between p-4 rounded-2xl bg-[#f4f4ef]/50 dark:bg-white/5 border border-transparent hover:border-[#dadad5] transition-all"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#1a1c19] flex items-center justify-center border border-[#dadad5] dark:border-[#3b3b3b]">
-                  <span
-                    className="material-symbols-outlined"
-                    style={{
-                      color:
-                        item.tone === "error" ? "#ba1a1a" : item.tone === "warning" ? "#FFB300" : "#2E7D32",
-                    }}
-                  >
-                    package_2
-                  </span>
-                </div>
-                <div>
-                  <p className="font-bold text-sm">{item.category}</p>
-                  <p className="text-[10px] text-[#444743] uppercase tracking-widest">{item.quantity}</p>
-                </div>
-              </div>
-              <span
-                className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                style={{
-                  background:
-                    item.tone === "error" ? "#ffdad6" : item.tone === "warning" ? "#fff3e0" : "#e8f5e9",
-                  color:
-                    item.tone === "error" ? "#ba1a1a" : item.tone === "warning" ? "#FFB300" : "#2E7D32",
-                }}
+          {filteredInventoryTable.map((item) => {
+            const tone = getToneColors(item.tone);
+
+            return (
+              <div
+                key={`receive-audit-item-${item.id}`}
+                className="flex items-center justify-between p-4 rounded-2xl bg-[#f4f4ef]/50 dark:bg-white/5 border border-transparent hover:border-[#dadad5] transition-all"
               >
-                {item.status}
-              </span>
-            </div>
-          ))}
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#1a1c19] flex items-center justify-center border border-[#dadad5] dark:border-[#3b3b3b]">
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ color: tone.icon }}
+                    >
+                      package_2
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{item.category}</p>
+                    <p className="text-[10px] text-[#444743] uppercase tracking-widest">{item.quantity}</p>
+                  </div>
+                </div>
+                <span
+                  className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
+                  style={{
+                    background: tone.badgeBg,
+                    color: tone.badgeText,
+                  }}
+                >
+                  {item.status}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

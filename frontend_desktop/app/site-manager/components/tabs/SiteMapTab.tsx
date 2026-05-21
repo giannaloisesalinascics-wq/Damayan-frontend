@@ -16,6 +16,117 @@ interface SiteMapTabProps {
   loadingData: boolean;
 }
 
+interface CenterMetricPresentation {
+  metricPercent: number;
+  metricColor: string;
+  metricBg: string;
+  metricLabel: string;
+  statLeft: string;
+  statRight: string;
+}
+
+interface ToneColors {
+  metricColor: string;
+  metricBg: string;
+}
+
+function getAvgUtilization(capacityCenters: CapacityCenter[]): string {
+  if (capacityCenters.length === 0) {
+    return "0%";
+  }
+
+  const total = capacityCenters.reduce((sum, center) => sum + center.utilizationRate, 0);
+  return `${Math.round(total / capacityCenters.length)}%`;
+}
+
+function getReadinessTone(metricPercent: number, safeThreshold: number): ToneColors {
+  if (metricPercent >= safeThreshold) {
+    return { metricColor: "#2E7D32", metricBg: "#e8f5e9" };
+  }
+
+  if (metricPercent >= 30) {
+    return { metricColor: "#FFB300", metricBg: "#fff3e0" };
+  }
+
+  return { metricColor: "#ba1a1a", metricBg: "#ffdad6" };
+}
+
+function getDuringPresentation(center: CapacityCenter): CenterMetricPresentation {
+  const metricPercent = center.utilizationRate;
+  let tone: ToneColors;
+  if (metricPercent >= 90) {
+    tone = { metricColor: "#ba1a1a", metricBg: "#ffdad6" };
+  } else if (metricPercent >= 70) {
+    tone = { metricColor: "#FFB300", metricBg: "#fff3e0" };
+  } else {
+    tone = { metricColor: "#2E7D32", metricBg: "#e8f5e9" };
+  }
+
+  return {
+    metricPercent,
+    metricColor: tone.metricColor,
+    metricBg: tone.metricBg,
+    metricLabel: "Occupied",
+    statLeft: `${center.currentOccupancy.toLocaleString()} Occupied`,
+    statRight: `${center.availableSlots.toLocaleString()} Available`,
+  };
+}
+
+function getBeforePresentation(center: CapacityCenter): CenterMetricPresentation {
+  const metricPercent = center.capacity > 0 ? Math.round((center.availableSlots / center.capacity) * 100) : 0;
+  const tone = getReadinessTone(metricPercent, 60);
+
+  return {
+    metricPercent,
+    metricColor: tone.metricColor,
+    metricBg: tone.metricBg,
+    metricLabel: "Readiness",
+    statLeft: `${center.availableSlots.toLocaleString()} Available`,
+    statRight: `${center.capacity.toLocaleString()} Capacity`,
+  };
+}
+
+function getAfterPresentation(center: CapacityCenter): CenterMetricPresentation {
+  const checkedOut = Math.max(0, center.capacity - center.currentOccupancy);
+  const metricPercent = center.capacity > 0 ? Math.round((checkedOut / center.capacity) * 100) : 100;
+  const tone = getReadinessTone(metricPercent, 70);
+
+  return {
+    metricPercent,
+    metricColor: tone.metricColor,
+    metricBg: tone.metricBg,
+    metricLabel: "Cleared",
+    statLeft: `${center.currentOccupancy.toLocaleString()} Remaining`,
+    statRight: `${checkedOut.toLocaleString()} Checked Out`,
+  };
+}
+
+function getCenterMetricPresentation(
+  phase: "before" | "during" | "after",
+  center: CapacityCenter,
+): CenterMetricPresentation {
+  if (phase === "before") {
+    return getBeforePresentation(center);
+  }
+
+  if (phase === "after") {
+    return getAfterPresentation(center);
+  }
+
+  return getDuringPresentation(center);
+}
+
+function getFilteredCenters(capacityCenters: CapacityCenter[], session: AuthSession | null): CapacityCenter[] {
+  const municipality = session?.user?.municipality?.toLowerCase().trim();
+  if (!municipality) {
+    return capacityCenters;
+  }
+
+  return capacityCenters.filter(
+    (center) => center.municipality.toLowerCase().trim() === municipality,
+  );
+}
+
 export default function SiteMapTab({
   phase,
   phaseConfig,
@@ -25,10 +136,13 @@ export default function SiteMapTab({
   inventoryItems,
   incidentReports,
   loadingData,
-}: SiteMapTabProps) {
+}: Readonly<SiteMapTabProps>) {
   const activeShelters = overview?.capacity.totalCenters;
   const totalPopulation = overview?.capacity.totalOccupancy;
   const highUtilizationCenters = overview?.capacity.highUtilizationCenters;
+  const avgUtilizationText = getAvgUtilization(capacityCenters);
+  const displayedPopulation = totalPopulation ? totalPopulation.toLocaleString() : "0";
+  const filteredCenters = getFilteredCenters(capacityCenters, session);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -44,7 +158,7 @@ export default function SiteMapTab({
             <div className="flex flex-col items-center justify-center">
               <p className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-[#707a6c]">Population</p>
               <p className="text-xl md:text-2xl font-black mt-1 text-[#1a1c19] dark:text-white">
-                {loadingData ? "..." : totalPopulation != null ? totalPopulation.toLocaleString() : "0"}
+                {loadingData ? "..." : displayedPopulation}
               </p>
             </div>
             <div className="flex flex-col items-center justify-center">
@@ -56,9 +170,7 @@ export default function SiteMapTab({
             <div className="flex flex-col items-center justify-center">
               <p className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-[#707a6c]">Avg Util.</p>
               <p className="text-xl md:text-2xl font-black mt-1 text-[#2E7D32] dark:text-[#81C784]">
-                {loadingData ? "..." : `${capacityCenters.length > 0
-                  ? Math.round(capacityCenters.reduce((sum, c) => sum + c.utilizationRate, 0) / capacityCenters.length)
-                  : 0}%`}
+                {loadingData ? "..." : avgUtilizationText}
               </p>
             </div>
             <div className="flex flex-col items-center justify-center">
@@ -85,42 +197,18 @@ export default function SiteMapTab({
           <div className="bg-white dark:bg-[#232622] rounded-3xl p-5 border border-[#dadad5] dark:border-[#3b3b3b] shadow-sm">
             <h4 className="text-sm font-black uppercase tracking-widest mb-4">Shelter Directory</h4>
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-              {(() => {
-                const filteredCenters = capacityCenters.filter(c =>
-                  !session?.user?.municipality ||
-                  c.municipality.toLowerCase().trim() === session.user.municipality.toLowerCase().trim()
-                );
-
-                if (filteredCenters.length === 0) {
-                  return (
-                    <p className="text-sm text-[#707a6c]">No shelter records available for your zone.</p>
-                  );
-                }
-
-                return filteredCenters.map((center) => {
-                  let metricPercent = center.utilizationRate;
-                  let metricColor = center.utilizationRate >= 90 ? "#ba1a1a" : center.utilizationRate >= 70 ? "#FFB300" : "#2E7D32";
-                  let metricBg = center.utilizationRate >= 90 ? "#ffdad6" : center.utilizationRate >= 70 ? "#fff3e0" : "#e8f5e9";
-                  let metricLabel = "Occupied";
-                  let statLeft = `${center.currentOccupancy.toLocaleString()} Occupied`;
-                  let statRight = `${center.availableSlots.toLocaleString()} Available`;
-
-                  if (phase === "before") {
-                    metricPercent = center.capacity > 0 ? Math.round((center.availableSlots / center.capacity) * 100) : 0;
-                    metricColor = metricPercent >= 60 ? "#2E7D32" : metricPercent >= 30 ? "#FFB300" : "#ba1a1a";
-                    metricBg = metricPercent >= 60 ? "#e8f5e9" : metricPercent >= 30 ? "#fff3e0" : "#ffdad6";
-                    metricLabel = "Readiness";
-                    statLeft = `${center.availableSlots.toLocaleString()} Available`;
-                    statRight = `${center.capacity.toLocaleString()} Capacity`;
-                  } else if (phase === "after") {
-                    const checkedOut = Math.max(0, center.capacity - center.currentOccupancy);
-                    metricPercent = center.capacity > 0 ? Math.round((checkedOut / center.capacity) * 100) : 100;
-                    metricColor = metricPercent >= 70 ? "#2E7D32" : metricPercent >= 30 ? "#FFB300" : "#ba1a1a";
-                    metricBg = metricPercent >= 70 ? "#e8f5e9" : metricPercent >= 30 ? "#fff3e0" : "#ffdad6";
-                    metricLabel = "Cleared";
-                    statLeft = `${center.currentOccupancy.toLocaleString()} Remaining`;
-                    statRight = `${checkedOut.toLocaleString()} Checked Out`;
-                  }
+              {filteredCenters.length === 0 ? (
+                <p className="text-sm text-[#707a6c]">No shelter records available for your zone.</p>
+              ) : (
+                filteredCenters.map((center) => {
+                  const {
+                    metricPercent,
+                    metricColor,
+                    metricBg,
+                    metricLabel,
+                    statLeft,
+                    statRight,
+                  } = getCenterMetricPresentation(phase, center);
 
                   return (
                     <div key={center.id} className="p-4 rounded-2xl bg-[#f4f4ef] dark:bg-[#1a1c19] border border-[#dadad5] dark:border-[#3b3b3b]">
@@ -142,8 +230,8 @@ export default function SiteMapTab({
                       </div>
                     </div>
                   );
-                });
-              })()}
+                })
+              )}
             </div>
           </div>
         </div>
