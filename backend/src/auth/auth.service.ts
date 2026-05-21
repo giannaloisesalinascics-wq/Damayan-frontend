@@ -20,6 +20,7 @@ import {
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SupabaseService } from '../supabase/supabase.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { InAppNotificationsService } from '../in-app-notifications/in-app-notifications.service.js';
 import { AppRole } from '../../libs/contracts/src/roles.js';
 import { CreateGovernmentIdUploadDto } from '../uploads/dto/create-government-id-upload.dto.js';
 
@@ -57,6 +58,8 @@ export class AuthService {
     @Inject(JwtService) private readonly jwtService: JwtService,
     @Inject(SupabaseService) private readonly supabaseService: SupabaseService,
     @Inject(NotificationsService) private readonly notificationsService: NotificationsService,
+    @Inject(InAppNotificationsService)
+    private readonly inAppNotificationsService: InAppNotificationsService,
     @Inject(ConfigService) private readonly configService: ConfigService,
   ) {}
 
@@ -558,9 +561,68 @@ export class AuthService {
       })
       .eq('id', resetRequestRow.id);
 
+    await this.notifyDispatchersOfSiteManagerCredentialReset(resetRequestRow.auth_user_id);
+
     return {
       message: 'Password reset successful.',
     };
+  }
+
+  private async notifyDispatchersOfSiteManagerCredentialReset(
+    resetUserAuthId: string,
+  ): Promise<void> {
+    const supabase = this.supabaseService.getClient() as any;
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('first_name, last_name, role')
+      .eq('auth_user_id', resetUserAuthId)
+      .maybeSingle();
+
+    if (profileError || !profile || profile.role !== AppRole.LINE_MANAGER) {
+      return;
+    }
+
+    const { data: settings, error: settingsError } = await supabase
+      .from('system_settings')
+      .select('current_phase')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (settingsError || settings?.current_phase !== 'DURING') {
+      return;
+    }
+
+    const { data: dispatchers, error: dispatchersError } = await supabase
+      .from('user_profiles')
+      .select('auth_user_id')
+      .eq('role', AppRole.DISPATCHER)
+      .eq('status', 'active')
+      .not('auth_user_id', 'is', null);
+
+    if (dispatchersError || !dispatchers?.length) {
+      return;
+    }
+
+    const siteManagerName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || 'A site manager';
+    const dispatcherIds = (dispatchers as Array<{ auth_user_id: string | null }>)
+      .map((row) => row.auth_user_id)
+      .filter((id): id is string => Boolean(id));
+
+    if (!dispatcherIds.length) {
+      return;
+    }
+
+    await this.inAppNotificationsService.sendToMany(
+      dispatcherIds,
+      'Site Manager Credentials Reset',
+      `${siteManagerName} reset credentials during an active disaster. Re-verify identity before sharing sensitive coordination details.`,
+      'system',
+      {
+        event: 'site_manager_credentials_reset',
+        siteManagerAuthUserId: resetUserAuthId,
+      },
+    );
   }
 
   private maskContact(contact: string, method: RecoveryMethod): string {

@@ -76,6 +76,7 @@ export class DispatchOrdersService {
         priority: createDispatchOrderDto.priority ?? 'normal',
         instructions: createDispatchOrderDto.instructions ?? null,
         status: createDispatchOrderDto.status ?? 'pending',
+        disaster_id: createDispatchOrderDto.disasterId ?? createDispatchOrderDto.operationId,
       })
       .select('id, report_id, operation_id, assigned_to, priority, instructions, status, created_at, updated_at')
       .single();
