@@ -28,11 +28,14 @@ import { CitizenFamilyGroupScannerScreen } from "./CitizenFamilyGroupScannerScre
 
 interface CitizenFamilyGroupScreenProps {
   onBack: () => void;
+  personalQrCodeId?: string;
+  citizenDisplayName?: string;
 }
 
-export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenProps) {
+export function CitizenFamilyGroupScreen({ onBack, personalQrCodeId, citizenDisplayName }: CitizenFamilyGroupScreenProps) {
   const [token, setToken] = useState<string | null>(null);
   const [group, setGroup] = useState<FamilyGroup | null>(null);
+  const isHead = group?.isHead !== false; // true when own group, false when member of another's
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [familyName, setFamilyName] = useState("");
@@ -40,6 +43,7 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
   const [showScanner, setShowScanner] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"family" | "personal">("family");
 
   const loadGroup = useCallback(async (tok: string) => {
     try {
@@ -166,13 +170,32 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Family Group QR</Text>
-        {group && (
+        <Text style={styles.headerTitle}>Family & ID</Text>
+        {activeTab === "family" && group && isHead ? (
           <TouchableOpacity onPress={handleDeleteGroup} style={styles.deleteHeaderBtn}>
             <Ionicons name="trash-outline" size={20} color={theme.danger ?? "#C0392B"} />
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
-        {!group && <View style={{ width: 40 }} />}
+      </View>
+
+      {/* Tab Toggle */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === "family" && styles.tabBtnActive]}
+          onPress={() => setActiveTab("family")}
+        >
+          <Ionicons name={activeTab === "family" ? "people" : "people-outline"} size={16} color={activeTab === "family" ? "#fff" : theme.textLight} />
+          <Text style={[styles.tabBtnText, activeTab === "family" && styles.tabBtnTextActive]}>FAMILY QR</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === "personal" && styles.tabBtnActive]}
+          onPress={() => setActiveTab("personal")}
+        >
+          <Ionicons name={activeTab === "personal" ? "qr-code" : "qr-code-outline"} size={16} color={activeTab === "personal" ? "#fff" : theme.textLight} />
+          <Text style={[styles.tabBtnText, activeTab === "personal" && styles.tabBtnTextActive]}>MY QR</Text>
+        </TouchableOpacity>
       </View>
 
       {error ? (
@@ -191,7 +214,41 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
         </View>
       )}
 
-      {!group ? (
+      {/* Personal QR Tab */}
+      {activeTab === "personal" && (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {personalQrCodeId ? (
+            <View style={styles.personalQrCard}>
+              <View style={styles.qrCardBadge}>
+                <View style={styles.qrBadgeDot} />
+                <Text style={styles.qrBadgeText}>YOUR DIGITAL ID</Text>
+              </View>
+              {citizenDisplayName && (
+                <Text style={styles.familyNameText}>{citizenDisplayName}</Text>
+              )}
+              <Text style={styles.qrSubtitle}>Show this QR at evacuation centers for personal check-in</Text>
+              <View style={styles.qrWrapper}>
+                <QRCode value={personalQrCodeId} size={200} backgroundColor="#fff" color="#000" />
+              </View>
+              <Text style={styles.qrCodeId}>{personalQrCodeId}</Text>
+              <Text style={styles.qrHint}>Keep this accessible during emergencies</Text>
+            </View>
+          ) : (
+            <View style={styles.centered}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="qr-code-outline" size={48} color={theme.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>No QR ID Yet</Text>
+              <Text style={styles.emptyDesc}>
+                Complete your registration to receive a personal Digital ID QR code for evacuation check-in.
+              </Text>
+            </View>
+          )}
+          <View style={{ height: 60 }} />
+        </ScrollView>
+      )}
+
+      {activeTab === "family" && !group && (
         /* ── No group yet ── */
         <View style={styles.centered}>
           <View style={styles.emptyIcon}>
@@ -207,7 +264,19 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
             <Text style={styles.createBtnText}>CREATE FAMILY GROUP</Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      )}
+
+      {activeTab === "family" && group && !isHead && (
+        <View style={styles.memberBadgeBanner}>
+          <Ionicons name="people-circle-outline" size={18} color="#2E7D32" />
+          <Text style={styles.memberBadgeText}>
+            You are a member of this group. Only the group creator can add or remove members.
+          </Text>
+        </View>
+      )}
+
+
+      {activeTab === "family" && !!group && (
         /* ── Group exists ── */
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Shared QR Card */}
@@ -257,27 +326,47 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
           <View style={styles.membersSection}>
             <View style={styles.membersSectionHeader}>
               <Text style={styles.membersSectionTitle}>
-                Members ({group.members.length})
+                Members ({group.members.length + 1})
               </Text>
-              <TouchableOpacity
-                style={styles.addMemberBtn}
-                onPress={() => setShowScanner(true)}
-                disabled={addingMember}
-              >
-                <Ionicons name="scan" size={18} color="#fff" />
-                <Text style={styles.addMemberBtnText}>SCAN & ADD</Text>
-              </TouchableOpacity>
+              {isHead && (
+                <TouchableOpacity
+                  style={styles.addMemberBtn}
+                  onPress={() => setShowScanner(true)}
+                  disabled={addingMember}
+                >
+                  <Ionicons name="scan" size={18} color="#fff" />
+                  <Text style={styles.addMemberBtnText}>SCAN & ADD</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Family head row — always first */}
+            <View style={[styles.memberCard, styles.memberCardHead]}>
+              <View style={[styles.memberAvatar, styles.memberAvatarHead]}>
+                <Text style={[styles.memberAvatarText, { color: "#fff" }]}>
+                  {(group.headName ?? "?")[0].toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberName}>{group.headName ?? "Family Head"}</Text>
+                {group.headQrCodeId && <Text style={styles.memberQr}>{group.headQrCodeId}</Text>}
+                <View style={styles.headBadge}>
+                  <Text style={styles.headBadgeText}>FAMILY HEAD</Text>
+                </View>
+              </View>
             </View>
 
             {group.members.length === 0 ? (
               <View style={styles.emptyMembersCard}>
                 <Ionicons name="person-add-outline" size={32} color={theme.textLight} style={{ marginBottom: 12 }} />
                 <Text style={styles.emptyMembersText}>
-                  No members added yet. Tap "SCAN & ADD" to scan a family member's QR code.
+                  {isHead
+                    ? "No members added yet. Tap \"SCAN & ADD\" to scan a family member's QR code."
+                    : "No other members have been added to this group yet."}
                 </Text>
               </View>
             ) : (
-              group.members.map((member, index) => (
+              group.members.map((member) => (
                 <View key={member.id} style={styles.memberCard}>
                   <View style={styles.memberAvatar}>
                     <Text style={styles.memberAvatarText}>
@@ -293,12 +382,14 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
                       </View>
                     )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveMember(member.citizenQrCodeId, member.memberFullName ?? "this member")}
-                    style={styles.removeBtn}
-                  >
-                    <Ionicons name="close-circle" size={24} color={theme.textLight} />
-                  </TouchableOpacity>
+                  {isHead && (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveMember(member.citizenQrCodeId, member.memberFullName ?? "this member")}
+                      style={styles.removeBtn}
+                    >
+                      <Ionicons name="close-circle" size={24} color={theme.textLight} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))
             )}
@@ -309,6 +400,7 @@ export function CitizenFamilyGroupScreen({ onBack }: CitizenFamilyGroupScreenPro
       )}
 
       {/* Create Family Group Modal */}
+
       <Modal visible={showCreateModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -462,6 +554,53 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#fff",
     letterSpacing: 1,
+  },
+  tabRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.line,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: theme.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  tabBtnActive: {
+    backgroundColor: "#004D40",
+    borderColor: "#004D40",
+  },
+  tabBtnText: {
+    ...fonts.black,
+    fontSize: 11,
+    color: theme.textLight,
+    letterSpacing: 1,
+  },
+  tabBtnTextActive: {
+    color: "#fff",
+  },
+  personalQrCard: {
+    backgroundColor: "#fff",
+    borderRadius: 36,
+    padding: 28,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.line,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+    marginBottom: 24,
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 24, paddingBottom: 60 },
@@ -636,6 +775,10 @@ const styles = StyleSheet.create({
     borderColor: theme.line,
     gap: 14,
   },
+  memberCardHead: {
+    borderColor: "#A5D6A7",
+    backgroundColor: "#F1F8E9",
+  },
   memberAvatar: {
     width: 48,
     height: 48,
@@ -644,10 +787,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  memberAvatarHead: {
+    backgroundColor: "#2E7D32",
+  },
   memberAvatarText: {
     ...fonts.black,
     fontSize: 20,
     color: "#2E7D32",
+  },
+  headBadge: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    backgroundColor: "#2E7D32",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  headBadgeText: {
+    ...fonts.black,
+    fontSize: 9,
+    color: "#fff",
+    letterSpacing: 0.8,
   },
   memberInfo: {
     flex: 1,
@@ -679,6 +839,23 @@ const styles = StyleSheet.create({
   },
   removeBtn: {
     padding: 4,
+  },
+  memberBadgeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#C8E6C9",
+  },
+  memberBadgeText: {
+    ...fonts.medium,
+    fontSize: 13,
+    color: "#2E7D32",
+    flex: 1,
+    lineHeight: 18,
   },
   // Modal styles
   modalOverlay: {
