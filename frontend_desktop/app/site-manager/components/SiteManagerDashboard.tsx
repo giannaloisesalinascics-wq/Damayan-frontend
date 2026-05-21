@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SiteManagerProfilePage from "./SiteManagerProfilePage";
 import { clearSession, hasRole, loadSession } from "../../lib/session";
@@ -547,13 +546,19 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
       <aside className="fixed left-0 top-0 h-full w-64 bg-[#fafaf5] dark:bg-[#1a1c19] border-r border-[#dadad5] dark:border-[#3b3b3b] z-[30] hidden md:flex flex-col py-8 px-6">
         <div className="mb-10">
           <div className="mb-3 flex items-center gap-2">
-            <Image
-              src="/damayan_logo.png"
-              alt="Damayan logo"
-              width={120}
-              height={120}
-              className="h-12 w-auto"
-              priority
+            <div
+              className="h-12 w-12"
+              style={{
+                backgroundColor: phaseConfig.primaryColor,
+                WebkitMaskImage: "url('/damayan_logo.svg')",
+                WebkitMaskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                WebkitMaskSize: "contain",
+                maskImage: "url('/damayan_logo.svg')",
+                maskRepeat: "no-repeat",
+                maskPosition: "center",
+                maskSize: "contain",
+              }}
             />
             <p className="font-black text-2xl tracking-tight uppercase text-[#1a1c19] dark:text-[#e2e3dd]">DAMAYAN</p>
           </div>
