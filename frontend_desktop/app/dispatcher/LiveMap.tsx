@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef } from "react";
 import { Incident, Unit, unitStatusColor, unitTypeColor, situationColor, shortenId, priorityColor } from "./data";
 
@@ -46,40 +46,24 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
       const map = L.map(ref.current!, { center: PH, zoom: 14 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{ attribution:"© OpenStreetMap contributors", maxZoom:19 }).addTo(map);
 
-      // ── Search bar ──
-      const wrap = L.DomUtil.create("div","");
-      wrap.style.cssText = "display:flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(191,182,162,0.6);border-radius:8px;padding:5px 10px;box-shadow:0 2px 10px rgba(28,22,17,0.1);font-family:'Public Sans',sans-serif";
-      const inp = document.createElement("input");
-      inp.placeholder = "Search Philippines...";
-      inp.style.cssText = "border:none;outline:none;font:inherit;font-size:12px;color:#1c1a17;background:transparent;width:185px";
-      const ico = document.createElement("span");
-      ico.textContent="S"; ico.style.fontSize="11px"; ico.style.fontWeight="900"; ico.style.color="var(--d-text-sub)";
-      wrap.appendChild(ico); wrap.appendChild(inp);
-      L.DomEvent.disableClickPropagation(wrap);
-      L.DomEvent.disableScrollPropagation(wrap);
-      inp.addEventListener("keydown", async (e:any) => {
-        if (e.key!=="Enter") return;
-        const q = inp.value.trim(); if (!q) return;
-        try {
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+", Philippines")}&format=json&limit=1&countrycodes=ph`);
-          const d = await r.json();
-          if (d.length) {
-            map.setView([parseFloat(d[0].lat), parseFloat(d[0].lon)], 15);
-            const m = L.marker([parseFloat(d[0].lat),parseFloat(d[0].lon)]).addTo(map).bindPopup(`<b>${q}</b><br/><small style="color:#5a5245">${d[0].display_name.substring(0,80)}</small>`).openPopup();
-            setTimeout(()=>map.removeLayer(m),7000);
-          } else { alert(`"${q}" not found in the Philippines.`); }
-        } catch { alert("Search failed. Check your connection."); }
-      });
-      const SC = L.Control.extend({ options:{position:"topright"}, onAdd:()=>wrap });
-      new SC().addTo(map);
-
       mapR.current=map; LR.current=L;
       draw(L, map);
     });
     return () => { if (mapR.current){ mapR.current.remove(); mapR.current=null; } };
   }, []);
 
-  useEffect(() => { if (mapR.current&&LR.current) draw(LR.current,mapR.current); });
+  useEffect(() => {
+    if (mapR.current && LR.current) {
+      draw(LR.current, mapR.current);
+      setTimeout(() => {
+        try {
+          mapR.current?.invalidateSize();
+        } catch {
+          // no-op
+        }
+      }, 0);
+    }
+  });
 
   function dot(color:string, size=12, pulse=false) {
     const p = pulse ? `<span style="position:absolute;inset:-4px;border-radius:50%;background:${color};opacity:0.25;animation:lf-pulse 1.5s ease-out infinite"></span>` : "";
@@ -100,7 +84,7 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
       vis.forEach(u => {
         const c = unitStatusColor(u.status);
         const icon = L.divIcon({className:"",html:dot(c,u.status==="Available"?13:11),iconSize:[13,13],iconAnchor:[6,6]});
-        mks.current.push(L.marker([u.lat,u.lng],{icon}).addTo(map).bindTooltip(`<b>${u.name}</b> — ${u.status}<br/>${u.station}`,{direction:"top"}));
+        mks.current.push(L.marker([u.lat,u.lng],{icon}).addTo(map).bindTooltip(`<b>${u.name}</b> â€” ${u.status}<br/>${u.station}`,{direction:"top"}));
       });
       incidents.filter(i=>i.status!=="Resolved"&&i.status!=="Invalid").forEach(i => {
         const isPulse = ["Dispatched", "In Progress"].includes(i.status);
@@ -128,7 +112,7 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
         const assigned = assignedUnits.includes(u.id);
         const size=18;
         const icon = L.divIcon({className:"",html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c};border:${assigned?"3px solid #fff":"2px solid rgba(255,255,255,0.9)"};box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:pointer${assigned?`;outline:2px solid ${c};outline-offset:2px`:""}"></div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
-        const pop = L.popup({offset:[0,-9]}).setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${u.name}</div><div class="dp-map-popup-row">Station: <b>${u.station}</b></div><div class="dp-map-popup-row">Status: <span class="dp-map-popup-status" style="color:#2e7d32">Available ●</span></div><div class="dp-map-popup-row">Distance: <b>${u.distance}</b></div><div class="dp-map-popup-row">ETA: <b>${u.eta}</b></div><div class="dp-map-popup-row">Crew: <b>${u.personnel}</b></div><div class="dp-map-popup-row">Leader: <b>${u.teamLeader}</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpMsg('${u.id}')" class="dp-map-popup-btn">Message</button><button onclick="window.__dpAssign('${u.id}')" class="dp-map-popup-btn assign">${assigned?"✓ Assigned":"Assign"}</button></div></div>`);
+        const pop = L.popup({offset:[0,-9]}).setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${u.name}</div><div class="dp-map-popup-row">Station: <b>${u.station}</b></div><div class="dp-map-popup-row">Status: <span class="dp-map-popup-status" style="color:#2e7d32">Available â—</span></div><div class="dp-map-popup-row">Distance: <b>${u.distance}</b></div><div class="dp-map-popup-row">ETA: <b>${u.eta}</b></div><div class="dp-map-popup-row">Crew: <b>${u.personnel}</b></div><div class="dp-map-popup-row">Leader: <b>${u.teamLeader}</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpMsg('${u.id}')" class="dp-map-popup-btn">Message</button><button onclick="window.__dpAssign('${u.id}')" class="dp-map-popup-btn assign">${assigned?"âœ“ Assigned":"Assign"}</button></div></div>`);
         const m = L.marker([u.lat,u.lng],{icon}).addTo(map).bindPopup(pop);
         m.on("click",()=>{ if (onUnitAssign) onUnitAssign(u.id); });
         mks.current.push(m);
@@ -153,7 +137,7 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
         const html=`<div style="background:${sc};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:800;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer;font-family:'Public Sans',sans-serif">${shortenId(i.id)}</div>`;
         const icon = L.divIcon({className:"",html,iconSize:[90,22],iconAnchor:[45,11]});
         const names = i.assignedUnits.map(uid=>{ const u=units.find(u=>u.id===uid); return u?`${u.type}-${u.id.split("-")[1]}`:uid; }).join(", ")||"None";
-        const pop = L.popup().setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${shortenId(i.id)} — ${i.type}</div><div class="dp-map-popup-row">Loc: ${i.address}</div><div class="dp-map-popup-row">Situation: <span style="color:${sc};font-weight:700">${i.situationType}</span></div><div class="dp-map-popup-row">Units: <b>${names}</b></div><div class="dp-map-popup-row">Active: <b>${i.timeActive} mins</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpBackup('${i.id}')" class="dp-map-popup-btn" style="background:#c77700;color:#fff;border-color:transparent">Backup</button><button onclick="window.__dpEscalate('${i.id}')" class="dp-map-popup-btn" style="background:#c62828;color:#fff;border-color:transparent">High-Level</button></div></div>`);
+        const pop = L.popup().setContent(`<div class="dp-map-popup"><div class="dp-map-popup-name">${shortenId(i.id)} â€” ${i.type}</div><div class="dp-map-popup-row">Loc: ${i.address}</div><div class="dp-map-popup-row">Situation: <span style="color:${sc};font-weight:700">${i.situationType}</span></div><div class="dp-map-popup-row">Units: <b>${names}</b></div><div class="dp-map-popup-row">Active: <b>${i.timeActive} mins</b></div><div class="dp-map-popup-btns"><button onclick="window.__dpBackup('${i.id}')" class="dp-map-popup-btn" style="background:#c77700;color:#fff;border-color:transparent">Backup</button><button onclick="window.__dpEscalate('${i.id}')" class="dp-map-popup-btn" style="background:#c62828;color:#fff;border-color:transparent">High-Level</button></div></div>`);
 
         const j = getJitter(i.id);
         const m = L.marker([i.lat + j.lat, i.lng + j.lng],{icon}).addTo(map).bindPopup(pop);
@@ -175,3 +159,6 @@ export default function LiveMap({ mode, incidents, units, filterType="All", sele
     </div>
   );
 }
+
+
+
