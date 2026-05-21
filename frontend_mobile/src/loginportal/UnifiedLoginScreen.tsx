@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import {
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -98,17 +100,22 @@ export function UnifiedLoginScreen({
   };
 
   return (
-    <Screen style={{ backgroundColor: HERO_BG }}>
+    <Screen scroll={false} style={{ backgroundColor: HERO_BG }}>
       {/* ── Decorative background shapes ─────────────── */}
       <View style={s.blobTopRight} pointerEvents="none" />
       <View style={s.blobBottomLeft} pointerEvents="none" />
       <View style={s.blobGoldHint} pointerEvents="none" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={s.scrollContent}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={s.scrollContent}
+        >
         {/* ── Logo Header ─────────────────────────────── */}
         <View style={s.logoHeader}>
           <View style={s.logoRing}>
@@ -218,7 +225,8 @@ export function UnifiedLoginScreen({
             ) : null}
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Forgot Password Modal */}
       <Modal visible={forgotOpen} transparent animationType="slide" onRequestClose={() => setForgotOpen(false)}>
@@ -467,10 +475,6 @@ const s = StyleSheet.create({
   inputWrapFocused: {
     borderColor: ACCENT,
     backgroundColor: "#fff",
-    shadowColor: ACCENT,
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
   },
   inputIcon: {
     marginRight: 10,

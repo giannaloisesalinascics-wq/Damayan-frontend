@@ -12,6 +12,7 @@ import { DispatcherModule } from './gateway/dispatcher/dispatcher.module.js';
 import { CitizenGatewayModule } from './gateway/citizen/citizen-gateway.module.js';
 import { NotificationsGatewayModule } from './gateway/notifications/notifications.module.js';
 import { SystemSettingsModule } from './system-settings/system-settings.module.js';
+import { GeoModule } from './geo/geo.module.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,6 +36,7 @@ const backendRoot = resolve(__dirname, '..');
     CitizenGatewayModule,
     NotificationsGatewayModule,
     SystemSettingsModule,
+    GeoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

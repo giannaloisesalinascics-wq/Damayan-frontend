@@ -71,8 +71,8 @@ export function SiteManagerSignupScreen({
   }, []);
 
   return (
-    <Screen style={{ backgroundColor: theme.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }}>
+    <Screen scroll={false} style={{ backgroundColor: theme.bg }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 160 }} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 32 }}>
           <TouchableOpacity onPress={onBack} style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: theme.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.line, marginBottom: 24 }}>
             <Ionicons name="arrow-back" size={24} color={theme.primary} />

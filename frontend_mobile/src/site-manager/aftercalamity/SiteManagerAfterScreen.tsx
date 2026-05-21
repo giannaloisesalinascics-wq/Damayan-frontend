@@ -142,10 +142,11 @@ export function SiteManagerAfterScreen({
    };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={localStyles.container}
       contentContainerStyle={localStyles.scrollContent}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={localStyles.headerRow}>
         <TouchableOpacity onPress={onBackToResponse} style={localStyles.backBtn}>

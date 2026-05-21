@@ -513,6 +513,42 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  // ─── Live map ──────────────────────────────────────────────────────────────
+  liveMap: {
+    height: 260,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: theme.line,
+  },
+  mapLoadingBox: {
+    height: 200,
+    borderRadius: 24,
+    backgroundColor: theme.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  mapLoadingText: {
+    color: theme.textLight,
+    fontSize: 13,
+    ...fonts.medium,
+  },
+  deviceDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    borderWidth: 2.5,
+    borderColor: "#fff",
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
   // ─── Radar (existing) ──────────────────────────────────────────────────────
   radarRing: {
     width: 32,

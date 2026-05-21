@@ -215,7 +215,7 @@ export function CitizenFamilyGroupScreen({ onBack, personalQrCodeId, citizenDisp
 
       {/* Personal QR Tab */}
       {activeTab === "personal" && (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {personalQrCodeId ? (
             <View style={styles.personalQrCard}>
               <View style={styles.qrCardBadge}>
@@ -267,7 +267,7 @@ export function CitizenFamilyGroupScreen({ onBack, personalQrCodeId, citizenDisp
 
       {activeTab === "family" && !!group && (
         /* ── Group exists ── */
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Shared QR Card */}
           <View style={styles.qrCard}>
             <View style={styles.qrCardBadge}>

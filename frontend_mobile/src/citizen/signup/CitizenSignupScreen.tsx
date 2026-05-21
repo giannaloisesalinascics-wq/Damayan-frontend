@@ -241,6 +241,7 @@ export function CitizenSignupScreen({
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 160 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Back button + header */}
         <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24 }}>
