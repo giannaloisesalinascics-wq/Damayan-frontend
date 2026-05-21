@@ -39,7 +39,7 @@ export function CitizenHouseholdMembersScreen({
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>

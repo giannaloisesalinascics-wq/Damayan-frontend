@@ -275,6 +275,7 @@ export function SiteManagerDuringScreen({
       style={localStyles.container}
       contentContainerStyle={localStyles.scrollContent}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={localStyles.headerRow}>
         <TouchableOpacity onPress={onBack} style={localStyles.backBtn}>

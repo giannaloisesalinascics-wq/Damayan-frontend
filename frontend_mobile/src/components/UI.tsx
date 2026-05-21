@@ -22,15 +22,24 @@ export function Screen({
   scroll?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const content = <View style={styles.screenInner}>{children}</View>;
+  const topPad = Platform.OS !== 'web' ? (StatusBar.currentHeight || 45) : 0;
+
+  if (!scroll) {
+    return (
+      <View style={[styles.screen, style, { paddingTop: topPad }]}>
+        {children}
+      </View>
+    );
+  }
 
   return (
-    <View style={[styles.screen, style, { paddingTop: Platform.OS !== 'web' ? (StatusBar.currentHeight || 45) : 0 }]}>
+    <View style={[styles.screen, style, { paddingTop: topPad }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {content}
+        <View style={styles.screenInner}>{children}</View>
       </ScrollView>
     </View>
   );

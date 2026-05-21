@@ -81,7 +81,7 @@ export function DispatcherLoginScreen({
 
   return (
     <Screen style={{ backgroundColor: theme.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.citizenShell}>
           {/* Background Blobs */}
           <View style={[styles.orb, styles.orb1, { backgroundColor: accent }]} />

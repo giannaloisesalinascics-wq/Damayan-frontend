@@ -160,6 +160,7 @@ export function CitizenProfileEditScreen({
         style={styles.content}
         contentContainerStyle={styles.contentInner}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Account ── */}
         {activeSection === "account" && (

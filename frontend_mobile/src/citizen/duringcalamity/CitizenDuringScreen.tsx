@@ -3,7 +3,6 @@ import {
   Animated,
   Alert,
   Image,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -11,41 +10,56 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
+import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import QRCode from "react-native-qrcode-svg";
 import * as ImagePicker from "expo-image-picker";
 import { theme, fonts } from "../../theme";
 import { styles } from "./CitizenDuringScreen.styles";
 import { submitIncidentReport } from "../../api";
+import { CitizenLiveMap, type EvacCenter } from "./CitizenLiveMap";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DuringStep =
   | "rescue_decision"
   | "report_incident"
   | "self_evacuate"
-  | "internet_decision"
-  | "upload_photo"
-  | "sms_code"
   | "delivery_confirmation"
   | "safe_zone_map"
   | "navigate_evacuation"
   | "arrive_site"
-  | "credential_check"
   | "logged_in";
 
 const STEP_ORDER: DuringStep[] = [
   "rescue_decision",
-  "report_incident",
-  "internet_decision",
-  "upload_photo",
   "delivery_confirmation",
   "safe_zone_map",
   "navigate_evacuation",
   "arrive_site",
-  "credential_check",
   "logged_in",
 ];
 
+// ─── Static Evacuation Centers ────────────────────────────────────────────────
+const EVAC_CENTERS: EvacCenter[] = [
+  { id: "1", name: "Brgy. 102 Barangay Hall", latitude: 14.6020, longitude: 120.9850, status: "Open" },
+  { id: "2", name: "San Miguel Elementary School", latitude: 14.5975, longitude: 120.9870, status: "Open" },
+  { id: "3", name: "Manila City Hall Evac Center", latitude: 14.5942, longitude: 120.9770, status: "Open" },
+];
+
+function haversineKm(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // ─── Pulsating Dot ────────────────────────────────────────────────────────────
 function PulsatingDot({ color = theme.danger }: { color?: string }) {
@@ -63,7 +77,7 @@ function PulsatingDot({ color = theme.danger }: { color?: string }) {
           Animated.timing(opacity, { toValue: 0, duration: 1600, useNativeDriver: true }),
           Animated.timing(opacity, { toValue: 0.7, duration: 0, useNativeDriver: true }),
         ]),
-      ])
+      ]),
     ).start();
   }, []);
 
@@ -97,7 +111,7 @@ export function CitizenDuringScreen({
   session,
   authUser,
   qrCodeId,
-}: { 
+}: {
   onBack: () => void;
   initialStep?: string;
   session: any;
@@ -105,39 +119,41 @@ export function CitizenDuringScreen({
   qrCodeId?: string | null;
 }) {
   const [step, setStep] = useState<DuringStep>("rescue_decision");
-  const [rescueNeeded, setRescueNeeded] = useState<boolean | null>(null);
-  const [internetAvailable, setInternetAvailable] = useState<boolean | null>(null);
-  const [isIndividual, setIsIndividual] = useState<boolean | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [locationPinned, setLocationPinned] = useState(false);
-  const [personsAffected, setPersonsAffected] = useState(1);
 
-  const handleUploadAndSend = async () => {
-    if (!session?.accessToken) {
-      Alert.alert("Authentication Error", "You must be logged in to submit a report.");
-      return;
-    }
+  // Real GPS state
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationDenied, setLocationDenied] = useState(false);
 
-    try {
-      setIsSubmitting(true);
-      
-      const payload = {
-        title: "Citizen SOS Report",
-        content: "Citizen needs immediate rescue. Location details: Brgy. 102, District 4 - Zone Red. Affected: 4 persons.",
-        severity: "high",
-        location: "Brgy. 102, District 4 - Zone Red",
-      };
+  // Selected evacuation center (chosen on safe_zone_map, used in navigate_evacuation)
+  const [selectedCenter, setSelectedCenter] = useState<EvacCenter>(EVAC_CENTERS[0]);
 
-      await submitIncidentReport(session.accessToken, payload);
-      go("delivery_confirmation");
-    } catch (err: any) {
-      console.error("Failed to submit incident report:", err);
-      Alert.alert("Submission Failed", err?.message || "Something went wrong while uploading your report.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // ── Fetch device GPS on mount ────────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocationDenied(true);
+        setLocationLoading(false);
+        return;
+      }
+      try {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setUserLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+      } catch {
+        setLocationDenied(true);
+      } finally {
+        setLocationLoading(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (initialStep === "map") setStep("safe_zone_map");
@@ -178,11 +194,44 @@ export function CitizenDuringScreen({
     }
   }
 
+  const handleSubmitReport = async () => {
+    if (!session?.accessToken) {
+      Alert.alert("Authentication Error", "You must be logged in to submit a report.");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      const locationStr = userLocation
+        ? `${userLocation.latitude.toFixed(5)}, ${userLocation.longitude.toFixed(5)}`
+        : "Location unavailable";
+
+      await submitIncidentReport(session.accessToken, {
+        title: "Citizen SOS Report",
+        content: `Citizen needs immediate rescue. GPS: ${locationStr}.`,
+        severity: "high",
+        location: locationStr,
+      });
+      go("delivery_confirmation");
+    } catch (err: any) {
+      Alert.alert("Submission Failed", err?.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const stepIndex = STEP_ORDER.indexOf(step);
 
   function go(next: DuringStep) {
     setStep(next);
   }
+
+  const locationLabel = locationLoading
+    ? "Detecting location…"
+    : locationDenied
+    ? "GPS unavailable"
+    : userLocation
+    ? `${userLocation.latitude.toFixed(4)}° N, ${userLocation.longitude.toFixed(4)}° E`
+    : "Location unavailable";
 
   return (
     <View style={styles.shell}>
@@ -207,7 +256,7 @@ export function CitizenDuringScreen({
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── STEP 0: Rescue Decision ───────────────────────────────────────── */}
+        {/* ── STEP 0: Rescue Decision ──────────────────────────────────────── */}
         {step === "rescue_decision" && (
           <View style={styles.decisionCard}>
             <View style={[styles.decisionIconWrap, { backgroundColor: "rgba(186, 26, 26, 0.08)" }]}>
@@ -223,14 +272,14 @@ export function CitizenDuringScreen({
             <View style={styles.decisionOptions}>
               <Pressable
                 style={[styles.optionButtonYes, { backgroundColor: theme.danger }]}
-                onPress={() => { setRescueNeeded(true); go("report_incident"); }}
+                onPress={() => go("report_incident")}
               >
                 <Ionicons name="hand-left" size={24} color="#fff" />
                 <Text style={styles.optionButtonText}>YES — I need rescue</Text>
               </Pressable>
               <Pressable
                 style={styles.optionButtonNo}
-                onPress={() => { setRescueNeeded(false); go("self_evacuate"); }}
+                onPress={() => go("self_evacuate")}
               >
                 <Ionicons name="walk" size={24} color={theme.text} />
                 <Text style={styles.optionButtonTextDark}>NO — Self Evacuate</Text>
@@ -239,7 +288,7 @@ export function CitizenDuringScreen({
           </View>
         )}
 
-        {/* ── STEP 1a: Report Incident ──────────────────────────────────────── */}
+        {/* ── STEP 1a: Report Incident ─────────────────────────────────────── */}
         {step === "report_incident" && (
           <View style={styles.stepCard}>
             <View style={[styles.stepIconWrap, { backgroundColor: "rgba(186, 26, 26, 0.08)" }]}>
@@ -250,38 +299,45 @@ export function CitizenDuringScreen({
               <Text style={styles.stepTitle}>Report Incident</Text>
             </View>
             <Text style={styles.stepCopy}>
-              Provide your current situation so dispatchers can prioritize and route a rescue team to you.
+              Your GPS location and situation details will be sent directly to dispatch.
             </Text>
 
             <View style={[styles.infoRow, { borderLeftColor: theme.danger }]}>
-              <Ionicons name="location" size={24} color={theme.danger} />
+              <Ionicons
+                name={locationLoading ? "time" : locationDenied ? "warning" : "location"}
+                size={24}
+                color={locationDenied ? theme.warning : theme.danger}
+              />
               <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>Location Detected</Text>
-                <Text style={styles.infoRowSub}>Brgy. 102, District 4 — Zone Red</Text>
+                <Text style={styles.infoRowText}>
+                  {locationLoading ? "Detecting Location…" : "GPS Location"}
+                </Text>
+                <Text style={styles.infoRowSub}>{locationLabel}</Text>
               </View>
-              <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+              {!locationLoading && !locationDenied && (
+                <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+              )}
+              {locationLoading && (
+                <ActivityIndicator size="small" color={theme.danger} />
+              )}
             </View>
 
-            <View style={[styles.infoRow, { borderLeftColor: theme.warning }]}>
-              <Ionicons name="people" size={24} color={theme.warning} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>Persons Affected: 4</Text>
-                <Text style={styles.infoRowSub}>2 adults, 1 child, 1 senior</Text>
-              </View>
-            </View>
-
+            {/* Optional photo attachment */}
             <View style={styles.uploadBox}>
               {photoUri ? (
                 <View style={{ width: "100%", height: "100%", borderRadius: 20, overflow: "hidden" }}>
-                   <Image source={{ uri: photoUri }} style={{ width: "100%", height: "100%" }} />
-                   <Pressable onPress={() => setPhotoUri(null)} style={{ position: "absolute", top: 12, right: 12, backgroundColor: "rgba(0,0,0,0.6)", padding: 8, borderRadius: 12 }}>
-                      <Ionicons name="close" size={20} color="#fff" />
-                   </Pressable>
+                  <Image source={{ uri: photoUri }} style={{ width: "100%", height: "100%" }} />
+                  <Pressable
+                    onPress={() => setPhotoUri(null)}
+                    style={{ position: "absolute", top: 12, right: 12, backgroundColor: "rgba(0,0,0,0.6)", padding: 8, borderRadius: 12 }}
+                  >
+                    <Ionicons name="close" size={20} color="#fff" />
+                  </Pressable>
                 </View>
               ) : (
                 <>
                   <Ionicons name="camera" size={40} color={theme.primary} />
-                  <Text style={styles.uploadBoxTitle}>Attach Photo Evidence</Text>
+                  <Text style={styles.uploadBoxTitle}>Attach Photo (Optional)</Text>
                   <View style={{ flexDirection: "row", gap: 12 }}>
                     <TouchableOpacity onPress={handleTakePhoto} style={styles.ghostButton}>
                       <Text style={styles.ghostButtonText}>Take Photo</Text>
@@ -295,16 +351,23 @@ export function CitizenDuringScreen({
             </View>
 
             <Pressable
-              style={[styles.ctaButton, { backgroundColor: theme.danger }]}
-              onPress={() => go("internet_decision")}
+              style={[styles.ctaButton, { backgroundColor: theme.danger }, isSubmitting && { opacity: 0.7 }]}
+              onPress={handleSubmitReport}
+              disabled={isSubmitting || locationLoading}
             >
-              <Text style={styles.ctaButtonText}>Submit Incident Report</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={20} color="#fff" />
+                  <Text style={styles.ctaButtonText}>Send SOS Report</Text>
+                </>
+              )}
             </Pressable>
           </View>
         )}
 
-        {/* ── STEP 1b: Self Evacuate ────────────────────────────────────────── */}
+        {/* ── STEP 1b: Self Evacuate ───────────────────────────────────────── */}
         {step === "self_evacuate" && (
           <View style={styles.stepCard}>
             <View style={[styles.stepIconWrap, { backgroundColor: "rgba(46, 125, 50, 0.08)" }]}>
@@ -318,135 +381,30 @@ export function CitizenDuringScreen({
               Follow the evacuation route to the nearest designated safe zone. Bring your Digital ID for check-in.
             </Text>
 
-            <View style={styles.mapMock}>
-              <PulsatingDot color={theme.primary} />
-              <View style={styles.mapEtaBadge}>
-                <Ionicons name="footsteps" size={16} color={theme.primary} />
-                <Text style={styles.mapEtaText}>1.2 km away</Text>
-              </View>
-            </View>
-
-            <View style={[styles.infoRow, { borderLeftColor: theme.primary }]}>
-              <Ionicons name="navigate" size={24} color={theme.primary} />
+            <View style={[styles.infoRow, { borderLeftColor: theme.danger }]}>
+              <Ionicons
+                name={locationLoading ? "time" : locationDenied ? "warning" : "location"}
+                size={24}
+                color={locationDenied ? theme.warning : theme.primary}
+              />
               <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>Nearest Safe Zone</Text>
-                <Text style={styles.infoRowSub}>Brgy. Hall — 1.2 km northeast</Text>
+                <Text style={styles.infoRowText}>Your Current Location</Text>
+                <Text style={styles.infoRowSub}>{locationLabel}</Text>
               </View>
+              {locationLoading && <ActivityIndicator size="small" color={theme.primary} />}
             </View>
 
             <Pressable
               style={[styles.ctaButton, { backgroundColor: theme.primary }]}
-              onPress={() => go("internet_decision")}
+              onPress={() => go("safe_zone_map")}
             >
-              <Text style={styles.ctaButtonText}>Begin Evacuation</Text>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
+              <Ionicons name="map" size={20} color="#fff" />
+              <Text style={styles.ctaButtonText}>Find Safe Zones</Text>
             </Pressable>
           </View>
         )}
 
-        {/* ── STEP 2: Internet Decision ─────────────────────────────────────── */}
-        {step === "internet_decision" && (
-          <View style={styles.decisionCard}>
-            <View style={[styles.decisionIconWrap, { backgroundColor: "rgba(0, 97, 164, 0.08)" }]}>
-              <Ionicons name="wifi" size={40} color={theme.info} />
-            </View>
-            <View>
-              <Text style={[styles.decisionLabel, { color: theme.info }]}>Connectivity Check</Text>
-              <Text style={styles.decisionTitle}>Is Internet{"\n"}Available?</Text>
-            </View>
-            <Text style={styles.decisionCopy}>
-              Choose your current connectivity. If offline, we'll generate an SMS fallback code for you.
-            </Text>
-            <View style={styles.decisionOptions}>
-              <Pressable
-                style={[styles.optionButtonYes, { backgroundColor: theme.info }]}
-                onPress={() => { setInternetAvailable(true); go("upload_photo"); }}
-              >
-                <Ionicons name="wifi" size={24} color="#fff" />
-                <Text style={styles.optionButtonText}>YES — Online Mode</Text>
-              </Pressable>
-              <Pressable
-                style={styles.optionButtonNo}
-                onPress={() => { setInternetAvailable(false); go("sms_code"); }}
-              >
-                <Ionicons name="cellular" size={24} color={theme.text} />
-                <Text style={styles.optionButtonTextDark}>NO — SMS Fallback</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ── STEP 3a: Upload Photo & Location ─────────────────────────────── */}
-        {step === "upload_photo" && (
-          <View style={styles.stepCard}>
-            <View style={[styles.stepIconWrap, { backgroundColor: "rgba(0, 97, 164, 0.08)" }]}>
-              <Ionicons name="cloud-upload" size={36} color={theme.info} />
-            </View>
-            <View>
-              <Text style={[styles.stepTag, { color: theme.info }]}>Online Mode</Text>
-              <Text style={styles.stepTitle}>Final Report</Text>
-            </View>
-            <Text style={styles.stepCopy}>
-              Upload your situation data and confirm GPS. This ensures rapid dispatcher allocation.
-            </Text>
-
-            <View style={[styles.infoRow, { borderLeftColor: theme.primary }]}>
-              <Ionicons name="location" size={24} color={theme.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>GPS Location Locked</Text>
-                <Text style={styles.infoRowSub}>14.5991° N, 120.9842° E</Text>
-              </View>
-              <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
-            </View>
-
-            <Pressable
-              style={[styles.ctaButton, { backgroundColor: theme.info }]}
-              onPress={handleUploadAndSend}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload" size={24} color="#fff" />
-                  <Text style={styles.ctaButtonText}>Upload & Send Report</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        )}
-
-        {/* ── STEP 3b: SMS Code ─────────────────────────────────────────────── */}
-        {step === "sms_code" && (
-          <View style={styles.stepCard}>
-            <View style={[styles.stepIconWrap, { backgroundColor: "rgba(255, 179, 0, 0.15)" }]}>
-              <Ionicons name="chatbubble-ellipses" size={36} color={theme.warning} />
-            </View>
-            <View>
-              <Text style={[styles.stepTag, { color: theme.warning }]}>Offline Mode</Text>
-              <Text style={styles.stepTitle}>SMS Fallback</Text>
-            </View>
-            <Text style={styles.stepCopy}>
-              Send this code to the emergency hotline. Valid for 30 minutes.
-            </Text>
-
-            <View style={styles.smsCodeBox}>
-              <Text style={styles.smsCodeLabel}>Emergency Code</Text>
-              <Text style={styles.smsCode}>DAM-7821</Text>
-              <Text style={styles.smsCodeHint}>Send to 143 via SMS</Text>
-            </View>
-
-            <Pressable
-              style={[styles.ctaButton, { backgroundColor: theme.warning }]}
-              onPress={() => go("delivery_confirmation")}
-            >
-              <Ionicons name="send" size={24} color="#fff" />
-              <Text style={styles.ctaButtonText}>I've Sent the SMS</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* ── STEP 4: Delivery Confirmation ────────────────────────────────── */}
+        {/* ── STEP 2: Delivery Confirmation ────────────────────────────────── */}
         {step === "delivery_confirmation" && (
           <View style={styles.stepCard}>
             <View style={styles.confirmHero}>
@@ -455,7 +413,7 @@ export function CitizenDuringScreen({
               </View>
               <Text style={styles.confirmTitle}>Report Delivered!</Text>
               <Text style={styles.confirmCopy}>
-                Your incident report has been received. A dispatcher is reviewing your case.
+                Your SOS has been received. A dispatcher is reviewing your case now.
               </Text>
             </View>
 
@@ -463,7 +421,7 @@ export function CitizenDuringScreen({
               <Ionicons name="person" size={24} color={theme.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoRowText}>Dispatcher Assigned</Text>
-                <Text style={styles.infoRowSub}>Officer Reyes — Response Unit 4</Text>
+                <Text style={styles.infoRowSub}>Response Unit — monitoring your location</Text>
               </View>
             </View>
 
@@ -477,93 +435,90 @@ export function CitizenDuringScreen({
           </View>
         )}
 
-        {/* ── STEP 5: Safe Zone Map ─────────────────────────────────────────── */}
+        {/* ── STEP 3: Safe Zone Map (LIVE) ─────────────────────────────────── */}
         {step === "safe_zone_map" && (
           <View style={styles.stepCard}>
             <View style={[styles.stepIconWrap, { backgroundColor: "rgba(46, 125, 50, 0.08)" }]}>
               <Ionicons name="map" size={36} color={theme.primary} />
             </View>
             <View>
-              <Text style={[styles.stepTag, { color: theme.primary }]}>Safe Zone Map</Text>
+              <Text style={[styles.stepTag, { color: theme.primary }]}>Live Map</Text>
               <Text style={styles.stepTitle}>Nearby Shelters</Text>
             </View>
 
-            <Text style={styles.mapInstruction}>
-              {locationPinned
-                ? "Location pinned. You can reposition by tapping again."
-                : "Tap on the map to drop your location pin so rescuers can find you."}
-            </Text>
-
-            <Pressable onPress={() => setLocationPinned(true)} style={styles.mapMock}>
-              <PulsatingDot color={theme.primary} />
-              {locationPinned && (
-                <View style={styles.pinIndicator}>
-                  <Ionicons name="location" size={22} color={theme.danger} />
-                  <Text style={styles.pinIndicatorText}>Your Location</Text>
-                </View>
-              )}
-              <View style={styles.mapEtaBadge}>
-                <Ionicons name="shield-checkmark" size={16} color={theme.primary} />
-                <Text style={styles.mapEtaText}>Zone A: ACTIVE</Text>
+            {/* Live MapView */}
+            {locationLoading ? (
+              <View style={styles.mapLoadingBox}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.mapLoadingText}>Acquiring GPS…</Text>
               </View>
-            </Pressable>
+            ) : (
+              <CitizenLiveMap
+                mode="shelter_select"
+                userLocation={userLocation}
+                evacCenters={EVAC_CENTERS}
+                selectedCenter={selectedCenter}
+                onCenterSelect={setSelectedCenter}
+              />
+            )}
 
-            {/* Persons Affected Counter */}
-            <View style={[styles.infoRow, { borderLeftColor: theme.warning }]}>
-              <Ionicons name="people" size={24} color={theme.warning} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>Persons Affected</Text>
-                <Text style={styles.infoRowSub}>Including yourself</Text>
-              </View>
-              <View style={styles.counterRow}>
-                <Pressable
-                  onPress={() => setPersonsAffected((n) => Math.max(1, n - 1))}
-                  style={styles.counterBtn}
-                >
-                  <Text style={styles.counterBtnText}>−</Text>
-                </Pressable>
-                <Text style={styles.counterValue}>{personsAffected}</Text>
-                <Pressable
-                  onPress={() => setPersonsAffected((n) => n + 1)}
-                  style={styles.counterBtn}
-                >
-                  <Text style={styles.counterBtnText}>+</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {[
-              { name: "Brgy. Hall Safe Zone", distance: "1.2 km", status: "Open" },
-              { name: "San Miguel Elementary", distance: "2.4 km", status: "Open" },
-            ].map((zone) => (
-              <View key={zone.name} style={[styles.infoRow, { borderLeftColor: theme.primary }]}>
-                <Ionicons name="home" size={24} color={theme.primary} />
+            {locationDenied && (
+              <View style={[styles.infoRow, { borderLeftColor: theme.warning }]}>
+                <Ionicons name="warning" size={20} color={theme.warning} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.infoRowText}>{zone.name}</Text>
-                  <Text style={styles.infoRowSub}>{zone.distance} · {zone.status}</Text>
+                  <Text style={styles.infoRowText}>GPS access denied</Text>
+                  <Text style={styles.infoRowSub}>Map shows approximate area — enable location for precision</Text>
                 </View>
               </View>
-            ))}
+            )}
+
+            {/* Evacuation centers list */}
+            {EVAC_CENTERS.map((center) => {
+              const dist = userLocation
+                ? haversineKm(userLocation.latitude, userLocation.longitude, center.latitude, center.longitude)
+                : null;
+              const isSelected = selectedCenter.id === center.id;
+              return (
+                <Pressable
+                  key={center.id}
+                  onPress={() => setSelectedCenter(center)}
+                  style={[
+                    styles.infoRow,
+                    { borderLeftColor: isSelected ? theme.primary : theme.line },
+                    isSelected && { backgroundColor: "rgba(46,125,50,0.06)" },
+                  ]}
+                >
+                  <Ionicons
+                    name="home"
+                    size={24}
+                    color={isSelected ? theme.primary : theme.textLight}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.infoRowText, isSelected && { color: theme.primary }]}>
+                      {center.name}
+                    </Text>
+                    <Text style={styles.infoRowSub}>
+                      {dist !== null ? `${dist.toFixed(1)} km away` : "Calculating…"} · {center.status}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+                  )}
+                </Pressable>
+              );
+            })}
 
             <Pressable
-              style={[styles.ctaButton, { backgroundColor: theme.danger }]}
-              onPress={() => go("report_incident")}
-            >
-              <Ionicons name="hand-left" size={24} color="#fff" />
-              <Text style={styles.ctaButtonText}>Request Rescue</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.ctaButton, { backgroundColor: theme.primary, marginTop: 10 }]}
+              style={[styles.ctaButton, { backgroundColor: theme.primary }]}
               onPress={() => go("navigate_evacuation")}
             >
               <Ionicons name="navigate" size={24} color="#fff" />
-              <Text style={styles.ctaButtonText}>Navigate to Shelter</Text>
+              <Text style={styles.ctaButtonText}>Navigate to {selectedCenter.name.split(" ").slice(0, 2).join(" ")}</Text>
             </Pressable>
           </View>
         )}
 
-        {/* ── STEP 6: Navigate to Evacuation Site ──────────────────────────── */}
+        {/* ── STEP 4: Navigate to Evacuation Site (LIVE) ───────────────────── */}
         {step === "navigate_evacuation" && (
           <View style={styles.stepCard}>
             <View style={[styles.stepIconWrap, { backgroundColor: "rgba(0, 97, 164, 0.08)" }]}>
@@ -573,13 +528,32 @@ export function CitizenDuringScreen({
               <Text style={[styles.stepTag, { color: theme.info }]}>Navigation</Text>
               <Text style={styles.stepTitle}>En Route</Text>
             </View>
-            <View style={styles.mapMock}>
-              <PulsatingDot color={theme.info} />
-              <View style={styles.mapEtaBadge}>
-                <Ionicons name="car" size={16} color={theme.info} />
-                <Text style={[styles.mapEtaText, { color: theme.info }]}>ETA 12 min</Text>
+
+            <View style={[styles.infoRow, { borderLeftColor: theme.info }]}>
+              <Ionicons name="home" size={24} color={theme.info} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoRowText}>{selectedCenter.name}</Text>
+                <Text style={styles.infoRowSub}>
+                  {userLocation
+                    ? `${haversineKm(userLocation.latitude, userLocation.longitude, selectedCenter.latitude, selectedCenter.longitude).toFixed(1)} km away`
+                    : "Calculating distance…"}
+                </Text>
               </View>
             </View>
+
+            {/* Live navigation map */}
+            {locationLoading ? (
+              <View style={styles.mapLoadingBox}>
+                <ActivityIndicator size="large" color={theme.info} />
+              </View>
+            ) : (
+              <CitizenLiveMap
+                mode="navigate"
+                userLocation={userLocation}
+                evacCenters={EVAC_CENTERS}
+                selectedCenter={selectedCenter}
+              />
+            )}
 
             <Pressable
               style={[styles.ctaButton, { backgroundColor: theme.info }]}
@@ -591,7 +565,7 @@ export function CitizenDuringScreen({
           </View>
         )}
 
-        {/* ── STEP 7: Arrive at Site ────────────────────────────────────────── */}
+        {/* ── STEP 5: Arrive at Site ───────────────────────────────────────── */}
         {step === "arrive_site" && (
           <View style={styles.stepCard}>
             <View style={styles.confirmHero}>
@@ -599,7 +573,7 @@ export function CitizenDuringScreen({
                 <Ionicons name="qr-code" size={48} color={theme.primary} />
               </View>
               <Text style={styles.confirmTitle}>Check-in Required</Text>
-              <Text style={styles.confirmCopy}>Present your QR ID to the staff.</Text>
+              <Text style={styles.confirmCopy}>Present your QR ID to shelter staff.</Text>
             </View>
 
             <View style={styles.qrWrap}>
@@ -613,38 +587,14 @@ export function CitizenDuringScreen({
 
             <Pressable
               style={[styles.ctaButton, { backgroundColor: theme.primary }]}
-              onPress={() => go("credential_check")}
+              onPress={() => go("logged_in")}
             >
-              <Text style={styles.ctaButtonText}>Verify Identity</Text>
+              <Text style={styles.ctaButtonText}>Confirm Check-In</Text>
             </Pressable>
           </View>
         )}
 
-        {/* ── STEP 8: Credential Check ──────────────────────────────────────── */}
-        {step === "credential_check" && (
-          <View style={styles.decisionCard}>
-            <View style={[styles.decisionIconWrap, { backgroundColor: "rgba(46, 125, 50, 0.08)" }]}>
-              <Ionicons name="people" size={40} color={theme.primary} />
-            </View>
-            <Text style={styles.decisionTitle}>Confirm Group Type</Text>
-            <View style={styles.decisionOptions}>
-              <Pressable
-                style={[styles.optionButtonYes, { backgroundColor: theme.primary }]}
-                onPress={() => { setIsIndividual(true); go("logged_in"); }}
-              >
-                <Text style={styles.optionButtonText}>Individual</Text>
-              </Pressable>
-              <Pressable
-                style={styles.optionButtonNo}
-                onPress={() => { setIsIndividual(false); go("logged_in"); }}
-              >
-                <Text style={styles.optionButtonTextDark}>Household Cluster</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {/* ── STEP 9: Logged In ─────────────────────────────────────────────── */}
+        {/* ── STEP 6: Logged In / Checked In ──────────────────────────────── */}
         {step === "logged_in" && (
           <View style={styles.stepCard}>
             <View style={styles.confirmHero}>
@@ -653,15 +603,15 @@ export function CitizenDuringScreen({
               </View>
               <Text style={styles.confirmTitle}>Checked In!</Text>
               <Text style={styles.confirmCopy}>
-                You are successfully registered at the shelter.
+                You are registered at {selectedCenter.name}. Stay with shelter staff for further instructions.
               </Text>
             </View>
 
             <View style={[styles.infoRow, { borderLeftColor: theme.primary }]}>
-              <Ionicons name="bed" size={24} color={theme.primary} />
+              <Ionicons name="home" size={24} color={theme.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.infoRowText}>Assigned Shelter</Text>
-                <Text style={styles.infoRowSub}>Bay 4B — Building A</Text>
+                <Text style={styles.infoRowText}>Your Shelter</Text>
+                <Text style={styles.infoRowSub}>{selectedCenter.name}</Text>
               </View>
             </View>
 
