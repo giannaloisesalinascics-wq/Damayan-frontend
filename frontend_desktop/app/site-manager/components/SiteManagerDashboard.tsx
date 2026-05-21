@@ -500,8 +500,8 @@ const SiteManagerDashboard: React.FC<SiteManagerDashboardProps> = ({ phase }) =>
                     onClick={toggleDarkMode}
                     className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-[#f4f4ef] dark:hover:bg-white/5 transition-all group text-left"
                   >
-                    <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 bg-[#E3F2FD] dark:bg-[#2196F3]/20">
-                      <span className="material-symbols-outlined text-2xl text-[#2196F3]">
+                    <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 bg-[#FFF8E1] dark:bg-[#FFB300]/20">
+                      <span className="material-symbols-outlined text-2xl text-[#FFB300]">
                         {isDarkMode ? "light_mode" : "dark_mode"}
                       </span>
                     </div>

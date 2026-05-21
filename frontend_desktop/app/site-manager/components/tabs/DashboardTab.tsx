@@ -1063,7 +1063,7 @@ export default function DashboardTab({
                         ? "#FFB300"
                         : normalized.includes("moderate")
                           ? "#81C784"
-                          : "#2196F3";
+                          : "#2E7D32";
                     return (
                       <button key={severity} onClick={() => setIncidentFormState({ ...incidentFormState, severity })} className="flex-1 py-3 text-[10px] font-black uppercase rounded-xl text-white shadow-md transition-all active:scale-95" style={{ background: selected ? activeColor : "#dadad5", color: selected ? "white" : "#444743" }}>
                         {severity}

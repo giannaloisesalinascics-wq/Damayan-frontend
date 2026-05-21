@@ -78,7 +78,7 @@ export default function InventoryTab({
         : overview
           ? "Counted from all inventory items currently recorded for this site"
           : "No inventory count was returned for this site",
-      color: "#2196F3",
+      color: "#2E7D32",
     },
     {
       label: "Critical Lows",
