@@ -1713,7 +1713,7 @@ function ResourcesPage({ units, setUnits }: { units: Unit[]; setUnits: React.Dis
   const [statusFilter, setStatusFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [addUnitModal, setAddUnitModal] = useState(false);
-  const [delConfirm, setDelConfirm] = useState<string|null>(null);
+  const [delConfirm, setDelConfirm] = useState<{ id: string; name: string } | null>(null);
   const [msgModal, setMsgModal] = useState<Unit|null>(null);
   const [msgText, setMsgText] = useState("");
   const [newU, setNewU] = useState({ name:"",type:"FIRE",station:"",leader:"",contact:"",personnel:"",plate:"" });
@@ -1837,7 +1837,7 @@ function ResourcesPage({ units, setUnits }: { units: Unit[]; setUnits: React.Dis
                       <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ borderColor:u.status==="Offline"?"var(--d-green)":"var(--d-red)",color:u.status==="Offline"?"var(--d-green)":"var(--d-red)" }} onClick={()=>{setUnits(p=>p.map(x=>x.id===u.id?{...x,status:x.status==="Offline"?"Available":"Offline"}:x));toast.show(`${u.id} ${u.status==="Offline"?"enabled":"disabled"}`)}}>
                         {u.status==="Offline"?"Enable":"Disable"}
                       </button>
-                      <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ borderColor:"var(--d-red)",color:"var(--d-red)" }} onClick={()=>setDelConfirm(u.id)}>🗑</button>
+                      <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ borderColor:"var(--d-red)",color:"var(--d-red)" }} onClick={()=>setDelConfirm({ id: u.id, name: u.name })}>🗑</button>
                     </div>
                   </td>
                 </tr>
@@ -1870,10 +1870,10 @@ function ResourcesPage({ units, setUnits }: { units: Unit[]; setUnits: React.Dis
       {/* Delete confirm */}
       {delConfirm&&(
         <Modal title="Remove Unit" onClose={()=>setDelConfirm(null)} width={420}>
-          <div className="dp-alert dp-alert-red" style={{ marginBottom:"1rem" }}>Are you sure you want to remove <strong>{delConfirm}</strong>? This action cannot be undone.</div>
+          <div className="dp-alert dp-alert-red" style={{ marginBottom:"1rem" }}>Are you sure you want to remove <strong>{delConfirm.name}</strong>? This action cannot be undone.</div>
           <div style={{ display:"flex",gap:"0.6rem",justifyContent:"flex-end" }}>
             <button className="dp-btn dp-btn-ghost" onClick={()=>setDelConfirm(null)}>Cancel</button>
-            <button className="dp-btn dp-btn-red" onClick={()=>{ setUnits(p=>p.filter(u=>u.id!==delConfirm)); setDelConfirm(null); toast.show(`Unit ${delConfirm} removed`); }}>Confirm Remove</button>
+            <button className="dp-btn dp-btn-red" onClick={()=>{ if (delConfirm) { setUnits(p=>p.filter(u=>u.id!==delConfirm.id)); toast.show(`Unit ${delConfirm.name} removed`); } setDelConfirm(null); }}>Confirm Remove</button>
           </div>
         </Modal>
       )}
