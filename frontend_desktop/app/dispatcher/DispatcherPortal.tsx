@@ -5451,11 +5451,7 @@ function ProfilePage({
               ))}
             </div>
           </div>
-          <div className="dp-readonly-note">
-            📌 Badge, rank, cluster, and station are assigned by the system
-            administrator and cannot be self-edited. Contact your admin to
-            update these fields.
-          </div>
+          <div className="dp-readonly-note">Badge, rank, cluster, and station are assigned by the system administrator and cannot be self-edited. Contact your admin to update these fields.</div>
         </div>
       </div>
 
@@ -5892,7 +5888,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         <div className="dp-sidebar-top">
           <div className="dp-sidebar-brand">
             <div className="dp-sidebar-brand-mark">
-              <img src="/damayan-logo.png" alt="DAMAYAN Logo" />
+              <img src="/damayan_logo.svg" alt="DAMAYAN Logo" />
             </div>
             <div>
               <div className="dp-sidebar-brand-name">DAMAYAN</div>
