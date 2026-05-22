@@ -291,7 +291,9 @@ function LoginPage({
         <div className="dp-login-brand">
           <div>
             <div className="dp-login-logo">
-              <div className="dp-login-logo-mark">D</div>
+              <div className="dp-login-logo-mark">
+                <img src="/damayan_logo.svg" alt="Damayan Logo" style={{ width: '100%', height: '100%' }} />
+              </div>
               <div>
                 <span className="dp-login-logo-name">Damayan</span>
                 <p className="dp-login-logo-role">Dispatcher Portal</p>
