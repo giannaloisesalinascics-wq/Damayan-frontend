@@ -764,7 +764,7 @@ function DashboardPage({
           </button>
         </div>
 
-          <div className="dp-queue-row dp-queue-row-head">
+        <div className="dp-queue-row dp-queue-row-head">
           <span>ID</span>
           <span>Type</span>
           <span>Location</span>
@@ -1728,17 +1728,17 @@ function ResourceMapPage({
                   {incidents.filter((i) =>
                     ["New", "Waiting"].includes(i.status),
                   ).length === 0 && (
-                    <p
-                      style={{
-                        fontSize: "0.85rem",
-                        color: "var(--d-text-sub)",
-                        textAlign: "center",
-                        marginTop: "2rem",
-                      }}
-                    >
-                      No pending incidents.
-                    </p>
-                  )}
+                      <p
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "var(--d-text-sub)",
+                          textAlign: "center",
+                          marginTop: "2rem",
+                        }}
+                      >
+                        No pending incidents.
+                      </p>
+                    )}
                 </div>
               </div>
             ) : (
@@ -2706,47 +2706,47 @@ function RescueDetailPanel({
     },
     ...(assigned.length > 0
       ? [
-          {
-            time: addMins(dispatchTime, 2),
-            msg: `${assigned[0]?.name} en route to scene.`,
-            actor: assigned[0]?.teamLeader || "",
-            color: "#1565c0",
-            icon: "→",
-          },
-        ]
+        {
+          time: addMins(dispatchTime, 2),
+          msg: `${assigned[0]?.name} en route to scene.`,
+          actor: assigned[0]?.teamLeader || "",
+          color: "#1565c0",
+          icon: "→",
+        },
+      ]
       : []),
     ...(inc.timeActive > 5
       ? [
-          {
-            time: addMins(dispatchTime, 5),
-            msg: "First responders arrived on scene.",
-            actor: assigned[0]?.name || "Unit",
-            color: "#2e7d32",
-            icon: "✓",
-          },
-        ]
+        {
+          time: addMins(dispatchTime, 5),
+          msg: "First responders arrived on scene.",
+          actor: assigned[0]?.name || "Unit",
+          color: "#2e7d32",
+          icon: "✓",
+        },
+      ]
       : []),
     ...(inc.timeActive > 10
       ? [
-          {
-            time: addMins(dispatchTime, 8),
-            msg: `Situation assessed: ${inc.situationType}. Rescue operations ongoing.`,
-            actor: "Field Lead",
-            color: situationColor(inc.situationType),
-            icon: "●",
-          },
-        ]
+        {
+          time: addMins(dispatchTime, 8),
+          msg: `Situation assessed: ${inc.situationType}. Rescue operations ongoing.`,
+          actor: "Field Lead",
+          color: situationColor(inc.situationType),
+          icon: "●",
+        },
+      ]
       : []),
     ...(inc.notes
       ? [
-          {
-            time: addMins(dispatchTime, inc.timeActive - 1),
-            msg: inc.notes,
-            actor: "Field Officer",
-            color: "#6a1b9a",
-            icon: "📝",
-          },
-        ]
+        {
+          time: addMins(dispatchTime, inc.timeActive - 1),
+          msg: inc.notes,
+          actor: "Field Officer",
+          color: "#6a1b9a",
+          icon: "📝",
+        },
+      ]
       : []),
   ];
 
@@ -2766,33 +2766,33 @@ function RescueDetailPanel({
     },
     ...(inc.timeActive > 8
       ? [
-          {
-            type: "radio",
-            time: addMins(dispatchTime, 6),
-            from: assigned[0]?.teamLeader || "Unit Lead",
-            msg: "On scene. Assessing situation. Requesting more details.",
-          },
-        ]
+        {
+          type: "radio",
+          time: addMins(dispatchTime, 6),
+          from: assigned[0]?.teamLeader || "Unit Lead",
+          msg: "On scene. Assessing situation. Requesting more details.",
+        },
+      ]
       : []),
     ...(inc.situationType === "Critical"
       ? [
-          {
-            type: "alert",
-            time: addMins(dispatchTime, 8),
-            from: "System Alert",
-            msg: `⚠ Situation escalated to CRITICAL at ${inc.location}. All nearby volunteers on standby.`,
-          },
-        ]
+        {
+          type: "alert",
+          time: addMins(dispatchTime, 8),
+          from: "System Alert",
+          msg: `⚠ Situation escalated to CRITICAL at ${inc.location}. All nearby volunteers on standby.`,
+        },
+      ]
       : []),
     ...(inc.timeActive > 12
       ? [
-          {
-            type: "update",
-            time: addMins(dispatchTime, 10),
-            from: "Field Lead",
-            msg: `Scene secured. ${victimData.filter((v) => v.condition !== "Safe").length} victim(s) still require assistance.`,
-          },
-        ]
+        {
+          type: "update",
+          time: addMins(dispatchTime, 10),
+          from: "Field Lead",
+          msg: `Scene secured. ${victimData.filter((v) => v.condition !== "Safe").length} victim(s) still require assistance.`,
+        },
+      ]
       : []),
   ];
 
@@ -2868,26 +2868,26 @@ function RescueDetailPanel({
     },
     ...(inc.category === "FIELD"
       ? [
-          {
-            icon: "",
-            label: "Fire Spread Risk",
-            val: "Moderate — Wind pushing northeast. Adjacent structures at risk if not contained within 15 mins.",
-          },
-          {
-            icon: "",
-            label: "Structural Stability",
-            val: "Unknown — 3-storey building. Upper floors may be compromised. Entry only with full PPE.",
-          },
-        ]
+        {
+          icon: "",
+          label: "Fire Spread Risk",
+          val: "Moderate — Wind pushing northeast. Adjacent structures at risk if not contained within 15 mins.",
+        },
+        {
+          icon: "",
+          label: "Structural Stability",
+          val: "Unknown — 3-storey building. Upper floors may be compromised. Entry only with full PPE.",
+        },
+      ]
       : []),
     ...(inc.category === "Other"
       ? [
-          {
-            icon: "",
-            label: "Flood Risk",
-            val: "Rising water levels on main road. Evacuation routes may be blocked soon.",
-          },
-        ]
+        {
+          icon: "",
+          label: "Flood Risk",
+          val: "Rising water levels on main road. Evacuation routes may be blocked soon.",
+        },
+      ]
       : []),
     {
       icon: "",
@@ -3468,7 +3468,7 @@ function RescueDetailPanel({
                   cursor: isInactive ? "not-allowed" : "pointer",
                 }}
                 disabled={isInactive}
-                onClick={() => {}}
+                onClick={() => { }}
               >
                 <span style={{ fontSize: "1.1rem" }}>↗</span>
                 <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>
@@ -3487,7 +3487,7 @@ function RescueDetailPanel({
                   cursor: isInactive ? "not-allowed" : "pointer",
                 }}
                 disabled={isInactive}
-                onClick={() => {}}
+                onClick={() => { }}
               >
                 <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>
                   Send Alert / Instruction
@@ -3702,185 +3702,185 @@ function IncidentsPage({
       </div>
 
       <div className="dp-rescue-content-grid dp-incidents-shared-content">
-      {/* ── Incidents list (details open in modal) ── */}
-      <div className="dp-incidents-list">
-        <div className="dp-incidents-panel-head">
-          <div className="dp-incidents-panel-title">Incident Queue</div>
-          <div className="dp-incidents-panel-sub">
-            Prioritized list for dispatcher triage
-          </div>
-        </div>
-        <div className="dp-incidents-filters">
-          <div className="dp-incidents-filter-row">
-            <input
-              className="dp-input dp-incidents-search"
-              placeholder="Search incidents by id, type, location, or reporter"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-            <QueueFilterDropdown<IncidentQueueFilter>
-              className="dp-incidents-filter-select"
-              value={queueFilter}
-              onChange={setQueueFilter}
-              options={[
-                { value: "All", label: "All incidents" },
-                { value: "Needs Action", label: "Needs action" },
-                { value: "In Progress", label: "In progress" },
-                { value: "Completed", label: "Completed" },
-                { value: "Invalid", label: "Invalid" },
-                { value: "Critical", label: "Critical" },
-                { value: "High", label: "High" },
-                { value: "Medium", label: "Medium" },
-                { value: "Low", label: "Low" },
-              ]}
-            />
-            <QueueFilterDropdown<IncidentPriority | "All">
-              className="dp-incidents-filter-select"
-              value={priorityFilter}
-              onChange={setPriorityFilter}
-              options={[
-                { value: "All", label: "All Priorities" },
-                { value: "CRITICAL", label: "Critical" },
-                { value: "HIGH", label: "High" },
-                { value: "MEDIUM", label: "Medium" },
-                { value: "LOW", label: "Low" },
-              ]}
-            />
-            <QueueFilterDropdown<IncidentStatus | "All">
-              className="dp-incidents-filter-select"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={[
-                { value: "All", label: "All Statuses" },
-                { value: "New", label: "New" },
-                { value: "Waiting", label: "Waiting" },
-                { value: "Dispatched", label: "Dispatched" },
-                { value: "In Progress", label: "In Progress" },
-                { value: "Resolved", label: "Resolved" },
-                { value: "Invalid", label: "Invalid" },
-              ]}
-            />
-            <button
-              type="button"
-              className="dp-btn dp-btn-ghost dp-btn-sm"
-              onClick={clearIncidentFilters}
-            >
-              Clear
-            </button>
-          </div>
-          <div className="dp-incidents-filter-chips">
-            {searchText && (
-              <button
-                className="dp-filter-chip"
-                onClick={() => setSearchText("")}
-              >
-                Search: {searchText}
-                <span>×</span>
-              </button>
-            )}
-            {priorityFilter !== "All" && (
-              <button
-                className="dp-filter-chip"
-                onClick={() => setPriorityFilter("All")}
-              >
-                Priority: {priorityFilter}
-                <span>×</span>
-              </button>
-            )}
-            {statusFilter !== "All" && (
-              <button
-                className="dp-filter-chip"
-                onClick={() => setStatusFilter("All")}
-              >
-                Status: {statusFilter}
-                <span>×</span>
-              </button>
-            )}
-            {queueFilter !== "All" && (
-              <button
-                className="dp-filter-chip"
-                onClick={() => setQueueFilter("All")}
-              >
-                View: {queueFilter}
-                <span>×</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="dp-incidents-visible-note">
-          Showing {visibleIncidents.length} of {filteredSorted.length} matching incidents
-        </div>
-
-        <div className="dp-incidents-scroll">
-          {filteredSorted.length === 0 ? (
-            <div className="dp-empty">
-              <div className="dp-empty-title">No results</div>
-              <div className="dp-empty-sub">Try another queue filter</div>
+        {/* ── Incidents list (details open in modal) ── */}
+        <div className="dp-incidents-list">
+          <div className="dp-incidents-panel-head">
+            <div className="dp-incidents-panel-title">Incident Queue</div>
+            <div className="dp-incidents-panel-sub">
+              Prioritized list for dispatcher triage
             </div>
-          ) : (
-            visibleIncidents.map((inc) => {
-              const dotColor =
-                inc.status === "Resolved"
-                  ? "#2e7d32"
-                  : inc.status === "Invalid"
-                    ? "#9e9e9e"
-                    : situationColor(inc.situationType);
-              return (
-                <div
-                  key={shortenId(inc.id)}
-                  className={`dp-incident-list-item ${selInc?.id === inc.id ? "active" : ""}`}
-                  style={{ borderLeft: `4px solid ${priorityColor(inc.priority)}` }}
-                  onClick={() => setSelInc(inc)}
+          </div>
+          <div className="dp-incidents-filters">
+            <div className="dp-incidents-filter-row">
+              <input
+                className="dp-input dp-incidents-search"
+                placeholder="Search incidents by id, type, location, or reporter"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+              <QueueFilterDropdown<IncidentQueueFilter>
+                className="dp-incidents-filter-select"
+                value={queueFilter}
+                onChange={setQueueFilter}
+                options={[
+                  { value: "All", label: "All incidents" },
+                  { value: "Needs Action", label: "Needs action" },
+                  { value: "In Progress", label: "In progress" },
+                  { value: "Completed", label: "Completed" },
+                  { value: "Invalid", label: "Invalid" },
+                  { value: "Critical", label: "Critical" },
+                  { value: "High", label: "High" },
+                  { value: "Medium", label: "Medium" },
+                  { value: "Low", label: "Low" },
+                ]}
+              />
+              <QueueFilterDropdown<IncidentPriority | "All">
+                className="dp-incidents-filter-select"
+                value={priorityFilter}
+                onChange={setPriorityFilter}
+                options={[
+                  { value: "All", label: "All Priorities" },
+                  { value: "CRITICAL", label: "Critical" },
+                  { value: "HIGH", label: "High" },
+                  { value: "MEDIUM", label: "Medium" },
+                  { value: "LOW", label: "Low" },
+                ]}
+              />
+              <QueueFilterDropdown<IncidentStatus | "All">
+                className="dp-incidents-filter-select"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: "All", label: "All Statuses" },
+                  { value: "New", label: "New" },
+                  { value: "Waiting", label: "Waiting" },
+                  { value: "Dispatched", label: "Dispatched" },
+                  { value: "In Progress", label: "In Progress" },
+                  { value: "Resolved", label: "Resolved" },
+                  { value: "Invalid", label: "Invalid" },
+                ]}
+              />
+              <button
+                type="button"
+                className="dp-btn dp-btn-ghost dp-btn-sm"
+                onClick={clearIncidentFilters}
+              >
+                Clear
+              </button>
+            </div>
+            <div className="dp-incidents-filter-chips">
+              {searchText && (
+                <button
+                  className="dp-filter-chip"
+                  onClick={() => setSearchText("")}
                 >
-                  <span
-                    className="dp-incident-list-dot"
-                    style={{ background: dotColor }}
-                  />
-                  <div className="dp-incident-list-body">
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
-                      <div style={{ fontWeight: 700 }}>{inc.type}</div>
-                      <div style={{ fontSize: "0.85rem", color: "var(--d-text-sub)" }}>{inc.dateReported} {inc.timeReported}</div>
-                    </div>
-                    <div style={{ marginTop: "0.25rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <div style={{ fontSize: "0.9rem" }}>{shortenId(inc.id)}</div>
-                      <div style={{ fontSize: "0.9rem", color: "var(--d-text-sub)" }}>{inc.location}, {inc.city}</div>
-                    </div>
-                    <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
-                      <Badge label={inc.status} cls={statusClass(inc.status)} />
-                      <div style={{ marginLeft: "auto", display: "flex", gap: "0.4rem" }}>
-                        <button
-                          className="dp-btn dp-btn-ghost dp-btn-sm"
-                          disabled={status === "inactive"}
-                          style={
-                            status === "inactive"
-                              ? { opacity: 0.5, cursor: "not-allowed" }
-                              : undefined
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (status === "inactive") {
-                              toast.show("Action locked: go On Duty to assign");
-                              return;
+                  Search: {searchText}
+                  <span>×</span>
+                </button>
+              )}
+              {priorityFilter !== "All" && (
+                <button
+                  className="dp-filter-chip"
+                  onClick={() => setPriorityFilter("All")}
+                >
+                  Priority: {priorityFilter}
+                  <span>×</span>
+                </button>
+              )}
+              {statusFilter !== "All" && (
+                <button
+                  className="dp-filter-chip"
+                  onClick={() => setStatusFilter("All")}
+                >
+                  Status: {statusFilter}
+                  <span>×</span>
+                </button>
+              )}
+              {queueFilter !== "All" && (
+                <button
+                  className="dp-filter-chip"
+                  onClick={() => setQueueFilter("All")}
+                >
+                  View: {queueFilter}
+                  <span>×</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="dp-incidents-visible-note">
+            Showing {visibleIncidents.length} of {filteredSorted.length} matching incidents
+          </div>
+
+          <div className="dp-incidents-scroll">
+            {filteredSorted.length === 0 ? (
+              <div className="dp-empty">
+                <div className="dp-empty-title">No results</div>
+                <div className="dp-empty-sub">Try another queue filter</div>
+              </div>
+            ) : (
+              visibleIncidents.map((inc) => {
+                const dotColor =
+                  inc.status === "Resolved"
+                    ? "#2e7d32"
+                    : inc.status === "Invalid"
+                      ? "#9e9e9e"
+                      : situationColor(inc.situationType);
+                return (
+                  <div
+                    key={shortenId(inc.id)}
+                    className={`dp-incident-list-item ${selInc?.id === inc.id ? "active" : ""}`}
+                    style={{ borderLeft: `4px solid ${priorityColor(inc.priority)}` }}
+                    onClick={() => setSelInc(inc)}
+                  >
+                    <span
+                      className="dp-incident-list-dot"
+                      style={{ background: dotColor }}
+                    />
+                    <div className="dp-incident-list-body">
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
+                        <div style={{ fontWeight: 700 }}>{inc.type}</div>
+                        <div style={{ fontSize: "0.85rem", color: "var(--d-text-sub)" }}>{inc.dateReported} {inc.timeReported}</div>
+                      </div>
+                      <div style={{ marginTop: "0.25rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <div style={{ fontSize: "0.9rem" }}>{shortenId(inc.id)}</div>
+                        <div style={{ fontSize: "0.9rem", color: "var(--d-text-sub)" }}>{inc.location}, {inc.city}</div>
+                      </div>
+                      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <Badge label={inc.priority} cls={priorityClass(inc.priority)} />
+                        <Badge label={inc.status} cls={statusClass(inc.status)} />
+                        <div style={{ marginLeft: "auto", display: "flex", gap: "0.4rem" }}>
+                          <button
+                            className="dp-btn dp-btn-ghost dp-btn-sm"
+                            disabled={status === "inactive"}
+                            style={
+                              status === "inactive"
+                                ? { opacity: 0.5, cursor: "not-allowed" }
+                                : undefined
                             }
-                            onDispatch(inc);
-                          }}
-                        >Assign</button>
-                        <button
-                          className="dp-btn dp-btn-green dp-btn-sm"
-                          onClick={(e) => { e.stopPropagation(); if (inc.status === "Resolved" || inc.status === "Invalid") { toast.show("Already closed"); return; } if (status === "inactive") { toast.show("Action locked: go On Duty to update incidents."); return; } onUpdate(inc.id, { status: "Resolved", resolvedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) }); toast.show(`${shortenId(inc.id)} resolved`); if (selInc?.id === inc.id) setSelInc(null); }}
-                        >Quick Resolve</button>
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (status === "inactive") {
+                                toast.show("Action locked: go On Duty to assign");
+                                return;
+                              }
+                              onDispatch(inc);
+                            }}
+                          >Assign</button>
+                          <button
+                            className="dp-btn dp-btn-green dp-btn-sm"
+                            onClick={(e) => { e.stopPropagation(); if (inc.status === "Resolved" || inc.status === "Invalid") { toast.show("Already closed"); return; } if (status === "inactive") { toast.show("Action locked: go On Duty to update incidents."); return; } onUpdate(inc.id, { status: "Resolved", resolvedAt: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }) }); toast.show(`${shortenId(inc.id)} resolved`); if (selInc?.id === inc.id) setSelInc(null); }}
+                          >Quick Resolve</button>
+                        </div>
                       </div>
                     </div>
+                    <span className="dp-incident-list-arrow">›</span>
                   </div>
-                  <span className="dp-incident-list-arrow">›</span>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Show selected incident in a modal popup instead of the left panel */}
@@ -4277,6 +4277,10 @@ function ResourcesPage({
   const [statusFilter, setStatusFilter] = useState("All");
   const [addUnitModal, setAddUnitModal] = useState(false);
   const [delConfirm, setDelConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [archivedTeams, setArchivedTeams] = useState<Team[]>([]);
+  const [archivedUnits, setArchivedUnits] = useState<Unit[]>([]);
+  const [teamRemoveConfirm, setTeamRemoveConfirm] = useState<Team | null>(null);
+  const [unitRemoveConfirm, setUnitRemoveConfirm] = useState<Unit | null>(null);
   const [msgModal, setMsgModal] = useState<Unit | null>(null);
   const [msgText, setMsgText] = useState("");
   const [deployModal, setDeployModal] = useState<Unit | null>(null);
@@ -4609,10 +4613,7 @@ function ResourcesPage({
                     opacity: isInactive ? 0.5 : 1,
                     cursor: isInactive ? "not-allowed" : "pointer",
                   }}
-                  onClick={() => {
-                    setTeams((p) => p.filter((t) => t.id !== team.id));
-                    toast.show(`${team.name} removed`);
-                  }}
+                  onClick={() => setTeamRemoveConfirm(team)}
                 >
                   Remove
                 </button>
@@ -4755,12 +4756,12 @@ function ResourcesPage({
                             p.map((x) =>
                               x.id === u.id
                                 ? {
-                                    ...x,
-                                    status:
-                                      x.status === "Offline"
-                                        ? "Available"
-                                        : "Offline",
-                                  }
+                                  ...x,
+                                  status:
+                                    x.status === "Offline"
+                                      ? "Available"
+                                      : "Offline",
+                                }
                                 : x,
                             ),
                           );
@@ -4780,7 +4781,7 @@ function ResourcesPage({
                           opacity: isInactive ? 0.5 : 1,
                           cursor: isInactive ? "not-allowed" : "pointer",
                         }}
-                        onClick={() => setDelConfirm({ id: u.id, name: u.name })}
+                        onClick={() => setUnitRemoveConfirm(u)}
                       >
                         Remove
                       </button>
@@ -4804,6 +4805,99 @@ function ResourcesPage({
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Deactivated & Archived Resources Container */}
+      {(archivedTeams.length > 0 || archivedUnits.length > 0) && (
+        <div className="dp-archive-section">
+          <div className="dp-archive-header">
+            <div>
+              <div className="dp-archive-title">
+                Deactivated & Archived Resources
+              </div>
+              <p className="dp-archive-desc">
+                The following resources have been deactivated. They do not appear in active dispatch queues, but their contact details, coverage, and metadata are preserved here.
+              </p>
+            </div>
+            <span className="dp-badge dp-badge-grey">
+              {archivedTeams.length + archivedUnits.length} archived
+            </span>
+          </div>
+
+          <div className="dp-archive-grid">
+            {/* Archived Teams */}
+            {archivedTeams.map((team) => (
+              <div key={team.id} className="dp-archive-card">
+                <div className="dp-archive-info">
+                  <div className="dp-archive-name">
+                    👥 [Team] {team.name}
+                  </div>
+                  <div className="dp-archive-meta">
+                    Leader: {team.leader} · Contact: {team.contact} · Station: {team.station}
+                  </div>
+                </div>
+                <div className="dp-archive-actions">
+                  <button
+                    className="dp-btn dp-btn-green dp-btn-sm"
+                    onClick={() => {
+                      setTeams((p) => [...p, { ...team, status: "Offline" }]);
+                      setArchivedTeams((p) => p.filter((t) => t.id !== team.id));
+                      toast.show(`${team.name} restored to active roster`);
+                    }}
+                  >
+                    Restore
+                  </button>
+                  <button
+                    className="dp-btn dp-btn-ghost dp-btn-sm"
+                    style={{ borderColor: "var(--d-red)", color: "var(--d-red)" }}
+                    onClick={() => {
+                      setArchivedTeams((p) => p.filter((t) => t.id !== team.id));
+                      toast.show(`${team.name} permanently deleted from archive`);
+                    }}
+                  >
+                    Purge
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Archived Units / Volunteers */}
+            {archivedUnits.map((u) => (
+              <div key={u.id} className="dp-archive-card">
+                <div className="dp-archive-info">
+                  <div className="dp-archive-name">
+                    [Volunteer] {u.name} ({u.id})
+                  </div>
+                  <div className="dp-archive-meta">
+                    Leader: {u.teamLeader} · Contact: {u.contact} · Station: {u.station}
+                  </div>
+                </div>
+                <div className="dp-archive-actions">
+                  <button
+                    className="dp-btn dp-btn-green dp-btn-sm"
+                    onClick={() => {
+                      setUnits((p) => [...p, { ...u, status: "Offline" }]);
+                      setArchivedUnits((p) => p.filter((x) => x.id !== u.id));
+                      toast.show(`${u.name} restored to active roster`);
+                    }}
+                  >
+                    Restore
+                  </button>
+                  <button
+                    className="dp-btn dp-btn-ghost dp-btn-sm"
+                    style={{ borderColor: "var(--d-red)", color: "var(--d-red)" }}
+                    onClick={() => {
+                      setArchivedUnits((p) => p.filter((x) => x.id !== u.id));
+                      toast.show(`${u.name} permanently deleted from archive`);
+                    }}
+                  >
+                    Purge
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -4908,44 +5002,131 @@ function ResourcesPage({
         </Modal>
       )}
 
-      {/* Delete confirm */}
-      {delConfirm && (
+      {/* Team Remove Confirmation Modal */}
+      {teamRemoveConfirm && (
         <Modal
-          title="Remove Volunteer"
-          onClose={() => setDelConfirm(null)}
-          width={420}
+          title="Remove Response Team"
+          onClose={() => setTeamRemoveConfirm(null)}
+          width={460}
         >
-          <div
-            className="dp-alert dp-alert-red"
-            style={{ marginBottom: "1rem" }}
-          >
-            Are you sure you want to remove <strong>{delConfirm.name}</strong>? This
-            action cannot be undone.
+          <div style={{ marginBottom: "1.2rem", fontSize: "0.875rem", color: "var(--d-text-sub)", lineHeight: 1.5 }}>
+            Select how you would like to handle the removal of response team <strong>{teamRemoveConfirm.name}</strong>.
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "0.6rem",
-              justifyContent: "flex-end",
-            }}
-          >
+
+          <div className="dp-removal-options">
+            <button
+              type="button"
+              className="dp-removal-option"
+              onClick={() => {
+                setArchivedTeams((p) => [...p, teamRemoveConfirm]);
+                setTeams((p) => p.filter((t) => t.id !== teamRemoveConfirm.id));
+                toast.show(`${teamRemoveConfirm.name} moved to deactivated archive`);
+                setTeamRemoveConfirm(null);
+              }}
+            >
+              <div className="dp-removal-option-icon" style={{ color: "var(--d-primary)" }}>
+                <Icon name="users" size={20} />
+              </div>
+              <div className="dp-removal-option-content">
+                <div className="dp-removal-option-title">Deactivate & Archive</div>
+                <div className="dp-removal-option-desc">
+                  Move to the deactivated container. All team metadata is safely preserved for easy reactivation.
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="dp-removal-option danger"
+              onClick={() => {
+                setTeams((p) => p.filter((t) => t.id !== teamRemoveConfirm.id));
+                toast.show(`${teamRemoveConfirm.name} permanently deleted`);
+                setTeamRemoveConfirm(null);
+              }}
+            >
+              <div className="dp-removal-option-icon" style={{ color: "var(--d-red)" }}>
+                <Icon name="trash" size={20} />
+              </div>
+              <div className="dp-removal-option-content">
+                <div className="dp-removal-option-title" style={{ color: "var(--d-red)" }}>Delete Permanently</div>
+                <div className="dp-removal-option-desc">
+                  Completely erase this team from system records. This action is final and cannot be undone.
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.2rem" }}>
             <button
               className="dp-btn dp-btn-ghost"
-              onClick={() => setDelConfirm(null)}
+              onClick={() => setTeamRemoveConfirm(null)}
             >
               Cancel
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Volunteer Unit Remove Confirmation Modal */}
+      {unitRemoveConfirm && (
+        <Modal
+          title="Remove Volunteer Unit"
+          onClose={() => setUnitRemoveConfirm(null)}
+          width={460}
+        >
+          <div style={{ marginBottom: "1.2rem", fontSize: "0.875rem", color: "var(--d-text-sub)", lineHeight: 1.5 }}>
+            Select how you would like to handle the removal of volunteer unit <strong>{unitRemoveConfirm.name}</strong>.
+          </div>
+
+          <div className="dp-removal-options">
             <button
-              className="dp-btn dp-btn-red"
+              type="button"
+              className="dp-removal-option"
               onClick={() => {
-                if (delConfirm) {
-                  setUnits((p) => p.filter((u) => u.id !== delConfirm.id));
-                  toast.show(`Unit ${delConfirm.name} removed`);
-                }
-                setDelConfirm(null);
+                setArchivedUnits((p) => [...p, unitRemoveConfirm]);
+                setUnits((p) => p.filter((u) => u.id !== unitRemoveConfirm.id));
+                toast.show(`${unitRemoveConfirm.name} moved to deactivated archive`);
+                setUnitRemoveConfirm(null);
               }}
             >
-              Confirm Remove
+              <div className="dp-removal-option-icon" style={{ color: "var(--d-primary)" }}>
+                <Icon name="users" size={20} />
+              </div>
+              <div className="dp-removal-option-content">
+                <div className="dp-removal-option-title">Deactivate & Archive</div>
+                <div className="dp-removal-option-desc">
+                  Move to the deactivated container. Preservation of station and contact info allows quick restoration.
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="dp-removal-option danger"
+              onClick={() => {
+                setUnits((p) => p.filter((u) => u.id !== unitRemoveConfirm.id));
+                toast.show(`${unitRemoveConfirm.name} permanently deleted`);
+                setUnitRemoveConfirm(null);
+              }}
+            >
+              <div className="dp-removal-option-icon" style={{ color: "var(--d-red)" }}>
+                <Icon name="trash" size={20} />
+              </div>
+              <div className="dp-removal-option-content">
+                <div className="dp-removal-option-title" style={{ color: "var(--d-red)" }}>Delete Permanently</div>
+                <div className="dp-removal-option-desc">
+                  Completely erase this volunteer unit from system records. This action is final and cannot be undone.
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.2rem" }}>
+            <button
+              className="dp-btn dp-btn-ghost"
+              onClick={() => setUnitRemoveConfirm(null)}
+            >
+              Cancel
             </button>
           </div>
         </Modal>
@@ -5597,17 +5778,17 @@ function mapBackendToFrontendIncident(report: IncidentReport): Incident {
   const reportText = `${report.title} ${report.content}`.toLowerCase();
   const inferredType =
     /bridge|collapse|structural|building/.test(reportText) ? "Infrastructure Damage" :
-    /flood|water|overflow|evacuat/.test(reportText) ? "Flood / Evacuation" :
-    /fire|smoke|burn/.test(reportText) ? "Fire Emergency" :
-    /medical|injur|wound|patient|ambulance|cardiac|fracture/.test(reportText) ? "Medical Emergency" :
-    /food|water|relief|shortage|supply/.test(reportText) ? "Relief / Supply Request" :
-    /road|accident|collision|traffic/.test(reportText) ? "Road Accident" :
-    report.title;
+      /flood|water|overflow|evacuat/.test(reportText) ? "Flood / Evacuation" :
+        /fire|smoke|burn/.test(reportText) ? "Fire Emergency" :
+          /medical|injur|wound|patient|ambulance|cardiac|fracture/.test(reportText) ? "Medical Emergency" :
+            /food|water|relief|shortage|supply/.test(reportText) ? "Relief / Supply Request" :
+              /road|accident|collision|traffic/.test(reportText) ? "Road Accident" :
+                report.title;
   const category: Incident["category"] =
     /medical|injur|wound|patient|ambulance|cardiac|fracture/.test(reportText) ? "MEDIC" :
-    /food|water|relief|shortage|supply|transport|evacuat/.test(reportText) ? "LOGISTICS" :
-    /bridge|collapse|structural|building|fire|flood|rescue|road|accident|collision/.test(reportText) ? "FIELD" :
-    "Other";
+      /food|water|relief|shortage|supply|transport|evacuat/.test(reportText) ? "LOGISTICS" :
+        /bridge|collapse|structural|building|fire|flood|rescue|road|accident|collision/.test(reportText) ? "FIELD" :
+          "Other";
 
   return {
     id: report.id,
@@ -5804,17 +5985,17 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       current.map((inc) =>
         inc.id === targetId
           ? {
-              ...inc,
-              status: inc.status === "Resolved" || inc.status === "Invalid" ? inc.status : "Dispatched",
-              assignedUnits: Array.from(new Set([...inc.assignedUnits, unit.id])),
-              dispatchedAt:
-                inc.dispatchedAt ||
-                new Date().toLocaleTimeString("en-PH", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              notes: details.note ? `${inc.notes ? `${inc.notes}\n` : ""}${details.note}` : inc.notes,
-            }
+            ...inc,
+            status: inc.status === "Resolved" || inc.status === "Invalid" ? inc.status : "Dispatched",
+            assignedUnits: Array.from(new Set([...inc.assignedUnits, unit.id])),
+            dispatchedAt:
+              inc.dispatchedAt ||
+              new Date().toLocaleTimeString("en-PH", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            notes: details.note ? `${inc.notes ? `${inc.notes}\n` : ""}${details.note}` : inc.notes,
+          }
           : inc,
       ),
     );
@@ -6038,7 +6219,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
                       setDropdown(false);
                     }}
                   >
-                     View Profile
+                    View Profile
                   </button>
                   <button
                     className="dp-avatar-dropdown-item"
