@@ -671,9 +671,9 @@ function DashboardPage({
   ];
 
   const responderGroups = [
-    { type: "FIELD" as UnitType, label: "Rescue", color: "var(--d-red)" },
-    { type: "MEDIC" as UnitType, label: "Medical", color: "var(--d-blue)" },
-    { type: "LOGISTICS" as UnitType, label: "Logistics", color: "var(--d-primary)" },
+    { type: "FIELD" as const, label: "Rescue", color: "var(--d-red)" },
+    { type: "MEDIC" as const, label: "Medical", color: "var(--d-blue)" },
+    { type: "LOGISTICS" as const, label: "Logistics", color: "var(--d-primary)" },
   ].map((group) => {
     const total = units.filter((u) => u.type === group.type).length;
     const available = units.filter((u) => u.type === group.type && u.status === "Available").length;

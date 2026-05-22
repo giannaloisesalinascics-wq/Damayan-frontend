@@ -7,7 +7,10 @@ import type {
   IncidentReport,
   InventoryItem,
   Organization,
+  AppRole,
 } from "./types";
+import Constants from "expo-constants";
+import { NativeModules, Platform } from "react-native";
 
 export interface AdminDisasterEventWithTickets extends DisasterEvent {
   ticketCount?: number;
@@ -71,9 +74,117 @@ export interface AdminWarningBroadcastResult {
   };
 }
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://localhost:3001/api";
+function extractHostFromUri(uri?: string | null): string | null {
+  const raw = uri?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const hostWithOptionalPort = raw
+    .replace(/^exp:\/\//, "")
+    .replace(/^https?:\/\//, "")
+    .split(/[/?#]/)[0];
+
+  return hostWithOptionalPort.split(":")[0] || null;
+}
+
+function getExpoHostUri(): string | null {
+  const expoConstants = Constants as typeof Constants & {
+    expoGoConfig?: { debuggerHost?: string | null };
+    manifest?: { debuggerHost?: string | null; hostUri?: string | null };
+    manifest2?: { extra?: { expoClient?: { hostUri?: string | null } } };
+  };
+
+  const candidates = [
+    expoConstants.expoConfig?.hostUri,
+    expoConstants.expoGoConfig?.debuggerHost,
+    expoConstants.manifest?.hostUri,
+    expoConstants.manifest?.debuggerHost,
+    expoConstants.manifest2?.extra?.expoClient?.hostUri,
+  ];
+
+  for (const candidate of candidates) {
+    const host = extractHostFromUri(candidate);
+    if (host) return host;
+  }
+
+  return null;
+}
+
+function getReactNativePackagerHost(): string | null {
+  const sourceCode = (NativeModules as { SourceCode?: { scriptURL?: string } }).SourceCode;
+  return extractHostFromUri(sourceCode?.scriptURL);
+}
+
+function getWebHost(): string | null {
+  if (Platform.OS !== "web") {
+    return null;
+  }
+
+  const location = (globalThis as { location?: { hostname?: string } }).location;
+  return location?.hostname?.trim() || null;
+}
+
+function getApiFallbackHint(): string {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (configured) {
+    return "";
+  }
+
+  if (Platform.OS === "android") {
+    return " Set EXPO_PUBLIC_API_BASE_URL to your computer's LAN IP when using Expo Go on a physical Android device.";
+  }
+
+  if (Platform.OS === "ios") {
+    return " Set EXPO_PUBLIC_API_BASE_URL to your computer's LAN IP when using Expo Go on a physical iPhone.";
+  }
+
+  return "";
+}
+
+export function getApiBaseUrl(): string {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "");
+  if (configured) {
+    return configured;
+  }
+
+  const host = getWebHost() ?? getExpoHostUri() ?? getReactNativePackagerHost();
+  if (host) {
+    return `http://${host}:3001/api`;
+  }
+
+  return Platform.select({
+    android: "http://10.0.2.2:3001/api",
+    default: "http://localhost:3001/api",
+  }) as string;
+}
+
+const API_BASE_URL = getApiBaseUrl();
+
+function buildNetworkErrorMessage(detail?: string): string {
+  const detailSuffix = detail ? " (" + detail + ")" : "";
+  return "Unable to reach the backend at " + API_BASE_URL + "." + getApiFallbackHint() + detailSuffix;
+}
+
+function parseResponsePayload(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function getResponseErrorMessage(payload: unknown, status: number): string {
+  if (typeof payload === "object" && payload && "message" in payload) {
+    return String((payload as { message?: string }).message);
+  }
+
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  return `Request failed with status ${status}`;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -96,20 +207,24 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string) 
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    throw new ApiError(
+      buildNetworkErrorMessage(error instanceof Error ? error.message : undefined),
+      0,
+    );
+  }
 
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as unknown) : null;
+  const payload: unknown = text ? parseResponsePayload(text) : null;
 
   if (!response.ok) {
-    const message =
-      typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message?: string }).message)
-        : `Request failed with status ${response.status}`;
-    throw new ApiError(message, response.status);
+    throw new ApiError(getResponseErrorMessage(payload, response.status), response.status);
   }
 
   return payload as T;
@@ -239,6 +354,67 @@ export async function updateAdminDisasterEvent(
 
 export async function getOrganizations(token: string) {
   return request<Organization[]>("/admin/organizations", {}, token);
+}
+
+export type RegionPhaseState = "BEFORE" | "DURING" | "AFTER";
+export type RegionPersonaAudienceMember = {
+  authUserId: string;
+  name: string;
+  role: AppRole;
+  assignedRegionId: string | null;
+};
+export type RegionPersonaPhaseControl = {
+  id: string;
+  regionId: string;
+  personaRole: AppRole;
+  phase: RegionPhaseState;
+  visibleToAssignedUsers: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export async function getRegionPersonaPhaseControls(token: string, regionId: string) {
+  return request<RegionPersonaPhaseControl[]>(`/admin/regions/${regionId}/persona-phase-controls`, {}, token);
+}
+
+export async function upsertRegionPersonaPhaseControl(
+  token: string,
+  regionId: string,
+  payload: {
+    personaRole?: AppRole;
+    personaRoles?: AppRole[];
+    phase: RegionPhaseState;
+    visibleToAssignedUsers?: boolean;
+  },
+) {
+  return request<{
+    region: { id: string; name: string };
+    control?: RegionPersonaPhaseControl;
+    controls: RegionPersonaPhaseControl[];
+    audience: RegionPersonaAudienceMember[];
+  }>(`/admin/regions/${regionId}/persona-phase-controls`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getRegionPersonaPhaseAudience(
+  token: string,
+  regionId: string,
+  personaRole?: AppRole | AppRole[],
+) {
+  const suffix = Array.isArray(personaRole)
+    ? personaRole.length
+      ? `?personaRoles=${encodeURIComponent(personaRole.join(","))}`
+      : ""
+    : personaRole
+      ? `?personaRole=${encodeURIComponent(personaRole)}`
+      : "";
+  return request<RegionPersonaAudienceMember[]>(
+    `/admin/regions/${regionId}/persona-phase-controls/audience${suffix}`,
+    {},
+    token,
+  );
 }
 
 export async function getInventory(scope: "admin" | "site-manager", token: string) {
