@@ -1,6 +1,4 @@
 export enum AppRole {
-  ADMIN = "admin",
-  DISPATCHER = "dispatcher",
   LINE_MANAGER = "line_manager",
   CITIZEN = "citizen",
 }
@@ -14,6 +12,7 @@ export interface AuthUser {
   email: string;
   phone: string;
   role: AppRole;
+  assignedRegionId?: string | null;
 }
 
 export interface AuthSession {
@@ -23,7 +22,7 @@ export interface AuthSession {
 }
 
 export interface DashboardOverview {
-  scope: "admin" | "site-manager";
+  scope: "site-manager";
   generatedAt: string;
   inventory: {
     totalItems: number;
@@ -88,6 +87,11 @@ export interface CapacityCenter {
   availableSlots: number;
   utilizationRate: number;
   status: string;
+  maxManagers?: number;
+  description?: string;
+  assignedManagers?: Array<{ id: string; name: string }>;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface DisasterEvent {
@@ -128,30 +132,14 @@ export interface IncidentReport {
   createdAt: string;
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  type: string;
-  verified: boolean;
-  contactEmail?: string;
-  contactPhone?: string;
-}
-
-export type PortalRole = "admin" | "dispatcher" | "site_manager" | "citizen";
+export type PortalRole = "site_manager" | "citizen";
 
 export type AppRoute =
-  | "role-selector"
-  | "admin-login"
-  | "admin-dashboard"
-  | "dispatcher-login"
-  | "dispatcher-before"
-  | "dispatcher-during"
-  | "site-manager-login"
+  | "login"
   | "site-manager-signup"
   | "site-manager-before"
   | "site-manager-during"
   | "site-manager-dashboard"
-  | "citizen-login"
   | "citizen-signup"
   | "citizen-dashboard"
   | "citizen-before"

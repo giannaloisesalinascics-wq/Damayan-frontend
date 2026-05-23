@@ -1,26 +1,24 @@
 import React, { useState } from "react";
 import {
-  Image,
   ImageBackground,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { MobileHeader } from "../components/MobileShell";
-import { Button, Input, Pill, Screen, SectionCard } from "../components/UI";
-import { roleColors, theme, fonts } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
+import { Screen } from "../components/UI";
+import { roleColors, theme } from "../theme";
 import { PortalRole } from "../types";
 import { styles } from "./PortalLoginScreen.styles";
 
 const roleContent: Record<
   PortalRole,
-  { 
-    title: string; 
-    subtitle: string; 
-    loginLabel: string; 
-    accent: string; 
+  {
+    title: string;
+    subtitle: string;
+    loginLabel: string;
+    accent: string;
     action: string;
     editorialTitle?: string;
     editorialAccent?: string;
@@ -29,30 +27,6 @@ const roleContent: Record<
     gatewayLabel?: string;
   }
 > = {
-  admin: {
-    title: "Admin Access",
-    subtitle: "Oversee approvals, system health, and platform coordination.",
-    loginLabel: "Admin",
-    accent: roleColors.admin,
-    action: "Continue To Admin Dashboard",
-    gatewayLabel: "System Command Center",
-    editorialTitle: "Platform",
-    editorialAccent: "Governance",
-    editorialText: "System-wide monitoring, administrative overrides, and multi-sector platform reporting dashboard.",
-    editorialImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuDt8S8WvV5nZ4zI7nZ0W9q9Q-J1A1Z1E1G1I1K1M1O1Q1S1U1W1Y1a1c1e1g1i1k1m1o1q1s1u1w1y1", // Placeholder
-  },
-  dispatcher: {
-    title: "Dispatcher Login",
-    subtitle: "Coordinate rescue teams and manage ticket throughput.",
-    loginLabel: "Dispatcher",
-    accent: roleColors.dispatcher,
-    action: "Enter Dispatch Terminal",
-    gatewayLabel: "Command & Control",
-    editorialTitle: "Incident",
-    editorialAccent: "Dispatch",
-    editorialText: "Synchronize field resource allocation, monitor active mission status, and manage ticket distribution.",
-    editorialImage: "https://lh3.googleusercontent.com/aida-public/AB6AXuDt8S8WvV5nZ4zI7nZ0W9q9Q-J1A1Z1E1G1I1K1M1O1Q1S1U1W1Y1a1c1e1g1i1k1m1o1q1s1u1w1y1", // Placeholder
-  },
   site_manager: {
     title: "Site Manager Login",
     subtitle: "Manage shelter readiness, intake, and local distribution.",
@@ -87,7 +61,7 @@ export function PortalLoginScreen({
   secondaryLabel,
   loading,
   error,
-}: {
+}: Readonly<{
   role: PortalRole;
   onBack: () => void;
   onSubmit: (payload: { email: string; password: string }) => void;
@@ -95,7 +69,7 @@ export function PortalLoginScreen({
   secondaryLabel?: string;
   loading?: boolean;
   error?: string | null;
-}) {
+}>) {
   const content = roleContent[role];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -119,7 +93,7 @@ export function PortalLoginScreen({
           <View style={styles.roleBadgeRow}>
             <Text style={styles.roleTag}>{content.loginLabel}</Text>
             <View style={styles.avatarIcon}>
-              <Text style={{ fontSize: 18 }}>{role === "citizen" ? "👤" : "🛡️"}</Text>
+              <Ionicons name={role === "citizen" ? "person" : "shield-half"} size={18} color={content.accent} />
             </View>
           </View>
         </View>
@@ -227,7 +201,7 @@ export function PortalLoginScreen({
 
               {onSecondary && secondaryLabel ? (
                 <Pressable onPress={onSecondary} style={{ marginTop: 8, alignItems: "center" }}>
-                  <Text style={{ color: content.accent, ...fonts.bold }}>{secondaryLabel}</Text>
+                  <Text style={{ color: content.accent, fontWeight: "700" }}>{secondaryLabel}</Text>
                 </Pressable>
               ) : null}
             </View>

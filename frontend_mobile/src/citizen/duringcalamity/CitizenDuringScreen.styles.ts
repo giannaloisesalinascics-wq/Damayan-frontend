@@ -459,6 +459,96 @@ export const styles = StyleSheet.create({
     color: theme.primary,
   },
 
+  // ─── Map instruction & pin ─────────────────────────────────────────────────
+  mapInstruction: {
+    fontSize: 13,
+    ...fonts.medium,
+    color: theme.textMuted,
+    textAlign: "center",
+    lineHeight: 19,
+    paddingHorizontal: 8,
+  },
+  pinIndicator: {
+    position: "absolute",
+    top: 16,
+    left: "50%",
+    transform: [{ translateX: -50 }],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  pinIndicatorText: {
+    fontSize: 12,
+    ...fonts.bold,
+    color: theme.danger,
+  },
+  counterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  counterBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: theme.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  counterBtnText: {
+    fontSize: 18,
+    ...fonts.black,
+    color: theme.text,
+    lineHeight: 22,
+  },
+  counterValue: {
+    fontSize: 18,
+    ...fonts.black,
+    color: theme.text,
+    minWidth: 24,
+    textAlign: "center",
+  },
+
+  // ─── Live map ──────────────────────────────────────────────────────────────
+  liveMap: {
+    height: 260,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: theme.line,
+  },
+  mapLoadingBox: {
+    height: 200,
+    borderRadius: 24,
+    backgroundColor: theme.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  mapLoadingText: {
+    color: theme.textLight,
+    fontSize: 13,
+    ...fonts.medium,
+  },
+  deviceDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    borderWidth: 2.5,
+    borderColor: "#fff",
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+
   // ─── Radar (existing) ──────────────────────────────────────────────────────
   radarRing: {
     width: 32,

@@ -8,6 +8,11 @@ import type {
   IncidentReport,
   InventoryItem,
   Organization,
+  DispatcherOverview,
+  DispatchOrder,
+  DispatcherProfile,
+  DispatcherVolunteerUnit,
+  DispatcherVolunteerTeam,
 } from "./types";
 
 export interface AdminDisasterEventWithTickets extends DisasterEvent {
@@ -84,14 +89,19 @@ export class ApiError extends Error {
   }
 }
 
+type ApiRequestInit = RequestInit & {
+  suppressErrorLog?: boolean;
+};
+
 async function request<T>(
   path: string,
-  init: RequestInit = {},
+  init: ApiRequestInit = {},
   token?: string,
 ): Promise<T> {
-  const headers = new Headers(init.headers ?? {});
+  const { suppressErrorLog = false, ...requestInit } = init;
+  const headers = new Headers(requestInit.headers ?? {});
 
-  if (!headers.has("Content-Type") && init.body) {
+  if (!headers.has("Content-Type") && requestInit.body) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -102,9 +112,9 @@ async function request<T>(
 
   let response: Response;
   try {
-    console.log(`[Api] Requesting ${path}`, { method: init.method || 'GET' });
+    console.log(`[Api] Requesting ${path}`, { method: requestInit.method || 'GET' });
     response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
+      ...requestInit,
       headers,
     });
   } catch {
@@ -131,7 +141,7 @@ async function request<T>(
         ? (Array.isArray(payload.message) ? payload.message.join(", ") : String(payload.message))
         : `Request failed with status ${response.status}`;
     
-    if (response.status >= 500) {
+    if (response.status >= 500 && !suppressErrorLog) {
       console.error(`[Api] Error ${response.status}: ${message}`);
     } else {
       console.warn(`[Api] Warning ${response.status}: ${message}`);
@@ -320,9 +330,39 @@ export interface AfterActionAssessment {
 export async function geocodeAddress(token: string, address: string): Promise<GeoAddressResult> {
   return request<GeoAddressResult>(
     `/site-manager/geo/geocode?address=${encodeURIComponent(address)}`,
-    {},
+    { suppressErrorLog: true },
     token,
   );
+}
+
+export async function reverseGeocodeNominatim(latitude: number, longitude: number): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+        },
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = (await response.json()) as { display_name?: string; name?: string };
+    return data.display_name ?? data.name ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  } catch {
+    clearTimeout(timeout);
+    return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  }
 }
 
 export async function getDisasterEvents(
@@ -358,6 +398,127 @@ export async function updateAdminDisasterEvent(
 
 export async function getOrganizations(token: string) {
   return request<Organization[]>("/admin/organizations", {}, token);
+}
+
+export type RegionPhaseState = "BEFORE" | "DURING" | "AFTER";
+
+export async function getRegionPersonaPhaseControls(token: string, regionId: string) {
+  return request<Array<{
+    id: string;
+    regionId: string;
+    personaRole: AppRole;
+    phase: RegionPhaseState;
+    visibleToAssignedUsers: boolean;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+  }>>(`/admin/regions/${regionId}/persona-phase-controls`, {}, token);
+}
+
+export async function getRegions(token: string) {
+  return request<Array<{ id: string; name: string; currentPhase: string }>>(`/admin/regions`, {}, token);
+}
+
+export async function createRegion(
+  token: string,
+  payload: {
+    name: string;
+    centerLat: number;
+    centerLng: number;
+    spanDegrees?: number;
+    radiusKm?: number;
+    currentPhase?: "beforecalamity" | "duringcalamity" | "aftercalamity";
+  },
+) {
+  return request<{ id: string; name: string; currentPhase: string }>("/admin/regions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getRegionsGeo(token: string) {
+  return request<Array<{ id: string; name: string; geojson: any }>>(`/admin/regions/geo`, {}, token);
+}
+
+export async function getRegionShelters(token: string, regionId: string) {
+  return request<Array<{ id: string; name: string; lat: number; lng: number }>>(`/admin/regions/${regionId}/shelters`, {}, token);
+}
+
+export async function upsertRegionPersonaPhaseControl(
+  token: string,
+  regionId: string,
+  payload: {
+    personaRole: AppRole;
+    phase: RegionPhaseState;
+    visibleToAssignedUsers?: boolean;
+  },
+) {
+  return request<{
+    region: { id: string; name: string };
+    control: {
+      id: string;
+      regionId: string;
+      personaRole: AppRole;
+      phase: RegionPhaseState;
+      visibleToAssignedUsers: boolean;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+    };
+    audience: Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>;
+  }>(`/admin/regions/${regionId}/persona-phase-controls`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getRegionPersonaPhaseAudience(
+  token: string,
+  regionId: string,
+  personaRole?: AppRole,
+) {
+  const suffix = personaRole ? `?personaRole=${encodeURIComponent(personaRole)}` : "";
+  return request<Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>>(
+    `/admin/regions/${regionId}/persona-phase-controls/audience${suffix}`,
+    {},
+    token,
+  );
+}
+
+export async function getRegionAssignments(token: string, regionId: string) {
+  return request<Array<{
+    id: string;
+    regionId: string;
+    authUserId: string;
+    name: string;
+    role: string;
+    assignedAt?: string;
+    assignedBy?: string | null;
+    expiresAt?: string | null;
+  }>>(`/admin/regions/${regionId}/assignments`, {}, token);
+}
+
+export async function createRegionAssignment(
+  token: string,
+  regionId: string,
+  payload: { authUserId: string; role: string; expiresAt?: string | null },
+) {
+  return request<any>(`/admin/regions/${regionId}/assignments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function deleteRegionAssignment(token: string, regionId: string, assignmentId: string) {
+  return request<any>(`/admin/regions/${regionId}/assignments/${assignmentId}`, {
+    method: 'DELETE',
+  }, token);
+}
+
+export async function getAvailableRegionUsers(token: string, regionId: string, role?: string, search?: string) {
+  const qsParts: string[] = [];
+  if (role) qsParts.push(`role=${encodeURIComponent(role)}`);
+  if (search) qsParts.push(`search=${encodeURIComponent(search)}`);
+  const qs = qsParts.length ? `?${qsParts.join('&')}` : '';
+  return request<Array<{ authUserId: string; name: string; role: string; assignedRegionId?: string }>>(`/admin/regions/${regionId}/available-users${qs}`, {}, token);
 }
 
 export async function getRecentCheckIns(token: string, limit = 8) {
@@ -401,6 +562,120 @@ export async function upsertAfterActionAssessment(
 
 export async function getDispatcherIncidents(token: string) {
   return request<IncidentReport[]>("/dispatcher/incident-reports", {}, token);
+}
+
+export async function getDispatcherVolunteers(token: string, search?: string) {
+  const qs = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
+  return request<Organization[]>(`/dispatcher/volunteers${qs}`, {}, token);
+}
+
+export async function createDispatcherDispatchOrder(
+  token: string,
+  payload: {
+    reportId: string;
+    operationId: string;
+    assignedTo: string;
+    priority?: string;
+    instructions?: string;
+    status?: string;
+    disasterId?: string;
+  },
+) {
+  return request<{ id: string }>("/dispatcher/dispatch-orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getDispatcherCityData(token: string, province?: string) {
+  const qs = province ? `?province=${encodeURIComponent(province)}` : "";
+  return request<Array<{
+    psgcCode: string;
+    name: string;
+    province: string | null;
+    region: string | null;
+    coordinates: [number, number];
+  }>>(`/dispatcher/barangay-data${qs}`, {}, token);
+}
+
+export async function createVolunteerDispatch(
+  token: string,
+  payload: {
+    reportId: string;
+    assignedTo: string;
+    volunteerName?: string;
+    priority?: string;
+    instructions?: string;
+    disasterId?: string;
+  },
+) {
+  return request<{ id: string }>("/dispatcher/volunteer-dispatch", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getDispatcherOverview(token: string, disasterId?: string) {
+  const qs = disasterId
+    ? `?disasterId=${encodeURIComponent(disasterId)}`
+    : "";
+  return request<DispatcherOverview>(`/dispatcher/overview${qs}`, {}, token);
+}
+
+export async function getDispatcherProfile(token: string) {
+  return request<DispatcherProfile>("/dispatcher/profile", {}, token);
+}
+
+export async function geocodeDispatcherAddress(token: string, address: string): Promise<GeoAddressResult> {
+  return request<GeoAddressResult>(
+    `/dispatcher/geo/geocode?address=${encodeURIComponent(address)}`,
+    {},
+    token,
+  );
+}
+
+export async function getDispatcherDispatchOrders(token: string, disasterId?: string) {
+  const qs = disasterId
+    ? `?disasterId=${encodeURIComponent(disasterId)}`
+    : "";
+  return request<DispatchOrder[]>(`/dispatcher/dispatch-orders${qs}`, {}, token);
+}
+
+export async function getDispatcherUnits(token: string, search?: string) {
+  const qs = search?.trim()
+    ? `?search=${encodeURIComponent(search.trim())}`
+    : "";
+  return request<DispatcherVolunteerUnit[]>(`/dispatcher/units${qs}`, {}, token);
+}
+
+export async function getDispatcherVolunteerTeams(token: string, search?: string) {
+  const qs = search?.trim()
+    ? `?search=${encodeURIComponent(search.trim())}`
+    : "";
+  return request<DispatcherVolunteerTeam[]>(`/dispatcher/volunteer-teams${qs}`, {}, token);
+}
+
+export async function sendDispatcherBroadcast(
+  token: string,
+  payload: {
+    message: string;
+    title?: string;
+    type?: string;
+    severity?: "info" | "warning" | "critical" | "evacuation";
+    areas?: string[];
+  },
+) {
+  return request<{
+    title: string;
+    message: string;
+    severity: string;
+    type: string;
+    areas: string[];
+    deliveredInApp: number;
+  }>("/dispatcher/broadcast", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
 }
 
 export async function createManualCheckIn(
@@ -447,6 +722,41 @@ export async function getCitizenByQrCode(token: string, qrCodeId: string) {
     createdAt: string;
   }>>(`/site-manager/citizens?search=${encodeURIComponent(qrCodeId)}`, {}, token);
   return results.find((c) => c.qrCodeId === qrCodeId) ?? null;
+}
+
+export interface FamilyGroupMemberRecord {
+  id: string;
+  citizenQrCodeId: string;
+  memberFullName?: string;
+  relationship?: string;
+}
+
+export interface FamilyGroupRecord {
+  id: string;
+  familyQrCodeId: string;
+  headUserId: string;
+  headName?: string;
+  headQrCodeId?: string;
+  familyName?: string;
+  members: FamilyGroupMemberRecord[];
+}
+
+export async function getFamilyGroupByQrCode(token: string, qrCode: string): Promise<FamilyGroupRecord | null> {
+  return request<FamilyGroupRecord | null>(`/site-manager/family-group?qrCode=${encodeURIComponent(qrCode)}`, {}, token);
+}
+
+export async function scanFamilyCheckIn(token: string, qrCode: string, centerId?: string) {
+  return request<any>("/site-manager/check-ins/scan", {
+    method: "POST",
+    body: JSON.stringify({ qrCode, centerId }),
+  }, token);
+}
+
+export async function checkOutFamilyGroup(token: string, familyQrCode: string) {
+  return request<{ checkedOut: number }>("/site-manager/check-ins/family-checkout", {
+    method: "POST",
+    body: JSON.stringify({ familyQrCode }),
+  }, token);
 }
 
 export interface SiteManagerCitizenRecord {
@@ -675,6 +985,7 @@ export async function createAdminReliefOperation(
 export async function createAdminDispatchOrder(
   token: string,
   payload: {
+    disasterId?: string;
     reportId: string;
     operationId: string;
     assignedTo: string;
@@ -817,3 +1128,4 @@ export async function submitIncidentReport(token: string, payload: {
     body: JSON.stringify(payload),
   }, token);
 }
+

@@ -235,7 +235,7 @@ export function CitizenHouseholdRegistrationScreen({
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={localStyles.screen} contentContainerStyle={localStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={localStyles.screen} contentContainerStyle={localStyles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Top Bar */}
         <View style={localStyles.topBar}>
           <TouchableOpacity onPress={onBack} style={localStyles.iconButton}>

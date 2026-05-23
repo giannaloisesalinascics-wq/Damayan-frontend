@@ -79,10 +79,7 @@ export function SiteManagerLoginScreen({
       onSubmit();
     } catch (caughtError) {
       console.error("[Login] ERROR:", caughtError);
-      const message =
-        caughtError instanceof ApiError
-          ? caughtError.message
-          : "Unable to sign in. Please try again.";
+      const message = caughtError instanceof Error ? caughtError.message : "Unable to sign in. Please try again.";
       setError(message);
       Alert.alert("Login Failed", message);
     } finally {
@@ -92,7 +89,7 @@ export function SiteManagerLoginScreen({
 
   return (
     <Screen style={{ backgroundColor: theme.bg }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.citizenShell}>
           {/* Background Blobs */}
           <View style={[styles.orb, styles.orb1, { backgroundColor: accent }]} />

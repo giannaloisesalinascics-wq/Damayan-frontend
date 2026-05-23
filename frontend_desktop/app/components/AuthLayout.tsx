@@ -7,18 +7,18 @@ import "./auth.css";
 export type PersonaType = "citizen" | "sm" | "dispatcher" | "admin";
 
 interface AuthLayoutProps {
-  persona: PersonaType;
-  portalName: string;
-  eyebrow: string;
-  headline: ReactNode;
-  subline: string;
-  brandAddon?: ReactNode;
-  badgeText?: string;
-  formTitle?: string;
-  formSub?: string;
-  switchText?: string;
-  switchLink?: string;
-  children: ReactNode;
+  readonly persona: PersonaType;
+  readonly portalName: string;
+  readonly eyebrow: string;
+  readonly headline: ReactNode;
+  readonly subline: string;
+  readonly brandAddon?: ReactNode;
+  readonly badgeText?: string;
+  readonly formTitle?: string;
+  readonly formSub?: string;
+  readonly switchText?: string;
+  readonly switchLink?: string;
+  readonly children: ReactNode;
 }
 
 export default function AuthLayout({
@@ -34,7 +34,7 @@ export default function AuthLayout({
   switchText,
   switchLink,
   children,
-}: AuthLayoutProps) {
+}: Readonly<AuthLayoutProps>) {
   return (
     <main className={`auth-root ${persona}-auth`}>
       {/* Decorative blobs */}
@@ -46,7 +46,7 @@ export default function AuthLayout({
         <div className="auth-brand-inner">
           <div className="auth-logo" style={{ display: 'flex', alignItems: 'center' }}>
              <div style={{ width: '56px', height: '56px', marginRight: '16px', flexShrink: 0 }}>
-               <img src="/damayan-logo.png" alt="Damayan Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+               <img src="/damayan_logo.svg" alt="Damayan Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
              </div>
             <div>
               <span className="auth-logo-name" style={{ color: '#FFC107' }}>DAMAYAN</span>
@@ -68,7 +68,7 @@ export default function AuthLayout({
         <div className="auth-panel-inner">
           <div className="auth-mobile-logo" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem', gap: '12px' }}>
              <div style={{ width: '42px', height: '42px', flexShrink: 0 }}>
-               <img src="/damayan-logo.png" alt="Damayan Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+               <img src="/damayan_logo.svg" alt="Damayan Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
              </div>
             <span className="auth-logo-name" style={{ color: '#FFC107' }}>DAMAYAN</span>
           </div>

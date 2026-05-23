@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, SafeAreaView, Dimensions, Pressable, Text, Modal, Platform, Image } from "react-native";
+import { View, StyleSheet, SafeAreaView, Pressable, Text, Modal, Platform, Image } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { lightTheme, darkTheme, fonts } from "../theme";
@@ -18,7 +18,7 @@ import { useSystemPhase } from "../context/SystemPhaseContext";
 import type { AuthSession } from "../types";
 
 export type Phase = "before" | "during" | "after";
-export type NavDestination = "Overview" | "Family & ID" | "Safety Map" | "Relief Status";
+export type NavDestination = "Overview" | "Family & ID" | "Safety Map";
 
 interface CitizenDashboardScreenProps {
   onSignOut: () => void;
@@ -125,10 +125,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
         setTargetStep("map");
         setPhaseOverride("during");
         break;
-      case "Relief Status":
-        setTargetStep("relief_claim");
-        setPhaseOverride("after");
-        break;
     }
   };
 
@@ -156,51 +152,54 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
       {!isEditingProfile && !isViewingFamilyGroup && (
         <SafeAreaView style={styles.headerSafe}>
           <View style={styles.headerInner}>
-            {/* Notification Bell */}
-            <NotificationBell
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onMarkRead={markRead}
-              onMarkAllRead={markAllRead}
-            />
-
-            {/* Logo / Brand Centered */}
-            <View style={styles.headerCenter}>
-              <Text style={styles.brandText}>DAMAYAN</Text>
-              <View style={[
-                styles.phaseIndicator, 
-                { backgroundColor: phase === 'before' ? (isDarkMode ? theme.surfaceAlt : '#eef1ea') : phase === 'during' ? (isDarkMode ? theme.surfaceAlt : '#fff4e5') : (isDarkMode ? theme.surfaceAlt : '#eef2ff') }
-              ]}>
-                 <Ionicons 
-                   name={phase === 'before' ? 'shield-checkmark' : phase === 'during' ? 'warning' : 'checkmark-done-circle'} 
-                   size={10} 
-                   color={phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info} 
-                 />
-                 <Text style={[
-                   styles.phaseText, 
-                   { color: phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info }
-                 ]}>
-                   {phase === 'before' ? 'PREPAREDNESS' : phase === 'during' ? 'RESPONSE MODE' : 'RECOVERY PHASE'}
-                 </Text>
+            {/* Logo / Brand Left */}
+            <View style={styles.headerLeft}>
+              <Image
+                source={require("../../assets/damayan-logo.png")}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
+              <View>
+                <Text style={styles.brandText}>DAMAYAN</Text>
+                <View style={[
+                  styles.phaseIndicator,
+                  { backgroundColor: phase === 'before' ? (isDarkMode ? theme.surfaceAlt : '#eef1ea') : phase === 'during' ? (isDarkMode ? theme.surfaceAlt : '#fff4e5') : (isDarkMode ? theme.surfaceAlt : '#eef2ff') }
+                ]}>
+                  <Ionicons
+                    name={phase === 'before' ? 'shield-checkmark' : phase === 'during' ? 'warning' : 'checkmark-done-circle'}
+                    size={10}
+                    color={phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info}
+                  />
+                  <Text style={[
+                    styles.phaseText,
+                    { color: phase === 'before' ? theme.primary : phase === 'during' ? theme.warning : theme.info }
+                  ]}>
+                    {phase === 'before' ? 'PREPAREDNESS' : phase === 'during' ? 'RESPONSE MODE' : 'RECOVERY PHASE'}
+                  </Text>
+                </View>
               </View>
             </View>
 
-            {/* Profile on the Right */}
-            <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
-              <View style={styles.profileTextContainer}>
-                <Text style={styles.headerProfileName}>{displayName}</Text>
-                <Text style={styles.headerProfileSub}>{citizenProfile?.registrationType?.toUpperCase() ?? 'CITIZEN'}</Text>
-              </View>
-              <View style={styles.avatar}>
-                {profilePhotoUrl ? (
-                  <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
-                ) : (
-                  <View style={styles.avatarInitials}>
-                    <Text style={styles.avatarInitialsText}>{initials}</Text>
-                  </View>
-                )}
-              </View>
-            </Pressable>
+            {/* Right: Notification Bell + Avatar */}
+            <View style={styles.headerRight}>
+              <NotificationBell
+                notifications={notifications}
+                unreadCount={unreadCount}
+                onMarkRead={markRead}
+                onMarkAllRead={markAllRead}
+              />
+              <Pressable onPress={() => setIsProfileOpen(true)} style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  {profilePhotoUrl ? (
+                    <Image source={{ uri: profilePhotoUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <View style={styles.avatarInitials}>
+                      <Text style={styles.avatarInitialsText}>{initials}</Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            </View>
           </View>
         </SafeAreaView>
       )}
@@ -212,12 +211,20 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             onBack={() => setTargetStep("dashboard")}
             onSave={(data) => {
               setTargetStep("dashboard");
+              if (data.updatedUser) setAuthUser(data.updatedUser);
             }}
+            onPhotoUpdated={(uri) => setProfilePhotoUrl(uri)}
             citizenProfile={citizenProfile}
             session={session}
+            latestProfile={authUser}
+            initialPhotoUrl={profilePhotoUrl}
           />
         ) : isViewingFamilyGroup ? (
-          <CitizenFamilyGroupScreen onBack={() => setTargetStep("dashboard")} />
+          <CitizenFamilyGroupScreen
+            onBack={() => { setTargetStep("dashboard"); setActiveNav("Overview"); }}
+            personalQrCodeId={citizenProfile?.qrCodeId}
+            citizenDisplayName={displayName !== 'Citizen' ? displayName : undefined}
+          />
         ) : (
           <>
             {phase === "before" && (
@@ -248,6 +255,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                     onOpenResponse={() => { setPhaseOverride("during"); setActiveNav("Safety Map"); setTargetStep("decision"); }}
                     onRegisterIndividual={() => setTargetStep("individual_registration")}
                     onRegisterHousehold={() => setTargetStep("household_registration")}
+                    onReportIncident={() => { setPhaseOverride("during"); setTargetStep("report_incident"); }}
                     initialStep={targetStep === "registration" ? "registration" : "dashboard"}
                     citizenProfile={citizenProfile}
                     authUser={authUser}
@@ -261,8 +269,8 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
             )}
             {phase === "during" && (
               <CitizenDuringScreen
-                onBack={() => setTargetStep("dashboard")}
-                initialStep={targetStep === "map" ? "map" : "decision"}
+                onBack={() => { setPhaseOverride(null); setTargetStep("dashboard"); }}
+                initialStep={targetStep === "report_incident" ? "report_incident" : "decision"}
                 session={session}
                 authUser={authUser}
                 qrCodeId={citizenProfile?.qrCodeId}
@@ -289,7 +297,6 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
               { id: "Overview", icon: "grid", label: "OVERVIEW" },
               { id: "Family & ID", icon: "people", label: "FAMILY & ID" },
               { id: "Safety Map", icon: "map", label: "SAFETY MAP" },
-              { id: "Relief Status", icon: "cube", label: "RELIEF STATUS" },
             ].map((item) => {
               const isActive = activeNav === item.id;
               return (
@@ -298,8 +305,7 @@ export default function CitizenDashboardScreen({ onSignOut }: CitizenDashboardSc
                   onPress={() => {
                     setActiveNav(item.id as NavDestination);
                     if (item.id === "Family & ID") { setTargetStep("family_group"); }
-                    else if (item.id === "Safety Map") { setPhaseOverride("during"); setTargetStep("map"); }
-                    else if (item.id === "Relief Status") { setPhaseOverride("after"); setTargetStep("relief_claim"); }
+                    else if (item.id === "Safety Map") { setPhaseOverride("during"); setTargetStep("decision"); }
                     else { setPhaseOverride(null); setTargetStep("dashboard"); }
                   }}
                   style={styles.navTab}
@@ -378,18 +384,28 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
-  headerCenter: {
-    flex: 1,
+  headerLeft: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 40,
+    gap: 10,
+    flex: 1,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   brandText: {
     ...fonts.black,
-    fontSize: 22,
+    fontSize: 18,
     color: theme.text,
-    letterSpacing: -1.2,
+    letterSpacing: -1,
   },
   phaseIndicator: {
     flexDirection: "row",
@@ -429,22 +445,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   avatarContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingLeft: 12,
-  },
-  profileTextContainer: {
-    alignItems: "flex-end",
-  },
-  headerProfileName: {
-    ...fonts.black,
-    fontSize: 16,
-    color: theme.text,
-  },
-  headerProfileSub: {
-    ...fonts.black,
-    fontSize: 10,
-    color: theme.textLight,
-    letterSpacing: 1,
   },
   avatar: {
     width: 48,

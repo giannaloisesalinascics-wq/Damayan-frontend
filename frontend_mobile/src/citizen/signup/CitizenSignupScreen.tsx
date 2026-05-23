@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   TextInput,
   StyleSheet,
-  Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { theme, fonts } from "../../theme";
-import { signup, getGovernmentIdUploadUrl, ApiError } from "../../api";
+import { signup, getGovernmentIdUploadUrl, getRegions, ApiError } from "../../api";
 import { saveSession } from "../../session";
 import { AppRole } from "../../types";
 
@@ -43,8 +44,11 @@ export function CitizenSignupScreen({
   // Step 2 – location
   const [address, setAddress] = useState("");
   const [barangay, setBarangay] = useState("");
-  const [municipality, setMunicipality] = useState("");
   const [province, setProvince] = useState("");
+  const [regionId, setRegionId] = useState("");
+  const [regionName, setRegionName] = useState("");
+  const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
+  const [regionModalVisible, setRegionModalVisible] = useState(false);
 
   // Step 3 – personal details
   const [gender, setGender] = useState("");
@@ -86,6 +90,15 @@ export function CitizenSignupScreen({
       console.error("Error picking document:", err);
     }
   }
+
+  useEffect(() => {
+    getRegions()
+      .then(setRegions)
+      .catch((err) => {
+        console.error("[Regions] fetch failed:", err);
+        setError("Could not load regions: " + (err?.message ?? "unknown error"));
+      });
+  }, []);
 
   useEffect(() => {
     const el = uploadBoxRef.current as any;
@@ -141,8 +154,12 @@ export function CitizenSignupScreen({
   }
 
   function validateStep2() {
-    if (!address.trim() || !barangay.trim() || !municipality.trim() || !province.trim()) {
+    if (!address.trim() || !barangay.trim() || !province.trim()) {
       setError("Please fill in all address fields.");
+      return false;
+    }
+    if (!regionId) {
+      setError("Please select a region.");
       return false;
     }
     return true;
@@ -205,8 +222,8 @@ export function CitizenSignupScreen({
         gender: gender || undefined,
         address: address.trim() || undefined,
         barangay: barangay.trim() || undefined,
-        municipality: municipality.trim() || undefined,
         province: province.trim() || undefined,
+        regionId: regionId || undefined,
       });
 
       const accessToken = result.access_token?.trim();
@@ -238,9 +255,37 @@ export function CitizenSignupScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {/* Region picker modal */}
+      <Modal visible={regionModalVisible} animationType="slide" transparent onRequestClose={() => setRegionModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: theme.line }}>
+              <Text style={{ fontSize: 16, ...fonts.black, color: theme.text }}>Select Region</Text>
+              <TouchableOpacity onPress={() => setRegionModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={regions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+                  onPress={() => { setRegionId(item.id); setRegionName(item.name); setRegionModalVisible(false); }}
+                >
+                  <Text style={{ fontSize: 15, color: theme.text, ...fonts.medium }}>{item.name}</Text>
+                  {regionId === item.id && <Ionicons name="checkmark" size={20} color="#004D40" />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={{ textAlign: "center", padding: 24, color: theme.textMuted }}>No regions available</Text>}
+            />
+          </View>
+        </View>
+      </Modal>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 160 }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Back button + header */}
         <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24 }}>
@@ -449,15 +494,15 @@ export function CitizenSignupScreen({
               </View>
 
               <View>
-                <Text style={s.label}>Municipality / City</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder="e.g. Legazpi City"
-                  placeholderTextColor={theme.textLight}
-                  value={municipality}
-                  onChangeText={setMunicipality}
-                  autoCapitalize="words"
-                />
+                <Text style={s.label}>Region</Text>
+                <TouchableOpacity
+                  style={[s.input, { justifyContent: "center" }]}
+                  onPress={() => setRegionModalVisible(true)}
+                >
+                  <Text style={{ color: regionName ? theme.text : theme.textLight, fontSize: 15 }}>
+                    {regionName || "Select your region"}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <View>

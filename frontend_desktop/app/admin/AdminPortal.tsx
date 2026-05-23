@@ -19,9 +19,17 @@ import {
   getPendingApprovals,
   approvePendingUser,
   rejectPendingUser,
-  getSystemHealth,
+  getRegions,
+  createRegion,
+  getRegionsGeo,
+  upsertRegionPersonaPhaseControl,
+  getRegionPersonaPhaseAudience,
+  getRegionAssignments,
+  createRegionAssignment,
+  deleteRegionAssignment,
+  getAvailableRegionUsers,
+  getRegionShelters,
   type AdminApprovalRecord,
-  type AdminSystemHealthRecord,
 } from "../lib/api";
 import { subscribeToLiveAlerts, type LiveAlertRecord } from "../lib/supabase";
 import type { AuthSession, DashboardOverview, DisasterEvent as BackendDisasterEvent } from "../lib/types";
@@ -36,7 +44,7 @@ type AdminPage =
   | "after_calamity"
   | "disaster_monitoring"
   | "early_warning"
-  | "system_health"
+  | "persona_controls"
   | "profile";
 
 type AccountStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -56,8 +64,6 @@ type WarningStep =
   | "deescalate"
   | "notify_passed";
 type CalamityState = "none" | "before" | "during" | "after";
-type ServiceStatus = "OPERATIONAL" | "DEGRADED" | "DOWN";
-
 interface FamilyMember {
   name: string;
   relation: string;
@@ -114,14 +120,6 @@ interface WarningConfig {
   message: string;
   useSMS: boolean;
   usePush: boolean;
-}
-
-interface ServiceHealth {
-  name: string;
-  status: ServiceStatus;
-  latency: string;
-  uptime: string;
-  note?: string;
 }
 
 interface AdminProfile {
@@ -322,11 +320,10 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
     { icon: "groups", label: "Family Records", desc: "View and manage registered family groups" },
     { icon: "crisis_alert", label: "Disaster Monitoring", desc: "Live feeds, forecasts, risk areas" },
     { icon: "campaign", label: "Early Warning", desc: "Configure and broadcast alerts" },
-    { icon: "monitor_heart", label: "System Health", desc: "Monitor all platform services" },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#0b0e1f", fontFamily: "Public Sans, sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#0b0e1f", fontFamily: "sans-serif" }}>
       {/* Left brand panel */}
       <div style={{
         width: "42%",
@@ -392,7 +389,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
               <p style={{ color: "#6b7494", fontSize: "0.88rem", lineHeight: 1.7, marginBottom: "1.5rem" }}>
                 Your Government ID has been submitted. An existing administrator will review and approve your account. You will be notified via email.
               </p>
-              <button onClick={() => { setWaitingVerification(false); setMode("login"); }} style={{ padding: "0.75rem 1.5rem", background: "#f5f6f8", border: "1.5px solid #e8eaed", borderRadius: "0.65rem", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "Public Sans, sans-serif" }}>
+              <button onClick={() => { setWaitingVerification(false); setMode("login"); }} style={{ padding: "0.75rem 1.5rem", background: "#f5f6f8", border: "1.5px solid #e8eaed", borderRadius: "0.65rem", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "sans-serif" }}>
                  Back to Login
               </button>
             </div>
@@ -432,7 +429,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     </button>
                   </>
                 )}
-                <button onClick={() => { setForgotMode(false); setOtpSent(false); }} style={{ background: "none", border: "none", color: "#6b7494", fontSize: "0.82rem", cursor: "pointer", fontFamily: "Public Sans, sans-serif", padding: 0, fontWeight: 600, textAlign: "left" }}>
+                <button onClick={() => { setForgotMode(false); setOtpSent(false); }} style={{ background: "none", border: "none", color: "#6b7494", fontSize: "0.82rem", cursor: "pointer", fontFamily: "sans-serif", padding: 0, fontWeight: 600, textAlign: "left" }}>
                    Back to Login
                 </button>
               </div>
@@ -442,7 +439,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
               {/* Tab switch */}
               <div style={{ display: "flex", background: "#f5f6f8", borderRadius: "0.75rem", padding: "3px", marginBottom: "1.5rem" }}>
                 {(["login", "register"] as const).map((m) => (
-                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "0.6rem", border: "none", borderRadius: "0.55rem", background: mode === m ? "#fff" : "transparent", fontWeight: mode === m ? 800 : 500, fontSize: "0.82rem", cursor: "pointer", color: mode === m ? "#1a1c2e" : "#6b7494", boxShadow: mode === m ? "0 2px 6px rgba(0,0,0,0.07)" : "none", fontFamily: "Public Sans, sans-serif", transition: "all 0.15s" }}>
+                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: "0.6rem", border: "none", borderRadius: "0.55rem", background: mode === m ? "#fff" : "transparent", fontWeight: mode === m ? 800 : 500, fontSize: "0.82rem", cursor: "pointer", color: mode === m ? "#1a1c2e" : "#6b7494", boxShadow: mode === m ? "0 2px 6px rgba(0,0,0,0.07)" : "none", fontFamily: "sans-serif", transition: "all 0.15s" }}>
                     {m === "login" ? "Login" : "Register"}
                   </button>
                 ))}
@@ -471,7 +468,7 @@ function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
                     <div className="admin-form-group">
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.45rem" }}>
                         <label className="admin-form-label" style={{ marginBottom: 0 }}>Password</label>
-                        <button onClick={() => setForgotMode(true)} style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", cursor: "pointer", fontWeight: 700, fontFamily: "Public Sans, sans-serif", padding: 0 }}>
+                        <button onClick={() => setForgotMode(true)} style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.75rem", cursor: "pointer", fontWeight: 700, fontFamily: "sans-serif", padding: 0 }}>
                           Forgot password?
                         </button>
                       </div>
@@ -558,7 +555,8 @@ function OverviewPage({
   setPage: (p: AdminPage) => void;
   overview: DashboardOverview | null;
 }) {
-  const pending = accounts.filter((a) => a.status === "PENDING").length;
+  const pendingAccounts = accounts.filter((a) => a.status === "PENDING");
+  const pending = pendingAccounts.length;
   const activeDisasters = disasters.filter((d) => d.phase !== "AFTER").length;
 
   return (
@@ -602,9 +600,9 @@ function OverviewPage({
       </div>
 
       <div className="admin-grid-56">
-        {/* Disaster events */}
-        <div>
-          <div className="admin-card" style={{ marginBottom: "1rem" }}>
+        {/* Disaster events + approvals */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          <div className="admin-card">
             <div className="admin-card-header">
               <div className="admin-card-title"> Active Disaster Events</div>
               <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => setPage("disaster_monitoring")}>View All</button>
@@ -654,6 +652,64 @@ function OverviewPage({
             </div>
           </div>
 
+          {/* Pending accounts */}
+          {pending > 0 && (
+            <div className="admin-card">
+              <div className="admin-card-header">
+                <div className="admin-card-title"> Pending Approvals</div>
+                <button className="admin-btn admin-btn-accent admin-btn-sm" onClick={() => setPage("approvals")}>Review All</button>
+              </div>
+              <div className="admin-card-body" style={{ padding: "0.75rem" }}>
+                {pendingAccounts
+                  .slice(0, 4)
+                  .map((a) => (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: "0.65rem", marginBottom: "0.4rem", background: "var(--admin-surface-low)" }}>
+                      <div style={{ width: "2rem", height: "2rem", borderRadius: "0.5rem", background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent))", display: "grid", placeItems: "center", color: "#fff", fontWeight: 800, fontSize: "0.75rem", flexShrink: 0 }}>
+                        {a.name[0]}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{a.name}</div>
+                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{a.role}  {a.area}</div>
+                      </div>
+                      <span className="admin-badge amber">{a.submitted}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quick actions + activity */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="admin-card">
+            <div className="admin-card-header"><div className="admin-card-title"> Quick Actions</div></div>
+            <div className="admin-card-body">
+              {[
+                { label: "Review Account Approvals", icon: "how_to_reg", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
+                { label: "People & Records", icon: "people", count: null, color: "var(--admin-blue)", page: "people_records" as AdminPage },
+                { label: "After Calamity", icon: "assignment_turned_in", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
+                { label: "Monitor Disasters", icon: "crisis_alert", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
+                { label: "Configure Early Warning", icon: "broadcast_on_home", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
+              ].map((qa) => (
+                <div
+                  key={qa.label}
+                  onClick={() => setPage(qa.page)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 0.9rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", cursor: "pointer", transition: "background 0.15s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--admin-surface-muted)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--admin-surface-low)")}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{qa.icon}</span>
+                  <span style={{ flex: 1, fontWeight: 700, fontSize: "0.82rem" }}>{qa.label}</span>
+                  {qa.count != null && qa.count > 0 ? (
+                    <span style={{ background: qa.color, color: "#fff", fontSize: "0.62rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px" }}>{qa.count}</span>
+                  ) : (
+                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}></span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Activity log */}
           {activityLog.length > 0 && (
             <div className="admin-card">
@@ -677,66 +733,6 @@ function OverviewPage({
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Quick actions + Pending */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div className="admin-card">
-            <div className="admin-card-header"><div className="admin-card-title"> Quick Actions</div></div>
-            <div className="admin-card-body">
-              {[
-                { label: "Review Account Approvals", icon: "how_to_reg", count: pending, color: "var(--admin-orange)", page: "approvals" as AdminPage },
-                { label: "People & Records", icon: "people", count: null, color: "var(--admin-blue)", page: "people_records" as AdminPage },
-                { label: "After Calamity", icon: "assignment_turned_in", count: null, color: "var(--admin-violet)", page: "after_calamity" as AdminPage },
-                { label: "Monitor Disasters", icon: "crisis_alert", count: activeDisasters, color: "var(--admin-red)", page: "disaster_monitoring" as AdminPage },
-                { label: "Configure Early Warning", icon: "broadcast_on_home", count: null, color: "var(--admin-violet)", page: "early_warning" as AdminPage },
-                { label: "System Health", icon: "monitor_heart", count: null, color: "var(--admin-green)", page: "system_health" as AdminPage },
-              ].map((qa) => (
-                <div
-                  key={qa.label}
-                  onClick={() => setPage(qa.page)}
-                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 0.9rem", background: "var(--admin-surface-low)", borderRadius: "0.65rem", marginBottom: "0.5rem", cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--admin-surface-muted)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--admin-surface-low)")}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{qa.icon}</span>
-                  <span style={{ flex: 1, fontWeight: 700, fontSize: "0.82rem" }}>{qa.label}</span>
-                  {qa.count != null && qa.count > 0 ? (
-                    <span style={{ background: qa.color, color: "#fff", fontSize: "0.62rem", fontWeight: 800, padding: "2px 8px", borderRadius: "999px" }}>{qa.count}</span>
-                  ) : (
-                    <span style={{ color: "var(--admin-text-soft)", fontSize: "0.82rem" }}></span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Pending accounts */}
-          {pending > 0 && (
-            <div className="admin-card">
-              <div className="admin-card-header">
-                <div className="admin-card-title"> Pending Approvals</div>
-                <button className="admin-btn admin-btn-accent admin-btn-sm" onClick={() => setPage("approvals")}>Review All</button>
-              </div>
-              <div className="admin-card-body" style={{ padding: "0.75rem" }}>
-                {accounts
-                  .filter((a) => a.status === "PENDING")
-                  .slice(0, 3)
-                  .map((a) => (
-                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.65rem 0.75rem", borderRadius: "0.65rem", marginBottom: "0.4rem", background: "var(--admin-surface-low)" }}>
-                      <div style={{ width: "2rem", height: "2rem", borderRadius: "0.5rem", background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent))", display: "grid", placeItems: "center", color: "#fff", fontWeight: 800, fontSize: "0.75rem", flexShrink: 0 }}>
-                        {a.name[0]}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{a.name}</div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--admin-text-soft)" }}>{a.role}  {a.area}</div>
-                      </div>
-                      <span className="admin-badge amber">{a.submitted}</span>
-                    </div>
-                  ))}
               </div>
             </div>
           )}
@@ -767,6 +763,9 @@ function ApprovalsPage({
   dataStatus: "live" | "unavailable";
 }) {
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"az" | "za" | "newest" | "oldest">("az");
   const [rejectTarget, setRejectTarget] = useState<PendingAccount | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [docsTarget, setDocsTarget] = useState<PendingAccount | null>(null);
@@ -775,6 +774,33 @@ function ApprovalsPage({
   const pending = accounts.filter((a) => a.status === "PENDING");
   const approved = accounts.filter((a) => a.status === "APPROVED");
   const rejected = accounts.filter((a) => a.status === "REJECTED");
+  const roleOptions = Array.from(new Set(accounts.map((a) => a.role))).sort((a, b) => a.localeCompare(b));
+
+  const parseSubmitted = (value: string) => {
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const filterAndSortAccounts = (list: PendingAccount[]) => {
+    const needle = search.trim().toLowerCase();
+
+    return list
+      .filter((a) => roleFilter === "all" || a.role === roleFilter)
+      .filter((a) => {
+        if (!needle) return true;
+        return [a.name, a.role, a.area, a.email, a.id].some((field) => field.toLowerCase().includes(needle));
+      })
+      .sort((a, b) => {
+        if (sortBy === "za") return b.name.localeCompare(a.name);
+        if (sortBy === "newest") return parseSubmitted(b.submitted) - parseSubmitted(a.submitted);
+        if (sortBy === "oldest") return parseSubmitted(a.submitted) - parseSubmitted(b.submitted);
+        return a.name.localeCompare(b.name);
+      });
+  };
+
+  const visiblePending = filterAndSortAccounts(pending);
+  const visibleApproved = filterAndSortAccounts(approved);
+  const visibleRejected = filterAndSortAccounts(rejected);
 
   const handleReject = () => {
     if (!rejectTarget || !rejectReason.trim()) return;
@@ -890,16 +916,43 @@ function ApprovalsPage({
         </button>
       </div>
 
+      <div className="admin-filter-bar">
+        <div className="admin-filter-search">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            className="admin-form-input"
+            placeholder="Search by name, role, area, email, or ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select className="admin-form-select admin-filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+          <option value="all">All roles</option>
+          {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+        </select>
+        <select className="admin-form-select admin-filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+          <option value="az">Name A-Z</option>
+          <option value="za">Name Z-A</option>
+          <option value="newest">Newest submitted</option>
+          <option value="oldest">Oldest submitted</option>
+        </select>
+        {(search || roleFilter !== "all" || sortBy !== "az") && (
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => { setSearch(""); setRoleFilter("all"); setSortBy("az"); }}>
+            Clear
+          </button>
+        )}
+      </div>
+
       {tab === "pending" && (
-        pending.length === 0 ? (
+        visiblePending.length === 0 ? (
           <div className="admin-card" style={{ padding: "3rem", textAlign: "center", color: "var(--admin-text-soft)" }}>
             <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}></div>
-            <div style={{ fontWeight: 700, fontSize: "1rem" }}>All caught up  no pending applications.</div>
+            <div style={{ fontWeight: 700, fontSize: "1rem" }}>{pending.length === 0 ? "All caught up  no pending applications." : "No pending applications match the filters."}</div>
           </div>
-        ) : pending.map((a) => renderAccount(a, true))
+        ) : visiblePending.map((a) => renderAccount(a, true))
       )}
-      {tab === "approved" && (approved.length === 0 ? <div className="admin-card" style={{ padding: "2rem", textAlign: "center", color: "var(--admin-text-soft)" }}>No approved accounts yet.</div> : approved.map((a) => renderAccount(a, false)))}
-      {tab === "rejected" && (rejected.length === 0 ? <div className="admin-card" style={{ padding: "2rem", textAlign: "center", color: "var(--admin-text-soft)" }}>No rejected accounts.</div> : rejected.map((a) => renderAccount(a, false)))}
+      {tab === "approved" && (visibleApproved.length === 0 ? <div className="admin-card" style={{ padding: "2rem", textAlign: "center", color: "var(--admin-text-soft)" }}>{approved.length === 0 ? "No approved accounts yet." : "No approved accounts match the filters."}</div> : visibleApproved.map((a) => renderAccount(a, false)))}
+      {tab === "rejected" && (visibleRejected.length === 0 ? <div className="admin-card" style={{ padding: "2rem", textAlign: "center", color: "var(--admin-text-soft)" }}>{rejected.length === 0 ? "No rejected accounts." : "No rejected accounts match the filters."}</div> : visibleRejected.map((a) => renderAccount(a, false)))}
 
       {/* View Docs Modal */}
       {docsTarget && (
@@ -992,26 +1045,40 @@ function ApprovalsPage({
 function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
   const [tab, setTab] = useState<"individual" | "family">("individual");
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"az" | "za" | "role" | "area" | "household">("az");
   const [selectedAccount, setSelectedAccount] = useState<PendingAccount | null>(null);
 
   const allApproved = accounts.filter((a) => a.status === "APPROVED");
   const familyAccounts = accounts.filter(
     (a) => a.status === "APPROVED" && a.familyMembers && a.familyMembers.length > 0
   );
+  const roleOptions = Array.from(new Set(allApproved.map((a) => a.role))).sort((a, b) => a.localeCompare(b));
+  const areaOptions = Array.from(new Set(allApproved.map((a) => a.area).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
-  const filteredIndividual = allApproved.filter(
-    (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.area.toLowerCase().includes(search.toLowerCase()) ||
-      a.role.toLowerCase().includes(search.toLowerCase()) ||
-      a.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const applyPeopleFilters = (list: PendingAccount[]) => {
+    const needle = search.trim().toLowerCase();
 
-  const filteredFamily = familyAccounts.filter(
-    (a) =>
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.area.toLowerCase().includes(search.toLowerCase())
-  );
+    return list
+      .filter((a) => roleFilter === "all" || a.role === roleFilter)
+      .filter((a) => areaFilter === "all" || a.area === areaFilter)
+      .filter((a) => {
+        if (!needle) return true;
+        const memberNames = a.familyMembers?.map((m) => m.name).join(" ") ?? "";
+        return [a.name, a.role, a.area, a.email, a.id, memberNames].some((field) => field.toLowerCase().includes(needle));
+      })
+      .sort((a, b) => {
+        if (sortBy === "za") return b.name.localeCompare(a.name);
+        if (sortBy === "role") return a.role.localeCompare(b.role) || a.name.localeCompare(b.name);
+        if (sortBy === "area") return a.area.localeCompare(b.area) || a.name.localeCompare(b.name);
+        if (sortBy === "household") return ((b.familyMembers?.length ?? 0) + 1) - ((a.familyMembers?.length ?? 0) + 1);
+        return a.name.localeCompare(b.name);
+      });
+  };
+
+  const filteredIndividual = applyPeopleFilters(allApproved);
+  const filteredFamily = applyPeopleFilters(familyAccounts);
 
   const roleColor: Record<string, string> = {
     Dispatcher: "blue",
@@ -1040,13 +1107,13 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
         ] as { id: "individual" | "family"; icon: string; label: string }[]).map((t) => (
           <button
             key={t.id}
-            onClick={() => { setTab(t.id); setSearch(""); }}
+            onClick={() => { setTab(t.id); setSearch(""); setSortBy("az"); }}
             style={{
               display: "flex", alignItems: "center", gap: "0.45rem",
               padding: "0.5rem 1.1rem",
               border: "none", borderRadius: "0.45rem", cursor: "pointer",
               fontSize: "0.82rem", fontWeight: 800,
-              fontFamily: "Public Sans, sans-serif",
+              fontFamily: "sans-serif",
               background: tab === t.id ? "var(--admin-accent)" : "transparent",
               color: tab === t.id ? "#fff" : "var(--admin-text-soft)",
               transition: "all 0.15s",
@@ -1058,16 +1125,36 @@ function PeopleRecordsPage({ accounts }: { accounts: PendingAccount[] }) {
         ))}
       </div>
 
-      {/* Search */}
-      <div style={{ position: "relative", marginBottom: "1.25rem", maxWidth: "380px" }}>
-        <span className="material-symbols-outlined" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", fontSize: "1rem", color: "var(--admin-text-soft)" }}>search</span>
-        <input
-          className="admin-form-input"
-          placeholder={tab === "individual" ? "Search by name, role, area, or ID" : "Search by name or area"}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ paddingLeft: "2.25rem" }}
-        />
+      <div className="admin-filter-bar">
+        <div className="admin-filter-search">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            className="admin-form-input"
+            placeholder={tab === "individual" ? "Search by name, role, area, email, or ID" : "Search by head, member, area, or ID"}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select className="admin-form-select admin-filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+          <option value="all">All roles</option>
+          {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+        </select>
+        <select className="admin-form-select admin-filter-select" value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)}>
+          <option value="all">All areas</option>
+          {areaOptions.map((area) => <option key={area} value={area}>{area}</option>)}
+        </select>
+        <select className="admin-form-select admin-filter-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+          <option value="az">Name A-Z</option>
+          <option value="za">Name Z-A</option>
+          <option value="role">Role</option>
+          <option value="area">Area</option>
+          {tab === "family" && <option value="household">Household size</option>}
+        </select>
+        {(search || roleFilter !== "all" || areaFilter !== "all" || sortBy !== "az") && (
+          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={() => { setSearch(""); setRoleFilter("all"); setAreaFilter("all"); setSortBy("az"); }}>
+            Clear
+          </button>
+        )}
       </div>
 
       {/*  Individual Records Tab  */}
@@ -2249,6 +2336,7 @@ function DisasterMonitoringPage({
               </div>
             </div>
           </div>
+
         ))}
       </div>
 
@@ -2778,7 +2866,7 @@ function EarlyWarningPage({
                     display: "flex", flexDirection: "column", alignItems: "center", gap: "0.6rem",
                     padding: "1.25rem", border: "1.5px solid var(--admin-red-border)",
                     borderRadius: "0.85rem", cursor: "pointer", background: "var(--admin-red-bg)",
-                    color: "var(--admin-red)", fontFamily: "Public Sans, sans-serif",
+                    color: "var(--admin-red)", fontFamily: "sans-serif",
                     fontWeight: 800, fontSize: "0.88rem", transition: "all 0.15s",
                   }}
                 >
@@ -2791,7 +2879,7 @@ function EarlyWarningPage({
                     display: "flex", flexDirection: "column", alignItems: "center", gap: "0.6rem",
                     padding: "1.25rem", border: "1.5px solid var(--admin-green-border)",
                     borderRadius: "0.85rem", cursor: "pointer", background: "var(--admin-green-bg)",
-                    color: "var(--admin-green)", fontFamily: "Public Sans, sans-serif",
+                    color: "var(--admin-green)", fontFamily: "sans-serif",
                     fontWeight: 800, fontSize: "0.88rem", transition: "all 0.15s",
                   }}
                 >
@@ -2858,7 +2946,7 @@ function EarlyWarningPage({
                             background: sel ? "var(--admin-accent-light)" : "var(--admin-surface)",
                             color: sel ? "var(--admin-accent)" : "var(--admin-text-soft)",
                             fontSize: "0.75rem", fontWeight: sel ? 800 : 600,
-                            cursor: "pointer", fontFamily: "Public Sans, sans-serif",
+                            cursor: "pointer", fontFamily: "sans-serif",
                             transition: "all 0.15s",
                             display: "flex", alignItems: "center", gap: "0.3rem",
                           }}
@@ -3189,128 +3277,6 @@ function EarlyWarningPage({
 }
 
 // 
-//  SYSTEM HEALTH
-// 
-function SystemHealthPage({
-  showToast,
-  services,
-  refreshing,
-  onRefresh,
-}: {
-  showToast: (type: ToastItem["type"], title: string, sub?: string) => void;
-  services: ServiceHealth[];
-  refreshing: boolean;
-  onRefresh: () => Promise<boolean>;
-}) {
-  const degraded = services.filter((s) => s.status !== "OPERATIONAL");
-
-  const handleRecheck = () => {
-    void onRefresh().then((ok) => {
-      if (!ok) {
-        showToast("error", "Health Recheck Failed", "Could not reach backend health endpoint");
-        return;
-      }
-      showToast("success", "Health Rechecked", "Service statuses were refreshed from backend");
-    });
-  };
-
-  return (
-    <div className="admin-page">
-      <div className="admin-page-head">
-        <div>
-          <h2>System Health Monitor</h2>
-          <p>Live status of all DAMAYAN platform services and components</p>
-        </div>
-        <div className="admin-head-actions">
-          <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={handleRecheck} disabled={refreshing}>
-            {refreshing ? "Checking..." : "Recheck Health"}
-          </button>
-          {degraded.length === 0
-            ? <span className="admin-badge green"> All Systems Operational</span>
-            : <span className="admin-badge amber"> {degraded.length} Service(s) Degraded</span>
-          }
-        </div>
-      </div>
-
-      {degraded.length > 0 && (
-        <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon material-symbols-outlined">warning</span>
-          <div>
-            <strong>{degraded.length} service(s) are not fully operational:</strong>{" "}
-            {degraded.map((s) => s.name).join(", ")}.
-            Engineering team has been notified.
-            <button className="admin-btn admin-btn-danger admin-btn-xs" style={{ marginLeft: "0.75rem" }} onClick={() => showToast("warning", "Issue Escalated", "Engineering team notified via PagerDuty")}>
-              Escalate Issue
-            </button>
-          </div>
-        </div>
-      )}
-
-      {services.length === 0 && (
-        <div className="admin-alert warning" style={{ marginBottom: "1.25rem" }}>
-          <span className="admin-alert-icon material-symbols-outlined">warning</span>
-          <div>System health endpoint is unavailable. Showing live backend state only.</div>
-        </div>
-      )}
-
-      <div className="admin-stats-row admin-stats-4">
-        <div className="admin-stat green"><div className="admin-stat-label">Operational</div><div className="admin-stat-value">{services.filter((s) => s.status === "OPERATIONAL").length}</div></div>
-        <div className="admin-stat amber"><div className="admin-stat-label">Degraded</div><div className="admin-stat-value">{services.filter((s) => s.status === "DEGRADED").length}</div></div>
-        <div className="admin-stat red"><div className="admin-stat-label">Down</div><div className="admin-stat-value">{services.filter((s) => s.status === "DOWN").length}</div></div>
-        <div className="admin-stat blue"><div className="admin-stat-label">Total Services</div><div className="admin-stat-value">{services.length}</div></div>
-      </div>
-
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <div className="admin-card-title">Service Status</div>
-        </div>
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Status</th>
-                <th>Latency</th>
-                <th>Uptime (30d)</th>
-                <th>Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {services.map((svc) => (
-                <tr key={svc.name}>
-                  <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                      <div className={`admin-health-dot ${svc.status === "OPERATIONAL" ? "ok" : svc.status === "DEGRADED" ? "degraded" : "down"}`} />
-                      <span style={{ fontWeight: 700, fontSize: "0.82rem" }}>{svc.name}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`admin-badge ${svc.status === "OPERATIONAL" ? "green" : svc.status === "DEGRADED" ? "amber" : "red"}`}>
-                      {svc.status === "OPERATIONAL" ? " Operational" : svc.status === "DEGRADED" ? " Degraded" : " Down"}
-                    </span>
-                  </td>
-                  <td><span className="admin-mono">{svc.latency}</span></td>
-                  <td><span style={{ fontWeight: 700, color: parseFloat(svc.uptime) > 99.5 ? "var(--admin-green)" : "var(--admin-amber)" }}>{svc.uptime}</span></td>
-                  <td style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)", maxWidth: "14rem" }}>{svc.note || ""}</td>
-                  <td>
-                    {svc.status !== "OPERATIONAL" && (
-                      <button className="admin-btn admin-btn-success admin-btn-xs" onClick={handleRecheck} disabled={refreshing}>
-                        {refreshing ? "Checking..." : "Recheck"}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 
 //  PROFILE PAGE
 // 
 function ProfilePage({ profile, onSave, showToast }: { profile: AdminProfile; onSave: (p: AdminProfile) => Promise<boolean>; showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
@@ -3457,22 +3423,643 @@ function mapApprovalToAccount(record: AdminApprovalRecord): PendingAccount {
   };
 }
 
-function normalizeHealthStatus(status?: string): ServiceStatus {
-  const normalized = String(status ?? "").toUpperCase();
-  if (normalized === "OPERATIONAL" || normalized === "DEGRADED" || normalized === "DOWN") {
-    return normalized;
-  }
-  return "DOWN";
+// 
+//  Persona Phase Controls Page
+// 
+function MiniRegionMap({
+  regionsGeo,
+  shelters,
+  selectedRegionId,
+  onSelectRegion,
+}: {
+  regionsGeo: Array<{ id: string; name: string; geojson: any }>;
+  shelters: Array<{ id: string; name: string; lat: number; lng: number }>;
+  selectedRegionId?: string;
+  onSelectRegion: (id: string) => void;
+}) {
+  const mapRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const layersRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (mapRef.current) return;
+
+    import('leaflet').then((L) => {
+      // Patch default icon
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      mapRef.current = L.map(containerRef.current, { zoomControl: false }).setView([14.5547, 121.0], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(mapRef.current);
+    });
+
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // clear previous layers
+    for (const l of layersRef.current) {
+      try { mapRef.current.removeLayer(l); } catch {}
+    }
+    layersRef.current = [];
+
+    import('leaflet').then((L) => {
+      // draw regions
+      const regionLayers: any[] = [];
+      for (const r of regionsGeo) {
+        try {
+          const layer = L.geoJSON(r.geojson, {
+            style: () => ({ color: r.id === selectedRegionId ? '#2563EB' : '#475569', weight: r.id === selectedRegionId ? 3 : 1, fillOpacity: r.id === selectedRegionId ? 0.12 : 0.06 }),
+          }).on('click', () => onSelectRegion(r.id));
+          layer.addTo(mapRef.current);
+          regionLayers.push(layer);
+        } catch (e) {
+          // ignore invalid geojson
+        }
+      }
+
+      // markers for shelters
+      const markerLayers: any[] = [];
+      for (const s of shelters) {
+        const m = L.marker([s.lat, s.lng]);
+        m.bindPopup(`<strong>${s.name}</strong>`);
+        m.on('click', () => onSelectRegion(selectedRegionId ?? ''));
+        m.addTo(mapRef.current);
+        markerLayers.push(m);
+      }
+
+      layersRef.current = [...regionLayers, ...markerLayers];
+
+      // fit bounds to selected region if available
+      const sel = regionLayers.find((rl) => (rl.feature && rl.feature.properties && rl.feature.properties.id) ? rl.feature.properties.id === selectedRegionId : false);
+      if (selectedRegionId && regionLayers.length > 0) {
+        try {
+          const group = L.featureGroup(regionLayers as any[]);
+          mapRef.current.fitBounds(group.getBounds(), { padding: [20, 20] });
+        } catch {}
+      } else if (regionLayers.length > 0) {
+        try { mapRef.current.fitBounds(L.featureGroup(regionLayers as any[]).getBounds(), { padding: [20, 20] }); } catch {}
+      }
+    });
+  }, [regionsGeo, shelters, selectedRegionId, onSelectRegion]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: 260, borderRadius: 8, overflow: 'hidden' }} />;
 }
 
-function mapSystemHealthRecord(svc: AdminSystemHealthRecord): ServiceHealth {
-  return {
-    name: svc.name,
-    status: normalizeHealthStatus(svc.status),
-    latency: svc.latency ?? `${svc.latencyMs ?? 0}ms`,
-    uptime: svc.uptime ?? "",
-    note: svc.note,
+function RegionCenterPickerMap({
+  lat,
+  lng,
+  radiusKm,
+  onChange,
+}: {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  onChange: (lat: number, lng: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const circleRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+
+    import('leaflet').then((L) => {
+      mapRef.current = L.map(containerRef.current!, {
+        center: [lat, lng],
+        zoom: 12,
+        zoomControl: true,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(mapRef.current);
+
+      mapRef.current.on('click', (e: any) => {
+        const nextLat = Number(e?.latlng?.lat ?? lat);
+        const nextLng = Number(e?.latlng?.lng ?? lng);
+        onChange(nextLat, nextLng);
+      });
+    });
+
+    return () => {
+      try { mapRef.current?.remove(); } catch {}
+      mapRef.current = null;
+      markerRef.current = null;
+      circleRef.current = null;
+    };
+  }, [lat, lng, onChange]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    import('leaflet').then((L) => {
+      if (markerRef.current) {
+        try { mapRef.current.removeLayer(markerRef.current); } catch {}
+      }
+      if (circleRef.current) {
+        try { mapRef.current.removeLayer(circleRef.current); } catch {}
+      }
+
+      markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+      circleRef.current = L.circle([lat, lng], {
+        radius: Math.max(0.1, radiusKm) * 1000,
+        color: '#2563eb',
+        fillColor: '#2563eb',
+        fillOpacity: 0.12,
+        weight: 2,
+      }).addTo(mapRef.current);
+
+      mapRef.current.setView([lat, lng], mapRef.current.getZoom() ?? 12, { animate: false });
+    });
+  }, [lat, lng, radiusKm]);
+
+  return <div ref={containerRef} style={{ width: '100%', height: 260, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--admin-outline)' }} />;
+}
+
+function RegionPersonaControlsPage({ authToken, showToast }: { authToken?: string | null; showToast: (type: ToastItem["type"], title: string, sub?: string) => void }) {
+  const [regionId, setRegionId] = useState("");
+  const [regions, setRegions] = useState<Array<{ id: string; name: string; currentPhase: string }>>([]);
+  const [persona, setPersona] = useState<AppRole>(AppRole.CITIZEN);
+  const [phase, setPhase] = useState<"BEFORE" | "DURING" | "AFTER">("BEFORE");
+  const [visible, setVisible] = useState(true);
+  const [audience, setAudience] = useState<Array<{ authUserId: string; name: string; role: AppRole; assignedRegionId: string | null }>>([]);
+  const [saving, setSaving] = useState(false);
+  const [loadingAudience, setLoadingAudience] = useState(false);
+  const [assignments, setAssignments] = useState<Array<{ id: string; name: string; role: string; assignedAt?: string }>>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [newAssignUserId, setNewAssignUserId] = useState("");
+  const [newAssignRole, setNewAssignRole] = useState<string>("site_manager");
+  const [newAssignExpiry, setNewAssignExpiry] = useState<string | undefined>(undefined);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ authUserId: string; name: string; role: string }>>([]);
+  const [loadingAvailableUsers, setLoadingAvailableUsers] = useState(false);
+  const [newRegionName, setNewRegionName] = useState("");
+  const [newRegionLat, setNewRegionLat] = useState<string>("14.5995");
+  const [newRegionLng, setNewRegionLng] = useState<string>("120.9842");
+  const [newRegionRadiusKm, setNewRegionRadiusKm] = useState<string>("2");
+  const [creatingRegion, setCreatingRegion] = useState(false);
+
+  const handleCenterPick = useCallback((lat: number, lng: number) => {
+    setNewRegionLat(lat.toFixed(6));
+    setNewRegionLng(lng.toFixed(6));
+  }, []);
+
+  const handleSave = async () => {
+    if (!authToken) {
+      showToast("error", "Session expired", "Please re-login to continue.");
+      return;
+    }
+    if (!regionId.trim()) {
+      showToast("error", "Missing region", "Enter the region id first.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const res = await upsertRegionPersonaPhaseControl(authToken, regionId.trim(), {
+        personaRole: persona,
+        phase,
+        visibleToAssignedUsers: visible,
+      });
+
+      setAudience(res.audience ?? []);
+      showToast("success", "Saved", `${res.region.name}: ${res.control.personaRole} → ${res.control.phase} (${res.audience.length} users)`);
+    } catch (err: any) {
+      showToast("error", "Save failed", err?.message ?? "Unable to save regional control.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleLoadAudience = async () => {
+    if (!authToken) {
+      showToast("error", "Session expired", "Please re-login to continue.");
+      return;
+    }
+    if (!regionId.trim()) {
+      showToast("error", "Missing region", "Enter the region id first.");
+      return;
+    }
+
+    try {
+      setLoadingAudience(true);
+      const list = await getRegionPersonaPhaseAudience(authToken, regionId.trim(), persona);
+      setAudience(list ?? []);
+      showToast("info", "Audience loaded", `${list.length} assigned user(s) found.`);
+    } catch (err: any) {
+      showToast("error", "Load failed", err?.message ?? "Unable to load audience.");
+    } finally {
+      setLoadingAudience(false);
+    }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRegions() {
+      if (!authToken) return;
+      try {
+        const list = await getRegions(authToken);
+        if (!cancelled) setRegions(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadRegions();
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  const [regionsGeo, setRegionsGeo] = useState<Array<{ id: string; name: string; geojson: any }>>([]);
+  const [shelters, setShelters] = useState<Array<{ id: string; name: string; lat: number; lng: number }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGeo() {
+      if (!authToken) return;
+      try {
+        const list = await getRegionsGeo(authToken);
+        if (!cancelled) setRegionsGeo(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadGeo();
+    return () => { cancelled = true; };
+  }, [authToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadShelters() {
+      if (!authToken || !regionId) {
+        setShelters([]);
+        return;
+      }
+      try {
+        const list = await getRegionShelters(authToken, regionId);
+        if (!cancelled) setShelters(list ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    void loadShelters();
+    return () => { cancelled = true; };
+  }, [authToken, regionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAssignments() {
+      if (!authToken || !regionId) { setAssignments([]); return; }
+      try {
+        setLoadingAssignments(true);
+        const list = await getRegionAssignments(authToken, regionId);
+        if (!cancelled) setAssignments(list ?? []);
+      } catch (err) {
+        // ignore silently
+      } finally {
+        if (!cancelled) setLoadingAssignments(false);
+      }
+    }
+    void loadAssignments();
+    return () => { cancelled = true; };
+  }, [authToken, regionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAvailableUsers() {
+      if (!authToken || !regionId) {
+        if (!cancelled) setAvailableUsers([]);
+        return;
+      }
+      try {
+        setLoadingAvailableUsers(true);
+        const list = await getAvailableRegionUsers(authToken, regionId, newAssignRole);
+        if (!cancelled) setAvailableUsers(list ?? []);
+      } catch {
+        if (!cancelled) setAvailableUsers([]);
+      } finally {
+        if (!cancelled) setLoadingAvailableUsers(false);
+      }
+    }
+
+    void loadAvailableUsers();
+    return () => { cancelled = true; };
+  }, [authToken, regionId, newAssignRole, assignments.length]);
+
+  const handleCreateRegion = async () => {
+    if (!authToken) {
+      showToast("error", "Session expired", "Please re-login to continue.");
+      return;
+    }
+    if (!newRegionName.trim()) {
+      showToast("error", "Missing region name", "Enter a region name.");
+      return;
+    }
+
+    const lat = Number(newRegionLat);
+    const lng = Number(newRegionLng);
+    const radiusKm = Number(newRegionRadiusKm);
+
+    if (Number.isNaN(lat) || lat < -90 || lat > 90) {
+      showToast("error", "Invalid latitude", "Latitude must be between -90 and 90.");
+      return;
+    }
+    if (Number.isNaN(lng) || lng < -180 || lng > 180) {
+      showToast("error", "Invalid longitude", "Longitude must be between -180 and 180.");
+      return;
+    }
+    if (Number.isNaN(radiusKm) || radiusKm < 0.1 || radiusKm > 100) {
+      showToast("error", "Invalid radius", "Radius must be between 0.1 and 100 km.");
+      return;
+    }
+
+    try {
+      setCreatingRegion(true);
+      const created = await createRegion(authToken, {
+        name: newRegionName.trim(),
+        centerLat: lat,
+        centerLng: lng,
+        radiusKm,
+      });
+
+      const list = await getRegions(authToken);
+      setRegions(list ?? []);
+      setRegionId(created.id);
+      showToast("success", "Region created", `${created.name} is now available for assignment.`);
+      setNewRegionName("");
+    } catch (err: any) {
+      showToast("error", "Create region failed", err?.message ?? "Unable to create region.");
+    } finally {
+      setCreatingRegion(false);
+    }
+  };
+
+  const handleCreateRegionAssignment = async () => {
+    if (!authToken) { showToast("error", "Session expired", "Please re-login to continue."); return; }
+    if (!regionId) { showToast("error", "Missing region", "Select a region first."); return; }
+    if (!newAssignUserId.trim()) { showToast("error", "Missing user", "Enter the user's auth id to assign."); return; }
+    try {
+      await createRegionAssignment(authToken, regionId, { authUserId: newAssignUserId.trim(), role: newAssignRole, expiresAt: newAssignExpiry ?? null });
+      showToast("success", "Assigned", `User ${newAssignUserId} assigned as ${newAssignRole}`);
+      setNewAssignUserId("");
+      const list = await getRegionAssignments(authToken, regionId);
+      setAssignments(list ?? []);
+    } catch (err: any) {
+      showToast("error", "Assign failed", err?.message ?? "Unable to assign user to region.");
+    }
+  };
+
+  const handleDeleteRegionAssignment = async (assignmentId: string) => {
+    if (!authToken || !regionId) return;
+    try {
+      await deleteRegionAssignment(authToken, regionId, assignmentId);
+      showToast("success", "Removed", "Assignment deleted.");
+      const list = await getRegionAssignments(authToken, regionId);
+      setAssignments(list ?? []);
+    } catch (err: any) {
+      showToast("error", "Delete failed", err?.message ?? "Unable to remove assignment.");
+    }
+  };
+
+  return (
+    <div className="admin-page">
+      <div className="admin-page-head">
+        <div>
+          <h2>Persona Phase Controls</h2>
+          <p>Set per-region calamity phase visibility for a specific persona.</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+        <div>
+          <div style={{ maxWidth: '100%' }}>
+            <div className="admin-card" style={{ marginBottom: "0.9rem" }}>
+              <div className="admin-card-header">
+                <div className="admin-card-title">Create Region</div>
+              </div>
+              <div className="admin-card-body">
+                <div style={{ color: "var(--admin-text-soft)", marginBottom: 10 }}>Click on the map to pinpoint the center, then adjust the radius in kilometers.</div>
+                <RegionCenterPickerMap
+                  lat={Number(newRegionLat) || 14.5995}
+                  lng={Number(newRegionLng) || 120.9842}
+                  radiusKm={Number(newRegionRadiusKm) || 2}
+                  onChange={handleCenterPick}
+                />
+                <div className="admin-form-grid">
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Region Name</label>
+                    <input className="admin-form-input" value={newRegionName} onChange={(e) => setNewRegionName(e.target.value)} placeholder="e.g. Sampaloc Sector A" />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Center Latitude</label>
+                    <input className="admin-form-input" value={newRegionLat} onChange={(e) => setNewRegionLat(e.target.value)} placeholder="14.5995" />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Center Longitude</label>
+                    <input className="admin-form-input" value={newRegionLng} onChange={(e) => setNewRegionLng(e.target.value)} placeholder="120.9842" />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Radius (km)</label>
+                    <input className="admin-form-input" type="number" min="0.1" max="100" step="0.1" value={newRegionRadiusKm} onChange={(e) => setNewRegionRadiusKm(e.target.value)} placeholder="2" />
+                  </div>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Radius Slider</label>
+                    <input type="range" min="0.1" max="30" step="0.1" value={Number(newRegionRadiusKm) || 2} onChange={(e) => setNewRegionRadiusKm(e.target.value)} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.85rem" }}>
+                  <button className="admin-btn admin-btn-accent" onClick={handleCreateRegion} disabled={creatingRegion}>{creatingRegion ? "Creating..." : "Create Region"}</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-card">
+              <div className="admin-card-header">
+                <div className="admin-card-title">Region Persona Override</div>
+              </div>
+              <div className="admin-card-body">
+                <div className="admin-form-grid">
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Region</label>
+                    <select className="admin-form-input" value={regionId} onChange={(e) => setRegionId(e.target.value)}>
+                      <option value="">Select a region...</option>
+                      {regions.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name} {r.currentPhase ? `(${r.currentPhase})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Persona</label>
+                    <select className="admin-form-input" value={persona} onChange={(e) => setPersona(e.target.value as AppRole)}>
+                      <option value={AppRole.ADMIN}>admin</option>
+                      <option value={AppRole.DISPATCHER}>dispatcher</option>
+                      <option value={AppRole.LINE_MANAGER}>line_manager</option>
+                      <option value={AppRole.CITIZEN}>citizen</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Phase</label>
+                    <select className="admin-form-input" value={phase} onChange={(e) => setPhase(e.target.value as any)}>
+                      <option value="BEFORE">BEFORE</option>
+                      <option value="DURING">DURING</option>
+                      <option value="AFTER">AFTER</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Visible To Assigned Users</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                      <input id="visible-toggle" type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} />
+                      <label htmlFor="visible-toggle" style={{ margin: 0, color: "var(--admin-text-soft)" }}>Show this phase state to users assigned to the region</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.85rem" }}>
+                  <button className="admin-btn admin-btn-accent" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Override"}</button>
+                  <button className="admin-btn admin-btn-ghost" onClick={handleLoadAudience} disabled={loadingAudience}>{loadingAudience ? "Loading..." : "Load Audience"}</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: "0.9rem" }}>
+              <div className="admin-card-header"><div className="admin-card-title">Audience</div></div>
+              <div className="admin-card-body">
+                {audience.length === 0 ? (
+                  <div style={{ color: "var(--admin-text-soft)" }}>No users loaded. Use "Load Audience" or save an override to populate the list.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: "0.5rem" }}>
+                    {audience.map((u) => (
+                      <div key={u.authUserId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.45rem", borderRadius: "0.5rem", background: "var(--admin-surface-low)" }}>
+                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                          <div style={{ width: "2rem", height: "2rem", borderRadius: "0.4rem", background: "linear-gradient(135deg, var(--admin-accent-mid), var(--admin-accent))", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800 }}>{u.name?.[0] ?? "U"}</div>
+                          <div>
+                            <div style={{ fontWeight: 700 }}>{u.name}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--admin-text-soft)" }}>{u.role}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: "0.82rem", color: "var(--admin-text-soft)" }}>{u.assignedRegionId ?? "-"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: "0.9rem" }}>
+              <div className="admin-card-header"><div className="admin-card-title">Region Assignments</div></div>
+              <div className="admin-card-body">
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div style={{ color: "var(--admin-text-soft)", fontSize: "0.9rem" }}>Assign available site managers or dispatchers to this region.</div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Selected Region</label>
+                    <div style={{ fontWeight: 700 }}>{regions.find((r) => r.id === regionId)?.name ?? (regionId ? regionId : "None selected")}</div>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Role</label>
+                    <select className="admin-form-input" value={newAssignRole} onChange={(e) => setNewAssignRole(e.target.value)}>
+                      <option value="site_manager">site_manager</option>
+                      <option value="dispatcher">dispatcher</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Available Users</label>
+                    <select className="admin-form-input" value={newAssignUserId} onChange={(e) => setNewAssignUserId(e.target.value)}>
+                      <option value="">Select an available user...</option>
+                      {availableUsers.map((u) => (
+                        <option key={u.authUserId} value={u.authUserId}>
+                          {u.name} ({u.role}) - {u.authUserId}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingAvailableUsers ? (
+                      <div style={{ color: "var(--admin-text-soft)", marginTop: 6 }}>Loading available users...</div>
+                    ) : availableUsers.length === 0 ? (
+                      <div style={{ color: "var(--admin-text-soft)", marginTop: 6 }}>No available users for this role in the selected region.</div>
+                    ) : null}
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label className="admin-form-label">Expires At (optional)</label>
+                    <input className="admin-form-input" type="datetime-local" value={newAssignExpiry ?? ""} onChange={(e) => setNewAssignExpiry(e.target.value || undefined)} />
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="admin-btn admin-btn-accent" onClick={handleCreateRegionAssignment}>Assign</button>
+                    <button className="admin-btn admin-btn-ghost" onClick={() => { setNewAssignUserId(""); setNewAssignExpiry(undefined); }}>Clear</button>
+                  </div>
+
+                  <div style={{ marginTop: 8 }}>
+                    {loadingAssignments ? (
+                      <div style={{ color: "var(--admin-text-soft)" }}>Loading assignments...</div>
+                    ) : assignments.length === 0 ? (
+                      <div style={{ color: "var(--admin-text-soft)" }}>No assignments for this region.</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: 6 }}>
+                        {assignments.map((a) => (
+                          <div key={a.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.45rem", borderRadius: 6, background: "var(--admin-surface-low)" }}>
+                            <div>
+                              <div style={{ fontWeight: 700 }}>{a.name}</div>
+                              <div style={{ fontSize: "0.8rem", color: "var(--admin-text-soft)" }}>{a.role} - {a.assignedAt ? new Date(a.assignedAt).toLocaleString() : "just now"}</div>
+                            </div>
+                            <div>
+                              <button className="admin-btn admin-btn-ghost" onClick={() => handleDeleteRegionAssignment(a.id)}>Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside>
+          <div className="admin-card">
+            <div className="admin-card-header"><div className="admin-card-title">Region Directory</div></div>
+            <div className="admin-card-body">
+              <MiniRegionMap regionsGeo={regionsGeo} shelters={shelters} selectedRegionId={regionId} onSelectRegion={(id) => setRegionId(id)} />
+              <div style={{ marginTop: 8, maxHeight: 120, overflowY: 'auto' }}>
+                {regions.length === 0 ? (
+                  <div style={{ color: 'var(--admin-text-soft)' }}>No regions found.</div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {regions.map((r) => (
+                      <button key={r.id} className="admin-btn admin-btn-ghost" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => setRegionId(r.id)}>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontWeight: 700 }}>{r.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--admin-text-soft)' }}>{r.currentPhase ?? ''}</div>
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--admin-text-soft)' }}>Select</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
 // 
@@ -3496,8 +4083,6 @@ export default function AdminPortal() {
   });
   const [activityLog, setActivityLog] = useState<{ time: string; type: string; msg: string; col: string }[]>([]);
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [systemHealth, setSystemHealth] = useState<ServiceHealth[]>([]);
-  const [healthRefreshing, setHealthRefreshing] = useState(false);
   const [initialHydrating, setInitialHydrating] = useState(true);
   const [approvalsDataStatus, setApprovalsDataStatus] = useState<"live" | "unavailable">("unavailable");
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -3511,30 +4096,6 @@ export default function AdminPortal() {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const toastRef = useRef(0);
-
-  const refreshSystemHealth = useCallback(async (tokenOverride?: string) => {
-    const token = tokenOverride ?? loadSession()?.accessToken;
-    if (!token) {
-      setSystemHealth([]);
-      return false;
-    }
-
-    setHealthRefreshing(true);
-    try {
-      const health = await getSystemHealth(token);
-      if (health.length > 0) {
-        setSystemHealth(health.map(mapSystemHealthRecord));
-      } else {
-        setSystemHealth([]);
-      }
-      return true;
-    } catch {
-      setSystemHealth([]);
-      return false;
-    } finally {
-      setHealthRefreshing(false);
-    }
-  }, []);
 
   useEffect(() => {
     const stored = loadSession();
@@ -3638,12 +4199,11 @@ export default function AdminPortal() {
         disasterPromise,
         qrPromise,
         approvalsPromise,
-        refreshSystemHealth(token),
       ]);
       setInitialHydrating(false);
     }
     void hydrate();
-  }, [router, refreshSystemHealth]);
+  }, [router]);
 
   const showToast = useCallback((type: ToastItem["type"], title: string, sub?: string) => {
     const id = ++toastRef.current;
@@ -3849,7 +4409,7 @@ export default function AdminPortal() {
     after_calamity: { title: "After Calamity", sub: "Post-disaster response, relief deployment and reporting" },
     disaster_monitoring: { title: "Disaster Monitoring", sub: "Live feeds, event tracking, forecast analysis" },
     early_warning: { title: "Early Warning System", sub: "Configure and broadcast calamity warnings" },
-    system_health: { title: "System Health", sub: "Platform service status and uptime" },
+    persona_controls: { title: "Persona Phase Controls", sub: "Per-region phase overrides for specific personas" },
     profile: { title: "My Profile", sub: "Account settings and password management" },
   };
 
@@ -3860,7 +4420,7 @@ export default function AdminPortal() {
       {/*  SIDEBAR  */}
       <div className="admin-sidebar">
         <div className="admin-sb-brand">
-          <div className="admin-sb-mark">D</div>
+          <img src="/damayan_logo.svg" alt="Damayan" className="admin-sb-mark" />
           <div className="admin-sb-brand-text">
             <strong>Damayan</strong>
             <span>Admin Console</span>
@@ -3869,15 +4429,15 @@ export default function AdminPortal() {
 
         <div className="admin-sb-section">Navigation</div>
         <nav className="admin-sb-nav">
-          {([
-            { id: "overview", icon: "grid_view", label: "Overview" },
-            { id: "approvals", icon: "how_to_reg", label: "Approvals", badge: pending },
-            { id: "people_records", icon: "people", label: "People & Records" },
-            { id: "after_calamity", icon: "assignment_turned_in", label: "After Calamity" },
-            { id: "disaster_monitoring", icon: "crisis_alert", label: "Disaster Monitor" },
-            { id: "early_warning", icon: "broadcast_on_home", label: "Early Warning" },
-            { id: "system_health", icon: "monitor_heart", label: "System Health" },
-          ] as { id: AdminPage; icon: string; label: string; badge?: number }[]).map((item) => (
+            {([
+              { id: "overview", icon: "grid_view", label: "Overview" },
+              { id: "approvals", icon: "how_to_reg", label: "Approvals", badge: pending },
+              { id: "people_records", icon: "people", label: "People & Records" },
+              { id: "after_calamity", icon: "assignment_turned_in", label: "After Calamity" },
+              { id: "disaster_monitoring", icon: "crisis_alert", label: "Disaster Monitor" },
+              { id: "early_warning", icon: "broadcast_on_home", label: "Early Warning" },
+              { id: "persona_controls", icon: "groups", label: "Persona Phase Controls" },
+            ] as { id: AdminPage; icon: string; label: string; badge?: number }[]).map((item) => (
             <button
               key={item.id}
               className={`admin-nav-item ${page === item.id ? "active" : ""}`}
@@ -4025,13 +4585,8 @@ export default function AdminPortal() {
               authToken={session?.accessToken}
             />
           )}
-          {page === "system_health" && (
-            <SystemHealthPage
-              showToast={showToast}
-              services={systemHealth}
-              refreshing={healthRefreshing}
-              onRefresh={refreshSystemHealth}
-            />
+          {page === "persona_controls" && (
+            <RegionPersonaControlsPage authToken={session?.accessToken} showToast={showToast} />
           )}
           {page === "profile" && (
             <ProfilePage profile={profile} onSave={handleProfileSave} showToast={showToast} />
@@ -4070,4 +4625,3 @@ export default function AdminPortal() {
     </div>
   );
 }
-

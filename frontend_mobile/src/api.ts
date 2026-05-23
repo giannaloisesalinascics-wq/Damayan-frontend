@@ -1,4 +1,5 @@
 import type {
+  AppRole,
   AuthSession,
   CapacityCenter,
   CheckInRecord,
@@ -8,72 +9,119 @@ import type {
   InventoryItem,
   Organization,
 } from "./types";
+import Constants from "expo-constants";
+import { NativeModules, Platform } from "react-native";
 
-export interface AdminDisasterEventWithTickets extends DisasterEvent {
-  ticketCount?: number;
+function extractHostFromUri(uri?: string | null): string | null {
+  const raw = uri?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const hostWithOptionalPort = raw
+    .replace(/^exp:\/\//, "")
+    .replace(/^https?:\/\//, "")
+    .split(/[/?#]/)[0];
+
+  return hostWithOptionalPort.split(":")[0] || null;
 }
 
-export interface AdminDisasterEventsPayload {
-  disasterEvents: AdminDisasterEventWithTickets[];
-  aggregate?: {
-    totalDisasters?: number;
-    activeDisasters?: number;
-    totalTickets?: number;
+function getExpoHostUri(): string | null {
+  const expoConstants = Constants as typeof Constants & {
+    expoGoConfig?: { debuggerHost?: string | null };
+    manifest?: { debuggerHost?: string | null; hostUri?: string | null };
+    manifest2?: { extra?: { expoClient?: { hostUri?: string | null } } };
   };
+
+  const candidates = [
+    expoConstants.expoConfig?.hostUri,
+    expoConstants.expoGoConfig?.debuggerHost,
+    expoConstants.manifest?.hostUri,
+    expoConstants.manifest?.debuggerHost,
+    expoConstants.manifest2?.extra?.expoClient?.hostUri,
+  ];
+
+  for (const candidate of candidates) {
+    const host = extractHostFromUri(candidate);
+    if (host) return host;
+  }
+
+  return null;
 }
 
-export interface AdminApprovalRecord {
-  id: string;
-  authUserId?: string;
-  auth_user_id?: string;
-  firstName?: string;
-  first_name?: string;
-  lastName?: string;
-  last_name?: string;
-  email?: string | null;
-  phone?: string | null;
-  role?: string;
-  status?: string;
-  rejectReason?: string | null;
-  reject_reason?: string | null;
-  createdAt?: string;
-  created_at?: string;
+function getReactNativePackagerHost(): string | null {
+  const sourceCode = (NativeModules as { SourceCode?: { scriptURL?: string } }).SourceCode;
+  return extractHostFromUri(sourceCode?.scriptURL);
 }
 
-export interface AdminSystemHealthRecord {
-  name: string;
-  status: "OPERATIONAL" | "DEGRADED" | "DOWN";
-  latencyMs?: number;
-  latency?: string;
-  uptime?: string;
-  note?: string;
+function getWebHost(): string | null {
+  if (Platform.OS !== "web") {
+    return null;
+  }
+
+  const location = (globalThis as { location?: { hostname?: string } }).location;
+  return location?.hostname?.trim() || null;
 }
 
-export interface AdminWarningBroadcastPayload {
-  type: string;
-  severity: string;
-  areas: string[];
-  message: string;
-  useSMS: boolean;
-  usePush: boolean;
+function getApiFallbackHint(): string {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (configured) {
+    return "";
+  }
+
+  if (Platform.OS === "android") {
+    return " Set EXPO_PUBLIC_API_BASE_URL to your computer's LAN IP when using Expo Go on a physical Android device.";
+  }
+
+  if (Platform.OS === "ios") {
+    return " Set EXPO_PUBLIC_API_BASE_URL to your computer's LAN IP when using Expo Go on a physical iPhone.";
+  }
+
+  return "";
 }
 
-export interface AdminWarningBroadcastResult {
-  type: string;
-  severity: string;
-  areas: string[];
-  attempted: number;
-  delivered: number;
-  failed: number;
-  channels: {
-    sms: boolean;
-    push: boolean;
-  };
+export function getApiBaseUrl(): string {
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "");
+  if (configured) {
+    return configured;
+  }
+
+  const host = getWebHost() ?? getExpoHostUri() ?? getReactNativePackagerHost();
+  if (host) {
+    return `http://${host}:3001/api`;
+  }
+
+  return Platform.select({
+    android: "http://10.0.2.2:3001/api",
+    default: "http://localhost:3001/api",
+  }) as string;
 }
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://localhost:3001/api";
+const API_BASE_URL = getApiBaseUrl();
+
+function buildNetworkErrorMessage(detail?: string): string {
+  const detailSuffix = detail ? " (" + detail + ")" : "";
+  return "Unable to reach the backend at " + API_BASE_URL + "." + getApiFallbackHint() + detailSuffix;
+}
+
+function parseResponsePayload(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+}
+
+function getResponseErrorMessage(payload: unknown, status: number): string {
+  if (typeof payload === "object" && payload && "message" in payload) {
+    return String((payload as { message?: string }).message);
+  }
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  return `Request failed with status ${status}`;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -96,20 +144,24 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string) 
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    throw new ApiError(
+      buildNetworkErrorMessage(error instanceof Error ? error.message : undefined),
+      0,
+    );
+  }
 
   const text = await response.text();
-  const payload = text ? (JSON.parse(text) as unknown) : null;
+  const payload: unknown = text ? parseResponsePayload(text) : null;
 
   if (!response.ok) {
-    const message =
-      typeof payload === "object" && payload && "message" in payload
-        ? String((payload as { message?: string }).message)
-        : `Request failed with status ${response.status}`;
-    throw new ApiError(message, response.status);
+    throw new ApiError(getResponseErrorMessage(payload, response.status), response.status);
   }
 
   return payload as T;
@@ -143,6 +195,10 @@ export async function forgotPassword(payload: {
   });
 }
 
+export async function getRegions() {
+  return request<Array<{ id: string; name: string; currentPhase: string }>>("/regions");
+}
+
 export async function signup(payload: {
   firstName: string;
   lastName: string;
@@ -157,6 +213,7 @@ export async function signup(payload: {
   barangay?: string;
   municipality?: string;
   province?: string;
+  regionId?: string;
 }) {
   return request<{
     access_token: string;
@@ -184,6 +241,32 @@ export async function getGovernmentIdUploadUrl(params: {
   });
 }
 
+export async function getIncidentPhotoUploadUrl(token: string, fileName: string) {
+  return request<{
+    bucket: string;
+    objectPath: string;
+    signedUrl: string;
+    token: string;
+    path: string;
+  }>("/auth/uploads/incident-photo", {
+    method: "POST",
+    body: JSON.stringify({ fileName }),
+  }, token);
+}
+
+export async function getProfilePhotoUploadUrl(token: string, fileName: string) {
+  return request<{
+    bucket: string;
+    objectPath: string;
+    signedUrl: string;
+    token: string;
+    path: string;
+  }>("/auth/uploads/profile-photo", {
+    method: "POST",
+    body: JSON.stringify({ fileName }),
+  }, token);
+}
+
 export async function updateProfile(
   token: string,
   updates: {
@@ -196,6 +279,7 @@ export async function updateProfile(
     barangay?: string;
     municipality?: string;
     province?: string;
+    regionId?: string;
   },
 ) {
   return request<{ user: AuthSession["user"] }>("/auth/me", {
@@ -204,46 +288,92 @@ export async function updateProfile(
   }, token);
 }
 
-export async function getDashboard(scope: "admin" | "site-manager", token: string) {
-  const prefix = scope === "admin" ? "/admin" : "/site-manager";
-  return request<DashboardOverview>(`${prefix}/dashboard`, {}, token);
-}
-
-export async function getDisasterEvents(scope: "admin" | "site-manager", token: string) {
-  const prefix = scope === "admin" ? "/admin" : "/site-manager";
-  return request<DisasterEvent[] | AdminDisasterEventsPayload>(`${prefix}/disaster-events`, {}, token);
-}
-
-export async function updateAdminDisasterEvent(
+export async function updateMedical(
   token: string,
-  id: string,
-  payload: Partial<{
-    name: string;
-    type: string;
-    severityLevel: string;
-    affectedAreas: string[];
-    province: string;
-    dateStarted: string;
-    dateEnded: string;
-    status: string;
-    declaredBy: string;
-    coverImageKey: string;
-    notes: string;
-  }>,
+  updates: { bloodType?: string; medicalConditions?: string },
 ) {
-  return request<DisasterEvent>(`/admin/disaster-events/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
+  return request<any>("/citizen/medical", {
+    method: "PATCH",
+    body: JSON.stringify(updates),
   }, token);
+}
+
+export async function getDashboard(scope: "site-manager", token: string) {
+  return request<DashboardOverview>("/site-manager/dashboard", {}, token);
+}
+
+export async function getDisasterEvents(scope: "site-manager", token: string) {
+  return request<DisasterEvent[]>("/site-manager/disaster-events", {}, token);
+}
+
+export async function getInventory(scope: "admin" | "site-manager", token: string) {
+  const prefix = scope === "admin" ? "/admin" : "/site-manager";
+  return request<InventoryItem[]>(`${prefix}/inventory`, {}, token);
 }
 
 export async function getOrganizations(token: string) {
   return request<Organization[]>("/admin/organizations", {}, token);
 }
 
-export async function getInventory(scope: "admin" | "site-manager", token: string) {
-  const prefix = scope === "admin" ? "/admin" : "/site-manager";
-  return request<InventoryItem[]>(`${prefix}/inventory`, {}, token);
+export type RegionPhaseState = "BEFORE" | "DURING" | "AFTER";
+export type RegionPersonaAudienceMember = {
+  authUserId: string;
+  name: string;
+  role: AppRole;
+  assignedRegionId: string | null;
+};
+export type RegionPersonaPhaseControl = {
+  id: string;
+  regionId: string;
+  personaRole: AppRole;
+  phase: RegionPhaseState;
+  visibleToAssignedUsers: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export async function getRegionPersonaPhaseControls(token: string, regionId: string) {
+  return request<RegionPersonaPhaseControl[]>(`/admin/regions/${regionId}/persona-phase-controls`, {}, token);
+}
+
+export async function upsertRegionPersonaPhaseControl(
+  token: string,
+  regionId: string,
+  payload: {
+    personaRole?: AppRole;
+    personaRoles?: AppRole[];
+    phase: RegionPhaseState;
+    visibleToAssignedUsers?: boolean;
+  },
+) {
+  return request<{
+    region: { id: string; name: string };
+    control?: RegionPersonaPhaseControl;
+    controls: RegionPersonaPhaseControl[];
+    audience: RegionPersonaAudienceMember[];
+  }>(`/admin/regions/${regionId}/persona-phase-controls`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }, token);
+}
+
+export async function getRegionPersonaPhaseAudience(
+  token: string,
+  regionId: string,
+  personaRole?: AppRole | AppRole[],
+) {
+  const suffix = Array.isArray(personaRole)
+    ? personaRole.length
+      ? `?personaRoles=${encodeURIComponent(personaRole.join(","))}`
+      : ""
+    : personaRole
+      ? `?personaRole=${encodeURIComponent(personaRole)}`
+      : "";
+  return request<RegionPersonaAudienceMember[]>(
+    `/admin/regions/${regionId}/persona-phase-controls/audience${suffix}`,
+    {},
+    token,
+  );
 }
 
 export async function getCapacity(token: string) {
@@ -378,37 +508,6 @@ export async function createInventoryBatch(
 
 export async function getProfile(token: string) {
   return request<{ user: AuthSession["user"] }>("/auth/me", {}, token);
-}
-
-export async function getPendingApprovals(token: string) {
-  return request<AdminApprovalRecord[]>("/admin/approvals", {}, token);
-}
-
-export async function approvePendingUser(token: string, id: string) {
-  return request<AdminApprovalRecord>(`/admin/approvals/${id}/approve`, {
-    method: "PATCH",
-  }, token);
-}
-
-export async function rejectPendingUser(token: string, id: string, rejectReason: string) {
-  return request<AdminApprovalRecord>(`/admin/approvals/${id}/reject`, {
-    method: "PATCH",
-    body: JSON.stringify({ rejectReason }),
-  }, token);
-}
-
-export async function getSystemHealth(token: string) {
-  return request<AdminSystemHealthRecord[]>("/admin/system-health", {}, token);
-}
-
-export async function broadcastAdminWarning(
-  token: string,
-  payload: AdminWarningBroadcastPayload,
-) {
-  return request<AdminWarningBroadcastResult>("/admin/warnings/broadcast", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  }, token);
 }
 
 export async function registerCitizen(token: string, payload: {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,18 +10,26 @@ import {
   SafeAreaView,
   Platform,
   ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  FlatList,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { theme, fonts } from "../theme";
-import { updateProfile, type CitizenProfile } from "../api";
+import { updateProfile, updateMedical, getProfilePhotoUploadUrl, getRegions, type CitizenProfile } from "../api";
 import { loadSession } from "../session";
 import type { AuthSession } from "../types";
 
 interface CitizenProfileEditScreenProps {
   onBack: () => void;
   onSave: (data: any) => void;
+  onPhotoUpdated?: (uri: string) => void;
   citizenProfile?: CitizenProfile | null;
   session?: AuthSession | null;
+  latestProfile?: any;
+  initialPhotoUrl?: string | null;
 }
 
 const GENDERS = ["Male", "Female", "Prefer not to say"];
@@ -30,10 +38,15 @@ const BLOOD_TYPES = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−", "
 export function CitizenProfileEditScreen({
   onBack,
   onSave,
+  onPhotoUpdated,
   citizenProfile,
   session,
+  latestProfile,
+  initialPhotoUrl,
 }: CitizenProfileEditScreenProps) {
-  const userProfile = session?.user as any;
+  // latestProfile is the freshly fetched /auth/me result (has address fields)
+  // session.user is the stored session (may lack address fields)
+  const userProfile = latestProfile ?? (session?.user as any);
 
   const [firstName, setFirstName] = useState(
     citizenProfile?.firstName ?? userProfile?.firstName ?? "",
@@ -49,8 +62,21 @@ export function CitizenProfileEditScreen({
   // Address (from user_profiles)
   const [address, setAddress] = useState(userProfile?.address ?? "");
   const [barangay, setBarangay] = useState(userProfile?.barangay ?? "");
-  const [municipality, setMunicipality] = useState(userProfile?.municipality ?? "");
   const [province, setProvince] = useState(userProfile?.province ?? "");
+  const [regionId, setRegionId] = useState(userProfile?.assignedRegionId ?? "");
+  const [regionName, setRegionName] = useState("");
+  const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
+  const [regionModalVisible, setRegionModalVisible] = useState(false);
+
+  useEffect(() => {
+    getRegions().then((data) => {
+      setRegions(data);
+      if (userProfile?.assignedRegionId) {
+        const match = data.find((r) => r.id === userProfile.assignedRegionId);
+        if (match) setRegionName(match.name);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Personal (from user_profiles + register_citizens)
   const [gender, setGender] = useState(
@@ -61,11 +87,35 @@ export function CitizenProfileEditScreen({
     citizenProfile?.medicalConditions ?? "",
   );
 
+  // Current saved photo URL (passed from parent)
+  const [savedPhotoUri, setSavedPhotoUri] = useState<string | null>(initialPhotoUrl ?? null);
+  // Locally selected photo waiting for confirmation
+  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null);
+  const [pendingPhotoAsset, setPendingPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const [activeSection, setActiveSection] = useState<"account" | "address" | "health">("account");
+
+  async function handlePickPhoto() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets.length) return;
+    setPendingPhotoAsset(result.assets[0]);
+    setPendingPhotoUri(result.assets[0].uri);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -75,16 +125,56 @@ export function CitizenProfileEditScreen({
       const s = await loadSession();
       if (!s?.accessToken) throw new Error("Session expired. Please sign in again.");
 
-      await updateProfile(s.accessToken, {
+      // Upload pending photo — non-fatal so gender/address always save
+      let newPhotoUri: string | null = null;
+      if (pendingPhotoAsset) {
+        try {
+          const asset = pendingPhotoAsset;
+          const fileName = asset.uri.split("/").pop() ?? "profile.jpg";
+          const { signedUrl, objectPath } = await getProfilePhotoUploadUrl(s.accessToken, fileName);
+          const fileResponse = await fetch(asset.uri);
+          const blob = await fileResponse.blob();
+          const uploadRes = await fetch(signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": asset.mimeType ?? "image/jpeg" },
+            body: blob,
+          });
+          if (!uploadRes.ok) throw new Error(`Upload returned ${uploadRes.status}`);
+          await updateProfile(s.accessToken, { profilePhotoKey: objectPath });
+          newPhotoUri = asset.uri;
+        } catch (photoErr) {
+          console.warn("Profile photo upload failed:", photoErr);
+          // Don't block the rest of the save
+        }
+      }
+
+      const updated = await updateProfile(s.accessToken, {
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
         phone: phone.trim() || undefined,
         gender: gender || undefined,
         address: address.trim() || undefined,
         barangay: barangay.trim() || undefined,
-        municipality: municipality.trim() || undefined,
         province: province.trim() || undefined,
+        regionId: regionId || undefined,
       });
+
+      // Medical update is non-fatal — blood type & conditions live in register_citizens
+      try {
+        await updateMedical(s.accessToken, {
+          bloodType: bloodType || undefined,
+          medicalConditions: medicalConditions.trim() || undefined,
+        });
+      } catch {
+        // Silently skip if citizen registration record doesn't exist yet
+      }
+
+      if (newPhotoUri) {
+        setSavedPhotoUri(newPhotoUri);
+        setPendingPhotoUri(null);
+        setPendingPhotoAsset(null);
+        onPhotoUpdated?.(newPhotoUri);
+      }
 
       setSuccess(true);
       onSave({
@@ -99,6 +189,7 @@ export function CitizenProfileEditScreen({
         gender,
         bloodType,
         medicalConditions,
+        updatedUser: updated?.user,
       });
 
       setTimeout(() => {
@@ -160,10 +251,45 @@ export function CitizenProfileEditScreen({
         style={styles.content}
         contentContainerStyle={styles.contentInner}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Account ── */}
         {activeSection === "account" && (
           <View style={styles.section}>
+            {/* Profile Photo */}
+            <View style={styles.avatarRow}>
+              <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.8}>
+                <View style={styles.avatarCircle}>
+                  {pendingPhotoUri ? (
+                    <Image source={{ uri: pendingPhotoUri }} style={styles.avatarImage} />
+                  ) : savedPhotoUri ? (
+                    <Image source={{ uri: savedPhotoUri }} style={styles.avatarImage} />
+                  ) : (
+                    <Ionicons name="person" size={44} color={theme.textLight} />
+                  )}
+                </View>
+                <View style={styles.avatarEditBadge}>
+                  <Ionicons name="camera" size={14} color="#fff" />
+                </View>
+              </TouchableOpacity>
+
+              {pendingPhotoUri ? (
+                <View style={styles.avatarActions}>
+                  <Text style={[styles.avatarHint, { color: theme.primary }]}>
+                    New photo selected — tap Save to apply
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.avatarCancelBtn}
+                    onPress={() => { setPendingPhotoUri(null); setPendingPhotoAsset(null); }}
+                  >
+                    <Text style={styles.avatarCancelText}>✕ Discard</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={styles.avatarHint}>Tap to change photo</Text>
+              )}
+            </View>
+
             <Text style={styles.sectionTitle}>Personal Information</Text>
 
             <View style={styles.fieldRow}>
@@ -267,15 +393,15 @@ export function CitizenProfileEditScreen({
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Municipality / City</Text>
-              <TextInput
-                style={styles.input}
-                value={municipality}
-                onChangeText={setMunicipality}
-                placeholder="e.g. Legazpi City"
-                placeholderTextColor={theme.textLight}
-                autoCapitalize="words"
-              />
+              <Text style={styles.label}>Region</Text>
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: "center" }]}
+                onPress={() => setRegionModalVisible(true)}
+              >
+                <Text style={{ color: regionName ? theme.text : theme.textLight, fontSize: 15 }}>
+                  {regionName || "Select your region"}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.field}>
@@ -329,9 +455,6 @@ export function CitizenProfileEditScreen({
                 numberOfLines={4}
                 textAlignVertical="top"
               />
-              <Text style={styles.fieldHint}>
-                Blood type and medical conditions are saved when you update your citizen registration.
-              </Text>
             </View>
           </View>
         )}
@@ -362,6 +485,34 @@ export function CitizenProfileEditScreen({
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Region picker modal */}
+      <Modal visible={regionModalVisible} animationType="slide" transparent onRequestClose={() => setRegionModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: theme.line }}>
+              <Text style={{ fontSize: 16, ...fonts.black, color: theme.text }}>Select Region</Text>
+              <TouchableOpacity onPress={() => setRegionModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={regions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+                  onPress={() => { setRegionId(item.id); setRegionName(item.name); setRegionModalVisible(false); }}
+                >
+                  <Text style={{ fontSize: 15, color: theme.text, ...fonts.medium }}>{item.name}</Text>
+                  {regionId === item.id && <Ionicons name="checkmark" size={20} color="#004D40" />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={{ textAlign: "center", padding: 24, color: theme.textMuted }}>No regions available</Text>}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -569,5 +720,62 @@ const styles = StyleSheet.create({
     color: "#fff",
     textTransform: "uppercase",
     letterSpacing: 2,
+  },
+  avatarRow: {
+    alignItems: "center",
+    paddingBottom: 8,
+  },
+  avatarCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: theme.surface,
+    borderWidth: 2,
+    borderColor: theme.line,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  avatarHint: {
+    ...fonts.medium,
+    fontSize: 12,
+    color: theme.textLight,
+    marginTop: 8,
+  },
+  avatarActions: {
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  avatarCancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.line,
+    backgroundColor: theme.surface,
+  },
+  avatarCancelText: {
+    ...fonts.bold,
+    fontSize: 12,
+    color: theme.textMuted,
   },
 });

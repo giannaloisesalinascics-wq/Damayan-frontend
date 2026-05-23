@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
   ServiceUnavailableException,
@@ -9,7 +10,7 @@ import type { EmailSendRequest, GeoGeocodeAddressRequest, SmsSendRequest } from 
 
 @Injectable()
 export class ApiCenterService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
 
   async getStatus() {
     await this.authenticateClient();
