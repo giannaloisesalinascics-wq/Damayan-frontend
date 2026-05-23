@@ -201,7 +201,9 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     this.logger.log(`AuthService.login Payload: ${JSON.stringify(loginDto)}`);
-    const supabase = this.supabaseService.getClient() as any;
+    // Use a fresh isolated client so signInWithPassword's in-memory auth state
+    // doesn't leak into the shared service-role client and break concurrent RLS checks.
+    const supabase = this.supabaseService.createIsolatedClient() as any;
 
     const { data, error } = await this.withTimeout<any>(
       supabase.auth.signInWithPassword({
