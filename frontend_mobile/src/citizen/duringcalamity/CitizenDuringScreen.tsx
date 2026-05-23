@@ -18,7 +18,7 @@ import { theme } from "../../theme";
 import { styles } from "./CitizenDuringScreen.styles";
 import { submitIncidentReport, getIncidentPhotoUploadUrl } from "../../api";
 import { CitizenLiveMap, type EvacCenter } from "./CitizenLiveMap";
-import { formatCoordinates, manhattanDistanceMeters, resolveReadableAddress, sortByManhattanDistance } from "../../utils/geoUtils";
+import { formatCoordinates, manhattanDistanceMeters, manhattanRouteCoords, resolveReadableAddress, sortByManhattanDistance } from "../../utils/geoUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DuringStep =
@@ -179,29 +179,35 @@ export function CitizenDuringScreen({
     else if (initialStep) setStep(initialStep as DuringStep);
   }, [initialStep]);
 
-  // Fetch road route from OSRM when navigation step is active
+  // Compute route whenever navigation is active or the target shelter changes
   useEffect(() => {
     if (step !== "navigate_evacuation" || !userLocation) return;
     let cancelled = false;
 
+    // ── Step 1: Apply Manhattan grid route instantly (no network needed) ──────
+    const manhattan = manhattanRouteCoords(userLocation, selectedCenter);
+    setRouteCoords(manhattan);
+    setRouteDistanceMeters(null); // clear road distance while upgrading
+
+    // ── Step 2: Try OSRM for real road geometry ───────────────────────────────
     const { latitude: lat1, longitude: lon1 } = userLocation;
     const { latitude: lat2, longitude: lon2 } = selectedCenter;
     const url = `https://router.project-osrm.org/route/v1/foot/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
 
-    fetch(url)
+    fetch(url, { signal: AbortSignal.timeout(6000) })
       .then((r) => r.json())
       .then((data: any) => {
         if (cancelled || !data.routes?.[0]) return;
-        const coords: Array<{ latitude: number; longitude: number }> =
+        const roadCoords: Array<{ latitude: number; longitude: number }> =
           data.routes[0].geometry.coordinates.map(([lon, lat]: [number, number]) => ({
             latitude: lat,
             longitude: lon,
           }));
-        setRouteCoords(coords);
+        setRouteCoords(roadCoords);
         setRouteDistanceMeters(data.routes[0].distance);
       })
       .catch(() => {
-        // Network or OSRM unavailable — straight-line fallback stays in place
+        // OSRM unreachable — Manhattan grid route already shown, keep it
       });
 
     return () => { cancelled = true; };
