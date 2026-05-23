@@ -6467,6 +6467,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const [page, setPage] = useState<NavPage>("dashboard");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  incidentsRef.current = incidents;
   const [units, setUnits] = useState<Unit[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [dropdown, setDropdown] = useState(false);
@@ -6501,6 +6502,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
   const toast = useToast();
   const dropRef = useRef<HTMLDivElement>(null);
   const geocodeCacheRef = useRef<Record<string, [number, number]>>({});
+  const incidentsRef = useRef<Incident[]>([]);
 
   const syncProfile = async () => {
     const session = loadSession();
@@ -6720,7 +6722,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
       ),
     );
 
-    const incident = incidents.find((i) => i.id === targetId);
+    const incident = incidentsRef.current.find((i) => i.id === targetId);
 
     // Move volunteer pin to incident location on the map
     if (incident) {
@@ -7000,7 +7002,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
         <div className="dp-content">
           {page === "dashboard" && (
             <DashboardPage
-              incidents={incidents}
+              incidents={incidents.filter((i) => i.status !== "Resolved" && i.status !== "Invalid")}
               units={units}
               onDispatch={handleDashboardDispatch}
               onMarkInvalid={handleDashboardMarkInvalid}
