@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
+  FlatList,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { theme, fonts } from "../theme";
-import { updateProfile, updateMedical, getProfilePhotoUploadUrl, type CitizenProfile } from "../api";
+import { updateProfile, updateMedical, getProfilePhotoUploadUrl, getRegions, type CitizenProfile } from "../api";
 import { loadSession } from "../session";
 import type { AuthSession } from "../types";
 
@@ -60,8 +62,21 @@ export function CitizenProfileEditScreen({
   // Address (from user_profiles)
   const [address, setAddress] = useState(userProfile?.address ?? "");
   const [barangay, setBarangay] = useState(userProfile?.barangay ?? "");
-  const [municipality, setMunicipality] = useState(userProfile?.municipality ?? "");
   const [province, setProvince] = useState(userProfile?.province ?? "");
+  const [regionId, setRegionId] = useState(userProfile?.assignedRegionId ?? "");
+  const [regionName, setRegionName] = useState("");
+  const [regions, setRegions] = useState<Array<{ id: string; name: string }>>([]);
+  const [regionModalVisible, setRegionModalVisible] = useState(false);
+
+  useEffect(() => {
+    getRegions().then((data) => {
+      setRegions(data);
+      if (userProfile?.assignedRegionId) {
+        const match = data.find((r) => r.id === userProfile.assignedRegionId);
+        if (match) setRegionName(match.name);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Personal (from user_profiles + register_citizens)
   const [gender, setGender] = useState(
@@ -140,8 +155,8 @@ export function CitizenProfileEditScreen({
         gender: gender || undefined,
         address: address.trim() || undefined,
         barangay: barangay.trim() || undefined,
-        municipality: municipality.trim() || undefined,
         province: province.trim() || undefined,
+        regionId: regionId || undefined,
       });
 
       // Medical update is non-fatal — blood type & conditions live in register_citizens
@@ -378,15 +393,15 @@ export function CitizenProfileEditScreen({
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Municipality / City</Text>
-              <TextInput
-                style={styles.input}
-                value={municipality}
-                onChangeText={setMunicipality}
-                placeholder="e.g. Legazpi City"
-                placeholderTextColor={theme.textLight}
-                autoCapitalize="words"
-              />
+              <Text style={styles.label}>Region</Text>
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: "center" }]}
+                onPress={() => setRegionModalVisible(true)}
+              >
+                <Text style={{ color: regionName ? theme.text : theme.textLight, fontSize: 15 }}>
+                  {regionName || "Select your region"}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.field}>
@@ -470,6 +485,34 @@ export function CitizenProfileEditScreen({
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Region picker modal */}
+      <Modal visible={regionModalVisible} animationType="slide" transparent onRequestClose={() => setRegionModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "70%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: theme.line }}>
+              <Text style={{ fontSize: 16, ...fonts.black, color: theme.text }}>Select Region</Text>
+              <TouchableOpacity onPress={() => setRegionModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={regions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+                  onPress={() => { setRegionId(item.id); setRegionName(item.name); setRegionModalVisible(false); }}
+                >
+                  <Text style={{ fontSize: 15, color: theme.text, ...fonts.medium }}>{item.name}</Text>
+                  {regionId === item.id && <Ionicons name="checkmark" size={20} color="#004D40" />}
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={{ textAlign: "center", padding: 24, color: theme.textMuted }}>No regions available</Text>}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
