@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiCenterService } from '../../apicenter/apicenter.service.js';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard.js';
 import { RolesGuard } from '../../common/auth/roles.guard.js';
 import { Roles } from '../../common/auth/roles.decorator.js';
@@ -25,6 +26,8 @@ export class DispatcherIncidentReportsController {
   constructor(
     @Inject(DispatcherService)
     private readonly dispatcherService: DispatcherService,
+    @Inject(ApiCenterService)
+    private readonly apiCenterService: ApiCenterService,
   ) {}
 
   @Get('overview')
@@ -48,27 +51,19 @@ export class DispatcherIncidentReportsController {
       throw new BadRequestException('address query is required');
     }
 
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}&limit=1&countrycodes=ph`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'DAMAYAN-DisasterResponseSystem/1.0' } });
+    const result = await this.apiCenterService.geoGeocode(input);
+    const latitude = Number(result.latitude ?? result.lat);
+    const longitude = Number(result.longitude ?? result.lng);
 
-    if (!res.ok) {
-      throw new BadRequestException('Geocoding service unavailable');
-    }
-
-    const data = await res.json() as Array<{ lat: string; lon: string; display_name: string }>;
-
-    if (!data.length) {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       throw new BadRequestException('Unable to geocode address');
     }
 
-    const latitude = Number(data[0].lat);
-    const longitude = Number(data[0].lon);
-
     return {
-      formattedAddress: data[0].display_name ?? input,
+      formattedAddress: result.formattedAddress ?? result.formatted_address ?? input,
       latitude,
       longitude,
-      provider: 'nominatim',
+      provider: result.provider ?? 'apicenter',
     };
   }
 
