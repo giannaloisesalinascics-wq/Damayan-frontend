@@ -38,6 +38,7 @@ interface UserProfileRow {
   barangay?: string | null;
   municipality?: string | null;
   province?: string | null;
+  assigned_region_id?: string | null;
 }
 
 interface PasswordResetRequestRow {
@@ -125,6 +126,7 @@ export class AuthService {
         barangay: signupDto.barangay ?? null,
         municipality: signupDto.municipality ?? null,
         province: signupDto.province ?? null,
+        assigned_region_id: signupDto.regionId ?? null,
       });
 
     if (profileError) {
@@ -296,7 +298,7 @@ export class AuthService {
         this.withTimeout<any>(
           supabase
             .from('user_profiles')
-            .select('id, first_name, last_name, phone, role, status, auth_user_id, profile_photo_key, gender, address, barangay, municipality, province')
+            .select('id, first_name, last_name, phone, role, status, auth_user_id, profile_photo_key, gender, address, barangay, municipality, province, assigned_region_id')
             .eq('auth_user_id', userId)
             .maybeSingle(),
           'Profile lookup timed out while loading the current user.',
@@ -335,6 +337,7 @@ export class AuthService {
         barangay: resolvedProfile?.barangay ?? null,
         municipality: resolvedProfile?.municipality ?? null,
         province: resolvedProfile?.province ?? null,
+        assignedRegionId: resolvedProfile?.assigned_region_id ?? null,
       },
     };
   }
@@ -369,6 +372,9 @@ export class AuthService {
     }
     if (updateProfileDto.province !== undefined) {
       profileUpdates.province = updateProfileDto.province;
+    }
+    if (updateProfileDto.regionId !== undefined) {
+      profileUpdates.assigned_region_id = updateProfileDto.regionId;
     }
 
     if (Object.keys(profileUpdates).length > 0) {

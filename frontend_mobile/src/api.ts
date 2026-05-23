@@ -195,6 +195,10 @@ export async function forgotPassword(payload: {
   });
 }
 
+export async function getRegions() {
+  return request<Array<{ id: string; name: string; currentPhase: string }>>("/regions");
+}
+
 export async function signup(payload: {
   firstName: string;
   lastName: string;
@@ -209,6 +213,7 @@ export async function signup(payload: {
   barangay?: string;
   municipality?: string;
   province?: string;
+  regionId?: string;
 }) {
   return request<{
     access_token: string;
@@ -274,6 +279,7 @@ export async function updateProfile(
     barangay?: string;
     municipality?: string;
     province?: string;
+    regionId?: string;
   },
 ) {
   return request<{ user: AuthSession["user"] }>("/auth/me", {

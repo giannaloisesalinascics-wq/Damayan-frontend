@@ -61,4 +61,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   province?: string;
+
+  @IsOptional()
+  @IsString()
+  regionId?: string;
 }
