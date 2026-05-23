@@ -9,7 +9,6 @@ import { CreateDispatchOrderDto } from '../../dispatch-orders/dto/create-dispatc
 import { UpdateDispatchOrderDto } from '../../dispatch-orders/dto/update-dispatch-order.dto.js';
 import { DispatcherService } from './dispatcher.service.js';
 import { CreateDispatcherBroadcastDto } from './dto/create-dispatcher-broadcast.dto.js';
-import { ApiCenterService } from '../../apicenter/apicenter.service.js';
 
 interface RequestWithUser {
   user: {
@@ -26,8 +25,6 @@ export class DispatcherIncidentReportsController {
   constructor(
     @Inject(DispatcherService)
     private readonly dispatcherService: DispatcherService,
-    @Inject(ApiCenterService)
-    private readonly apiCenterService: ApiCenterService,
   ) {}
 
   @Get('overview')
@@ -51,20 +48,27 @@ export class DispatcherIncidentReportsController {
       throw new BadRequestException('address query is required');
     }
 
-    const result = await this.apiCenterService.geoGeocode(input);
-    const latitude = Number((result as any).latitude ?? (result as any).lat);
-    const longitude = Number((result as any).longitude ?? (result as any).lng);
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}&limit=1&countrycodes=ph`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'DAMAYAN-DisasterResponseSystem/1.0' } });
 
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (!res.ok) {
+      throw new BadRequestException('Geocoding service unavailable');
+    }
+
+    const data = await res.json() as Array<{ lat: string; lon: string; display_name: string }>;
+
+    if (!data.length) {
       throw new BadRequestException('Unable to geocode address');
     }
 
+    const latitude = Number(data[0].lat);
+    const longitude = Number(data[0].lon);
+
     return {
-      formattedAddress: (result as any).formattedAddress ?? (result as any).formatted_address ?? input,
+      formattedAddress: data[0].display_name ?? input,
       latitude,
       longitude,
-      placeId: (result as any).placeId ?? (result as any).place_id,
-      provider: (result as any).provider ?? 'apicenter',
+      provider: 'nominatim',
     };
   }
 
